@@ -1,0 +1,33 @@
+---
+description: Testing and definition-of-done standards
+alwaysApply: true
+---
+
+# Testing Rules
+
+Test business behavior, not only implementation details.
+
+Unit tests should cover:
+
+- Business rules
+- State transitions
+- Permission decisions
+- Calculations
+
+Integration tests should cover:
+
+- Database behavior
+- Transactions
+- Tenant isolation
+- API contracts
+
+E2E tests should cover representative user workflows.
+
+Every security-sensitive feature must include negative tests.
+
+Minimum tenant test pattern:
+
+Tenant A user
+→ cannot access Tenant B resource
+
+A feature is not done when CRUD works. It is done when validation, authorization, tenant isolation, UX states, business rules, and relevant tests work.

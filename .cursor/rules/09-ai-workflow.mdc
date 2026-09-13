@@ -1,0 +1,27 @@
+---
+description: AI-assisted development workflow for Cursor
+alwaysApply: true
+---
+
+# AI Development Workflow
+
+Before implementing:
+
+1. Identify the requested outcome.
+2. Read the relevant docs.
+3. Inspect existing code.
+4. Find similar implemented patterns.
+5. Identify affected database/API/security/frontend areas.
+6. State assumptions if requirements are incomplete.
+7. Implement the smallest coherent change.
+8. Run relevant tests/type checks/lint.
+9. Review the diff for security and architecture.
+10. Update documentation if behavior/architecture changed.
+
+Do not rewrite unrelated files.
+
+Do not create duplicate abstractions without checking the repository.
+
+If a requirement conflicts with an architectural rule, explain the conflict before changing the architecture.
+
+When uncertain, prefer the existing project pattern over generating a novel pattern.

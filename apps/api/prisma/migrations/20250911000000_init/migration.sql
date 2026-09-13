@@ -1,0 +1,2 @@
+-- Phase 0 foundation migration.
+-- PostgreSQL is configured; business models are added in later phases.

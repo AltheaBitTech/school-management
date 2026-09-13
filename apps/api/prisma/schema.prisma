@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum DepartmentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  OFFBOARDING
+  OFFBOARDED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  ON_LEAVE
+  HOLIDAY
+  WEEK_OFF
+}
+
+enum LeaveRequestStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum HalfDayPart {
+  FIRST_HALF
+  SECOND_HALF
+}
+
+model Organization {
+  id        String             @id @default(uuid()) @db.Uuid
+  name      String
+  code      String             @unique
+  status    OrganizationStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  settings    OrganizationSettings?
+  users       User[]
+  roles       Role[]
+  departments Department[]
+  staff       Staff[]
+  attendance  StaffAttendance[]
+  leaveTypes  LeaveType[]
+  leaveBalances LeaveBalance[]
+  leaveRequests LeaveRequest[]
+
+  @@index([status])
+}
+
+model OrganizationSettings {
+  id                     String   @id @default(uuid()) @db.Uuid
+  organizationId         String   @unique @db.Uuid
+  timezone               String   @default("UTC")
+  locale                 String   @default("en")
+  dateFormat             String   @default("YYYY-MM-DD")
+  attendancePolicy       Json?
+  leaveConfiguration     Json?
+  notificationDefaults   Json?
+  documentSettings       Json?
+  operationalPreferences Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  organizationId  String     @db.Uuid
+  email           String
+  passwordHash    String?
+  status          UserStatus @default(ACTIVE)
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  userRoles       UserRole[]
+  refreshSessions RefreshSession[]
+  staffProfile    Staff?
+  correctedAttendance StaffAttendance[] @relation("AttendanceCorrectedBy")
+  decidedLeaveRequests LeaveRequest[] @relation("LeaveRequestDecidedBy")
+
+  @@unique([organizationId, email])
+  @@index([organizationId, status])
+}
+
+model Role {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @db.Uuid
+  code           String
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  /// Organization-scoped uniqueness. Platform roles (organizationId = null) also rely on
+  /// manual SQL index Role_platform_code_key — see prisma/MIGRATION-NOTES.md.
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  roleId       String   @db.Uuid
+  permissionId String   @db.Uuid
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  roleId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+model RefreshSession {
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @db.Uuid
+  tokenHash           String    @unique
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  revokedReason       String?
+  replacedBySessionId String?   @unique @db.Uuid
+  userAgent           String?
+  ipAddress           String?
+  lastUsedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, revokedAt])
+}
+
+model Department {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  name           String
+  code           String
+  status         DepartmentStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  staff        Staff[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+}
+
+model Staff {
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @db.Uuid
+  employeeCode       String
+  userId             String?          @unique @db.Uuid
+  firstName          String
+  lastName           String
+  displayName        String?
+  mobile             String?
+  email              String?
+  departmentId       String?          @db.Uuid
+  designation        String?
+  joiningDate        DateTime?
+  lastWorkingDate    DateTime?
+  reportingManagerId String?          @db.Uuid
+  employmentStatus   EmploymentStatus @default(ACTIVE)
+  photoFileId        String?          @db.Uuid
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user             User?        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  department       Department?  @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  reportingManager Staff?       @relation("StaffReportingHierarchy", fields: [reportingManagerId], references: [id], onDelete: Restrict)
+  directReports    Staff[]      @relation("StaffReportingHierarchy")
+  attendance       StaffAttendance[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+
+  @@unique([organizationId, employeeCode])
+  @@index([organizationId, employeeCode])
+  @@index([organizationId, departmentId])
+  @@index([organizationId, employmentStatus])
+  @@index([organizationId, reportingManagerId])
+}
+
+model StaffAttendance {
+  id                    String           @id @default(uuid()) @db.Uuid
+  organizationId        String           @db.Uuid
+  staffId               String           @db.Uuid
+  attendanceDate        DateTime         @db.Date
+  checkInAt             DateTime?
+  checkOutAt            DateTime?
+  status                AttendanceStatus
+  lateFlag              Boolean          @default(false)
+  earlyDepartureFlag    Boolean          @default(false)
+  remarks               String?
+  correctionRequestedAt DateTime?
+  correctedByUserId     String?          @db.Uuid
+  correctedAt           DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  staff        Staff        @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  correctedBy  User?        @relation("AttendanceCorrectedBy", fields: [correctedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, staffId, attendanceDate])
+  @@index([organizationId, attendanceDate])
+  @@index([organizationId, status, attendanceDate])
+  @@index([organizationId, staffId])
+}
+
+model LeaveType {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String   @db.Uuid
+  name               String
+  code               String
+  description        String?
+  tracksBalance      Boolean  @default(true)
+  allowsHalfDay      Boolean  @default(false)
+  requiresReason     Boolean  @default(false)
+  requiresAttachment Boolean  @default(false)
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  balances     LeaveBalance[]
+  requests     LeaveRequest[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, active])
+}
+
+model LeaveBalance {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @db.Uuid
+  staffId          String   @db.Uuid
+  leaveTypeId      String   @db.Uuid
+  periodStart      DateTime @db.Date
+  periodEnd        DateTime @db.Date
+  openingBalance   Decimal  @default(0) @db.Decimal(6, 2)
+  allocatedAmount  Decimal  @default(0) @db.Decimal(6, 2)
+  usedAmount       Decimal  @default(0) @db.Decimal(6, 2)
+  pendingAmount    Decimal  @default(0) @db.Decimal(6, 2)
+  adjustmentAmount Decimal  @default(0) @db.Decimal(6, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  staff        Staff        @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  leaveType    LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, staffId, leaveTypeId, periodStart, periodEnd])
+  @@index([organizationId, staffId])
+  @@index([organizationId, leaveTypeId])
+}
+
+model LeaveRequest {
+  id               String             @id @default(uuid()) @db.Uuid
+  organizationId   String             @db.Uuid
+  staffId          String             @db.Uuid
+  leaveTypeId      String             @db.Uuid
+  startDate        DateTime           @db.Date
+  endDate          DateTime           @db.Date
+  duration         Decimal            @db.Decimal(6, 2)
+  halfDayPart      HalfDayPart?
+  reason           String?
+  attachmentFileId String?            @db.Uuid
+  status           LeaveRequestStatus @default(PENDING_APPROVAL)
+  submittedAt      DateTime           @default(now())
+  decidedAt        DateTime?
+  decidedByUserId  String?            @db.Uuid
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  staff          Staff        @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  leaveType      LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  decidedBy      User?        @relation("LeaveRequestDecidedBy", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, staffId])
+  @@index([organizationId, leaveTypeId])
+  @@index([organizationId, status])
+  @@index([organizationId, startDate, endDate])
+}

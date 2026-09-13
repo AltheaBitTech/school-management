@@ -1,0 +1,26 @@
+{
+  "name": "campusops",
+  "private": true,
+  "description": "CampusOps — multi-tenant School Operations Management SaaS",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @campusops/api --filter @campusops/web dev",
+    "dev:api": "pnpm --filter @campusops/api dev",
+    "dev:web": "pnpm --filter @campusops/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres",
+    "prisma:validate": "pnpm --filter @campusops/api prisma:validate",
+    "prisma:generate": "pnpm --filter @campusops/api prisma:generate",
+    "prisma:seed": "pnpm --filter @campusops/api prisma:seed",
+    "bootstrap:platform-admin": "pnpm --filter @campusops/api bootstrap:platform-admin",
+    "prisma:migrate:dev": "pnpm --filter @campusops/api prisma:migrate:dev"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.9"
+}

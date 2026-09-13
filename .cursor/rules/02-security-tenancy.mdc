@@ -1,0 +1,53 @@
+---
+description: Mandatory security, RBAC, tenant isolation, and authorization rules
+alwaysApply: true
+---
+
+# Security Rules
+
+The backend is the security boundary.
+
+Every protected operation must enforce:
+
+Authentication
+→ Organization context
+→ Permission
+→ Resource authorization
+→ Business rules
+
+## Tenant isolation
+
+Never trust a client-supplied `organizationId`.
+
+Derive organization context from authenticated identity/session and scope every tenant-owned query.
+
+When resolving related resources, verify that all resources belong to the same organization.
+
+## BOLA/IDOR
+
+For every resource ID:
+
+1. Resolve within authorized organization.
+2. Verify permission.
+3. Verify resource-level access.
+4. Perform the action.
+
+Do not use UUIDs as a substitute for authorization.
+
+## RBAC
+
+Use explicit permissions such as:
+
+`staff.view`
+`attendance.mark`
+`leave.approve`
+`asset.transfer`
+`audit.view`
+
+Frontend permission checks are UX only.
+
+## Sensitive data
+
+Never log passwords, tokens, API keys, or unnecessary sensitive personal data.
+
+Protected files must be private by default and authorization must occur before download.

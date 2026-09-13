@@ -1,0 +1,39 @@
+---
+description: Module ownership, layering, and architecture rules
+alwaysApply: true
+---
+
+# Architecture Rules
+
+Use:
+
+Controller
+→ Application/Domain Service
+→ Data access / Prisma
+→ PostgreSQL
+
+Controllers should coordinate HTTP concerns, not contain business logic.
+
+Business modules own their business state:
+
+- Staff owns Staff
+- Attendance owns StaffAttendance
+- Leave owns LeaveRequest/LeaveBalance
+- Assets owns Asset state
+- Complaints owns Complaint state
+- Notices owns Notice state
+
+Shared capabilities include:
+
+- Auth
+- RBAC
+- Notifications
+- Files
+- Approvals
+- Audit
+- Activity
+- Reporting
+
+Reuse existing capabilities instead of creating local duplicates.
+
+Avoid circular module dependencies. If two modules need to communicate, prefer a clear application service boundary or domain event rather than importing internal implementation details.

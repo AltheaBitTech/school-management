@@ -1,0 +1,39 @@
+---
+description: NestJS backend implementation conventions
+globs: ["apps/api/**/*.ts"]
+---
+
+# NestJS Rules
+
+Follow the existing module structure before creating new folders.
+
+Typical structure:
+
+module/
+├── module.controller.ts
+├── module.service.ts
+├── dto/
+├── policies/
+└── ...
+
+Use DTOs for request validation.
+
+Keep controllers thin.
+
+Put business rules in services/domain/application logic.
+
+Use Prisma through the established data-access pattern.
+
+Use transactions for multi-step state changes such as:
+
+- Leave approval + balance
+- Asset transfer
+- Fee payment
+- Attendance correction
+- Approval completion
+
+Use explicit state transitions rather than arbitrary status updates.
+
+Return predictable API errors with stable machine-readable error codes.
+
+Do not expose internal exceptions or stack traces in production.

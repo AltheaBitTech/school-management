@@ -1,0 +1,33 @@
+---
+description: Next.js frontend architecture and UX conventions
+globs: ["apps/web/**/*.ts", "apps/web/**/*.tsx"]
+---
+
+# Frontend Rules
+
+Use Next.js App Router and the established feature-oriented structure.
+
+Use the centralized API client. Do not scatter raw fetch logic across components.
+
+Use the established server-state/query approach for server data.
+
+Use the established form validation approach.
+
+UI should use MUI or the project's chosen mature design system.
+
+Every meaningful screen should handle:
+
+- Loading
+- Empty
+- Error
+- Success
+- Permission-denied
+- Responsive behavior
+
+Frontend authorization controls navigation and UX but never replaces backend authorization.
+
+Prefer reusable components over page-specific duplicates.
+
+Keep operational workflows efficient. A receptionist check-in or staff leave submission should not require unnecessary navigation.
+
+Do not introduce decorative UI that reduces clarity.

@@ -1,0 +1,24 @@
+---
+description: Core CampusOps project context and engineering principles
+alwaysApply: true
+---
+
+# CampusOps Project Context
+
+CampusOps is a multi-tenant School Operations Management SaaS.
+
+Architecture baseline:
+
+- `apps/web` — Next.js frontend
+- `apps/api` — NestJS backend
+- PostgreSQL
+- Prisma
+- Modular monolith
+- Provider abstractions for notifications and storage
+- Permission identifiers use `resource.action` (for example `staff.view`, `leave.approve`)
+
+CampusOps complements a School ERP. Do not silently turn it into a full academic ERP.
+
+Prefer simple, maintainable solutions. Avoid premature microservices, Kafka, Kubernetes, multiple databases, or Redis unless the actual workload requires them.
+
+Before implementing a feature, inspect the relevant docs and existing code.

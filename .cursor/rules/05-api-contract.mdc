@@ -1,0 +1,34 @@
+---
+description: REST API conventions and frontend/backend contract
+globs: ["apps/api/**/*.ts", "apps/web/**/*.ts", "apps/web/**/*.tsx"]
+---
+
+# API Rules
+
+Use the project's versioned REST API convention.
+
+Prefer resource-oriented endpoints.
+
+Use explicit action endpoints for meaningful state transitions, for example:
+
+`POST /leave/requests/:id/approve`
+
+Validate:
+
+- authentication
+- tenant
+- permission
+- resource access
+- business state
+
+Use DTO validation.
+
+Use stable error codes.
+
+Paginate large collections and enforce a maximum page size.
+
+Allow only known filter/sort fields.
+
+Do not expose unrestricted generic query endpoints.
+
+Document meaningful API changes in the API contract/OpenAPI documentation.

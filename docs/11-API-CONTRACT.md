@@ -1,0 +1,649 @@
+# CampusOps — API Contract
+
+## 1. Purpose
+
+This document defines conventions for the CampusOps REST API.
+
+The API is the contract between the Next.js frontend, external integrations, and the NestJS backend.
+
+The backend is the final authority for:
+
+- Authentication
+- Authorization
+- Tenant isolation
+- Validation
+- Business rules
+- State transitions
+
+---
+
+# 2. API Principles
+
+1. Use resource-oriented REST endpoints.
+2. Keep authentication and authorization server-side.
+3. Validate every request with DTOs.
+4. Never trust organization IDs supplied by clients as an authorization boundary.
+5. Return predictable errors.
+6. Use pagination for potentially large collections.
+7. Keep state transitions explicit.
+8. Use consistent timestamps and identifiers.
+9. Avoid leaking whether another tenant's resource exists.
+10. Document APIs with OpenAPI/Swagger.
+
+---
+
+# 3. Base URL & Versioning
+
+Use a versioned API boundary such as:
+
+```text
+/api/v1
+```
+
+Example:
+
+```text
+GET /api/v1/staff
+```
+
+The exact deployment prefix can be configured.
+
+Avoid putting vendor/provider details into public API routes.
+
+---
+
+# 4. Authentication
+
+Recommended:
+
+```text
+POST /auth/register
+POST /auth/login
+POST /auth/refresh
+POST /auth/logout
+POST /auth/forgot-password
+POST /auth/reset-password
+```
+
+If email verification is enabled:
+
+```text
+POST /auth/verify-email
+POST /auth/resend-verification
+```
+
+Access tokens should be short-lived.
+
+Refresh tokens should support rotation/revocation.
+
+---
+
+# 5. Organization Context
+
+Authenticated requests should derive organization context from the authenticated identity/session.
+
+Do not design endpoints where:
+
+```text
+GET /organizations/:organizationId/students
+```
+
+becomes the sole security boundary.
+
+If organization selection is supported for platform users, the server must validate that the user is actually authorized for that organization.
+
+---
+
+# 6. Resource Identifiers
+
+Use UUIDs for database/API identifiers where appropriate.
+
+Human-readable codes can be used for operational references:
+
+```text
+EMP-000123
+AST-000452
+VIS-2026-0012
+REC-2026-0042
+```
+
+Do not expose sequential database IDs as the only security mechanism.
+
+---
+
+# 7. Request Validation
+
+NestJS DTO validation should enforce:
+
+- Required fields
+- Type constraints
+- Enum values
+- Length limits
+- Date formats
+- Numeric ranges
+- File metadata constraints
+- Nested object validation
+
+Business rules belong in services/domain logic, not only DTO validation.
+
+---
+
+# 8. Standard Response Shape
+
+A consistent success response can use:
+
+```json
+{
+  "data": {},
+  "meta": {}
+}
+```
+
+For a list:
+
+```json
+{
+  "data": [],
+  "meta": {
+    "page": 1,
+    "pageSize": 25,
+    "total": 100,
+    "totalPages": 4
+  }
+}
+```
+
+Do not expose internal database implementation details.
+
+---
+
+# 9. Error Contract
+
+Recommended shape:
+
+```json
+{
+  "statusCode": 400,
+  "code": "LEAVE_BALANCE_INSUFFICIENT",
+  "message": "Insufficient leave balance",
+  "details": {}
+}
+```
+
+The `code` should be stable for frontend logic.
+
+Human-readable `message` can change.
+
+Never return stack traces in production.
+
+---
+
+# 10. HTTP Semantics
+
+Use appropriate methods:
+
+```text
+GET     Read
+POST    Create / action where appropriate
+PATCH   Partial update
+PUT     Full replacement where genuinely required
+DELETE  Deletion where safe
+```
+
+For business transitions, explicit action endpoints can be clearer:
+
+```text
+POST /leave/requests/:id/approve
+POST /leave/requests/:id/reject
+POST /assets/:id/retire
+POST /attendance/:id/finalize
+```
+
+---
+
+# 11. Pagination
+
+Default to pagination for collections.
+
+Support:
+
+```text
+page
+pageSize
+```
+
+or cursor pagination where appropriate.
+
+Enforce maximum page size server-side.
+
+Example:
+
+```text
+GET /staff?page=2&pageSize=25
+```
+
+---
+
+# 12. Filtering
+
+Use predictable query parameters.
+
+Example:
+
+```text
+GET /complaints?status=OPEN&priority=HIGH
+GET /staff?departmentId=...
+GET /leave/requests?status=PENDING_APPROVAL
+GET /assets?status=IN_MAINTENANCE
+```
+
+All filters must remain tenant-scoped.
+
+---
+
+# 13. Search
+
+Search should be explicit.
+
+Example:
+
+```text
+GET /staff?search=rajesh
+GET /assets?search=projector
+```
+
+Avoid implementing unbounded wildcard searches that can become expensive at scale.
+
+Add database indexes for common search patterns.
+
+---
+
+# 14. Sorting
+
+Example:
+
+```text
+?sortBy=createdAt&sortOrder=desc
+```
+
+Only allow known sortable fields.
+
+Never directly concatenate arbitrary client input into SQL/Prisma ordering expressions.
+
+---
+
+# 15. Staff API
+
+Representative contract:
+
+```text
+GET    /staff
+POST   /staff
+GET    /staff/:id
+PATCH  /staff/:id
+POST   /staff/:id/deactivate
+```
+
+The API should enforce:
+
+- Tenant isolation
+- Permission checks
+- Employee code uniqueness
+- Valid department
+- Valid reporting manager
+
+---
+
+# 16. Student API
+
+Representative:
+
+```text
+GET    /students
+POST   /students
+GET    /students/:id
+PATCH  /students/:id
+POST   /students/:id/deactivate
+```
+
+Student APIs should respect the CampusOps/ERP boundary.
+
+If the academic ERP is the source of truth, synchronization/import APIs should be treated separately.
+
+---
+
+# 17. Attendance API
+
+```text
+GET  /attendance
+POST /attendance/check-in
+POST /attendance/check-out
+POST /attendance/mark
+POST /attendance/:id/correction
+POST /attendance/:id/finalize
+```
+
+Self-service endpoints must derive the staff member from authenticated identity.
+
+---
+
+# 18. Leave API
+
+```text
+GET  /leave/types
+GET  /leave/balances
+GET  /leave/requests
+POST /leave/requests
+GET  /leave/requests/:id
+POST /leave/requests/:id/cancel
+
+GET  /leave/approvals
+POST /leave/requests/:id/approve
+POST /leave/requests/:id/reject
+```
+
+Approval endpoints must verify that the authenticated user is the correct approver for the current workflow step.
+
+---
+
+# 19. Complaint API
+
+```text
+GET  /complaints
+POST /complaints
+GET  /complaints/:id
+PATCH /complaints/:id
+POST /complaints/:id/assign
+POST /complaints/:id/status
+POST /complaints/:id/comments
+```
+
+Valid status transitions should be enforced server-side.
+
+---
+
+# 20. Visitor API
+
+```text
+GET  /visitors
+POST /visitors
+GET  /visitors/:id
+POST /visitors/:id/check-in
+POST /visitors/:id/check-out
+```
+
+Visitor access should be restricted according to role and operational need.
+
+Visitor photos/documents must use protected file access.
+
+---
+
+# 21. Notice API
+
+```text
+GET  /notices
+POST /notices
+GET  /notices/:id
+PATCH /notices/:id
+POST /notices/:id/publish
+POST /notices/:id/archive
+POST /notices/:id/read
+POST /notices/:id/acknowledge
+```
+
+Audience filtering must be enforced server-side.
+
+---
+
+# 22. Asset API
+
+```text
+GET  /assets
+POST /assets
+GET  /assets/:id
+PATCH /assets/:id
+POST /assets/:id/assign
+POST /assets/:id/transfer
+POST /assets/:id/maintenance
+POST /assets/:id/retire
+```
+
+Transfers and retirement are business actions and should be audited.
+
+---
+
+# 23. Document API
+
+```text
+GET  /document-templates
+POST /document-templates
+PATCH /document-templates/:id
+
+POST /documents/generate
+GET  /documents
+GET  /documents/:id
+GET  /documents/:id/download
+```
+
+Download authorization must be checked independently from document lookup.
+
+---
+
+# 24. Approval API
+
+If approval workflow is exposed as a reusable platform resource:
+
+```text
+GET /approvals
+GET /approvals/:id
+POST /approvals/:id/approve
+POST /approvals/:id/reject
+```
+
+Business modules remain responsible for validating the underlying business request.
+
+---
+
+# 25. Event API
+
+```text
+GET  /events
+POST /events
+GET  /events/:id
+PATCH /events/:id
+POST /events/:id/cancel
+```
+
+Event participant visibility must respect organization and audience rules.
+
+---
+
+# 26. Notification API
+
+```text
+GET   /notifications
+POST  /notifications/:id/read
+POST  /notifications/read-all
+
+GET   /notification-preferences
+PATCH /notification-preferences
+```
+
+Users should only access their own notifications unless an administrative permission explicitly permits broader access.
+
+---
+
+# 27. Reports API
+
+Reports should use explicit endpoints or a consistent reporting resource.
+
+Examples:
+
+```text
+GET /reports/attendance
+GET /reports/leave
+GET /reports/complaints
+GET /reports/assets
+GET /reports/visitors
+GET /reports/events
+```
+
+Export formats:
+
+```text
+format=pdf
+format=xlsx
+format=csv
+```
+
+Exports must use the same authorization rules as the underlying report.
+
+---
+
+# 28. Audit API
+
+```text
+GET /audit-logs
+GET /activity
+```
+
+Audit access should be restricted.
+
+Do not expose sensitive audit metadata unnecessarily to ordinary users.
+
+---
+
+# 29. File API
+
+Use controlled upload/download operations.
+
+Example:
+
+```text
+POST /files
+GET  /files/:id
+GET  /files/:id/download
+```
+
+Files must be associated with authorized organization/resources.
+
+Never make every uploaded file publicly accessible by default.
+
+---
+
+# 30. Idempotency
+
+For retry-sensitive operations, consider:
+
+```text
+Idempotency-Key: <unique-key>
+```
+
+Especially for:
+
+- Payment creation
+- Attendance check-in/out
+- Approval actions
+- Document generation
+- Notification requests
+
+The server should define which endpoints actually support idempotency.
+
+---
+
+# 31. Rate Limiting
+
+Rate-limit at least:
+
+- Login
+- Password reset
+- OTP/verification endpoints
+- Public/unauthenticated endpoints
+- File uploads
+- Expensive report generation
+
+Limits should account for organization and user where appropriate.
+
+---
+
+# 32. OpenAPI
+
+Maintain Swagger/OpenAPI documentation from NestJS decorators/metadata.
+
+Document:
+
+- Authentication
+- Request DTOs
+- Response schemas
+- Error codes
+- Pagination
+- Permissions
+- State transitions
+- File endpoints
+
+Generated documentation should reflect the actual implementation.
+
+---
+
+# 33. API Security Checklist
+
+Before production:
+
+- Authentication enforced
+- Authorization enforced
+- Tenant scope enforced
+- DTO validation enabled
+- Request size limits configured
+- Rate limiting enabled
+- Sensitive fields excluded
+- File access protected
+- Error leakage prevented
+- CORS restricted
+- Security headers configured
+- Audit events implemented
+- Logs contain correlation IDs
+- Swagger exposure controlled appropriately
+
+---
+
+# 34. Frontend Integration
+
+The Next.js frontend should use one centralized API client.
+
+It should handle:
+
+- Base URL
+- Authentication
+- Refresh flow
+- Error normalization
+- Request IDs where appropriate
+- JSON parsing
+- File downloads
+- Retry policy where safe
+
+Feature components should not construct raw fetch logic repeatedly.
+
+---
+
+# 35. Contract Testing
+
+Important API contracts should have tests for:
+
+- Authentication
+- Permissions
+- Tenant isolation
+- Validation
+- State transitions
+- Pagination
+- Error codes
+- File authorization
+
+End-to-end tests should verify representative complete workflows.
+
+---
+
+# 36. Final Principle
+
+The API should be predictable enough that frontend development feels boring—in a good way.
+
+Business complexity belongs in well-defined backend modules, while the public API exposes clear resources and explicit actions.

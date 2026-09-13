@@ -1,0 +1,45 @@
+---
+description: CampusOps visual design and interaction quality standards
+globs: ["apps/web/**/*.tsx", "apps/web/**/*.css"]
+---
+
+# UI/UX Standards
+
+The application should feel like one polished professional SaaS product.
+
+Maintain:
+
+- Consistent typography
+- Consistent spacing
+- Design tokens
+- Predictable form layouts
+- Clear hierarchy
+- Accessible contrast
+- Keyboard accessibility
+- Responsive behavior
+- Consistent status badges
+- Consistent feedback patterns
+
+Use mature reusable primitives for:
+
+- Buttons
+- Inputs
+- Selects
+- Dialogs
+- Tables
+- Pagination
+- Date/time controls
+- Badges
+- Snackbars
+- Skeletons
+- Empty states
+
+Avoid:
+
+- Excessive gradients
+- Decorative animations
+- Overloaded dashboards
+- Unnecessary modals
+- Inconsistent component styling
+
+Before creating a new UI pattern, search for an existing project pattern and reuse it.

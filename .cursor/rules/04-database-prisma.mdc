@@ -1,0 +1,38 @@
+---
+description: PostgreSQL and Prisma data modeling conventions
+globs: ["apps/api/prisma/**/*.prisma", "**/*.prisma", "apps/api/src/**/*.ts"]
+---
+
+# Prisma Rules
+
+PostgreSQL is the source of relational truth.
+
+Use UUID primary keys.
+
+Tenant-owned models must contain `organizationId` unless there is a documented reason not to.
+
+Prefer tenant-scoped uniqueness:
+
+`@@unique([organizationId, employeeCode])`
+
+rather than unnecessary global uniqueness.
+
+Add indexes for actual query patterns, especially organization + status/date/foreign-key combinations.
+
+Use foreign keys and deliberate delete behavior.
+
+Do not casually hard-delete historical business records.
+
+Important state-changing operations must use Prisma transactions.
+
+Do not put complex Prisma queries in controllers.
+
+Before changing schema:
+
+1. Read the relevant domain document.
+2. Check existing relations.
+3. Identify migration impact.
+4. Consider indexes/constraints.
+5. Update documentation if the model changes architecturally.
+
+Never create speculative tables just because they might be useful later.
