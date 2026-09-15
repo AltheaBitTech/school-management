@@ -18,9 +18,10 @@ const PHASE_4_BUSINESS_MODELS = ['StaffAttendance'] as const;
 
 const PHASE_5_BUSINESS_MODELS = ['LeaveType', 'LeaveBalance', 'LeaveRequest'] as const;
 
+const PHASE_6_BUSINESS_MODELS = ['Complaint', 'ComplaintHistory'] as const;
+
 const FORBIDDEN_BUSINESS_MODELS = [
   'Student',
-  'Complaint',
   'Visitor',
   'Visit',
   'Notice',
@@ -60,6 +61,12 @@ describe('Prisma identity and RBAC schema', () => {
 
   it('exposes the Phase 5 leave models', () => {
     for (const modelName of PHASE_5_BUSINESS_MODELS) {
+      expect(Prisma.ModelName).toHaveProperty(modelName);
+    }
+  });
+
+  it('exposes the Phase 6 complaint models', () => {
+    for (const modelName of PHASE_6_BUSINESS_MODELS) {
       expect(Prisma.ModelName).toHaveProperty(modelName);
     }
   });

@@ -49,6 +49,31 @@ enum HalfDayPart {
   SECOND_HALF
 }
 
+enum ComplaintCategory {
+  ELECTRICAL
+  PLUMBING
+  FURNITURE
+  IT
+  CLEANING
+  SECURITY
+  OTHER
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ComplaintStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+}
+
 model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
@@ -66,6 +91,8 @@ model Organization {
   leaveTypes  LeaveType[]
   leaveBalances LeaveBalance[]
   leaveRequests LeaveRequest[]
+  complaints  Complaint[]
+  complaintHistories ComplaintHistory[]
 
   @@index([status])
 }
@@ -104,6 +131,8 @@ model User {
   staffProfile    Staff?
   correctedAttendance StaffAttendance[] @relation("AttendanceCorrectedBy")
   decidedLeaveRequests LeaveRequest[] @relation("LeaveRequestDecidedBy")
+  createdComplaints Complaint[] @relation("ComplaintCreatedBy")
+  complaintHistoryEntries ComplaintHistory[] @relation("ComplaintHistoryActor")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -228,6 +257,7 @@ model Staff {
   attendance       StaffAttendance[]
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]
+  assignedComplaints Complaint[]
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId, employeeCode])
@@ -336,4 +366,50 @@ model LeaveRequest {
   @@index([organizationId, leaveTypeId])
   @@index([organizationId, status])
   @@index([organizationId, startDate, endDate])
+}
+
+model Complaint {
+  id                String            @id @default(uuid()) @db.Uuid
+  organizationId    String            @db.Uuid
+  complaintCode     String
+  title             String
+  description       String
+  category          ComplaintCategory
+  priority          ComplaintPriority
+  status            ComplaintStatus   @default(OPEN)
+  createdByUserId   String            @db.Uuid
+  assignedToStaffId String?           @db.Uuid
+  location          String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  closedAt          DateTime?
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy       User               @relation("ComplaintCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  assignedToStaff Staff?             @relation(fields: [assignedToStaffId], references: [id], onDelete: Restrict)
+  history         ComplaintHistory[]
+
+  @@unique([organizationId, complaintCode])
+  @@index([organizationId, status])
+  @@index([organizationId, priority])
+  @@index([organizationId, assignedToStaffId])
+  @@index([organizationId, createdAt])
+}
+
+model ComplaintHistory {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  complaintId    String           @db.Uuid
+  actorUserId    String           @db.Uuid
+  oldStatus      ComplaintStatus?
+  newStatus      ComplaintStatus?
+  comment        String?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  complaint    Complaint    @relation(fields: [complaintId], references: [id], onDelete: Restrict)
+  actor        User         @relation("ComplaintHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, complaintId])
+  @@index([complaintId, createdAt])
 }

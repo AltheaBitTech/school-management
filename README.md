@@ -157,7 +157,7 @@ pnpm dev
 pnpm test
 ```
 
-PostgreSQL integration tests (departments, staff, attendance, leave, auth, RBAC, organizations):
+PostgreSQL integration tests (departments, staff, attendance, leave, complaints, auth, RBAC, organizations):
 
 ```bash
 RUN_DB_TESTS=true pnpm test
@@ -184,10 +184,11 @@ Permission identifiers use the `resource.action` format (for example `staff.view
 
 ## Current phase
 
-**Phases 0–5** are implemented in this checkpoint:
+**Phases 0–6** are implemented in this checkpoint:
 
 - Foundation, authentication, refresh sessions, RBAC enforcement
 - Organization onboarding (platform bootstrap + school tenant creation)
 - Departments, staff, staff attendance, leave management (types, balances, requests, transactional approval)
+- Complaint management (create, assign, status workflow, comments, operational history)
 
-Complaints, notices, notifications, audit, reusable approvals, and other roadmap items remain future work.
+Notices, notifications, audit, reusable approvals, file attachments, and other roadmap items remain future work.
