@@ -33,6 +33,9 @@ export function AppShell({ children }: AppShellProps) {
           <Button component={Link} href="/complaints" color="inherit">
             Complaints
           </Button>
+          <Button component={Link} href="/notices" color="inherit">
+            Notices
+          </Button>
           <Box sx={{ flexGrow: 1 }} />
           <Button component={Link} href="/login" variant="outlined" size="small">
             Sign in

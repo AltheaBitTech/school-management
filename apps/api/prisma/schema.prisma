@@ -74,6 +74,19 @@ enum ComplaintStatus {
   CLOSED
 }
 
+enum NoticeStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum NoticeAudienceType {
+  ENTIRE_SCHOOL
+  STAFF
+  DEPARTMENT
+}
+
 model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
@@ -93,6 +106,9 @@ model Organization {
   leaveRequests LeaveRequest[]
   complaints  Complaint[]
   complaintHistories ComplaintHistory[]
+  notices     Notice[]
+  noticeAudiences NoticeAudience[]
+  noticeReads NoticeRead[]
 
   @@index([status])
 }
@@ -133,6 +149,8 @@ model User {
   decidedLeaveRequests LeaveRequest[] @relation("LeaveRequestDecidedBy")
   createdComplaints Complaint[] @relation("ComplaintCreatedBy")
   complaintHistoryEntries ComplaintHistory[] @relation("ComplaintHistoryActor")
+  createdNotices Notice[] @relation("NoticeCreatedBy")
+  noticeReads NoticeRead[]
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -223,7 +241,8 @@ model Department {
   updatedAt      DateTime         @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  staff        Staff[]
+  staff           Staff[]
+  noticeAudiences NoticeAudience[]
 
   @@unique([organizationId, code])
   @@index([organizationId, status])
@@ -412,4 +431,62 @@ model ComplaintHistory {
 
   @@index([organizationId, complaintId])
   @@index([complaintId, createdAt])
+}
+
+model Notice {
+  id              String       @id @default(uuid()) @db.Uuid
+  organizationId  String       @db.Uuid
+  title           String
+  content         String
+  status          NoticeStatus @default(DRAFT)
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  createdByUserId String       @db.Uuid
+  archivedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User             @relation("NoticeCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  audiences    NoticeAudience[]
+  reads        NoticeRead[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, publishedAt])
+  @@index([organizationId, scheduledAt])
+  @@index([organizationId, createdAt])
+}
+
+model NoticeAudience {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @db.Uuid
+  noticeId       String             @db.Uuid
+  audienceType   NoticeAudienceType
+  departmentId   String?            @db.Uuid
+  createdAt      DateTime           @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  notice       Notice       @relation(fields: [noticeId], references: [id], onDelete: Restrict)
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, noticeId])
+  @@index([organizationId, departmentId])
+}
+
+model NoticeRead {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @db.Uuid
+  noticeId        String    @db.Uuid
+  userId          String    @db.Uuid
+  readAt          DateTime
+  acknowledgedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  notice       Notice       @relation(fields: [noticeId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, noticeId, userId])
+  @@index([organizationId, noticeId])
 }

@@ -95,3 +95,4 @@ Before merging a migration that touches `Role`:
 | `20250912120000_staff_attendance` | Phase 4 staff attendance records |
 | `20250913120000_leave_management` | Phase 5 leave types, balances, and requests |
 | `20250915120000_complaints` | Phase 6 complaints and operational history |
+| `20250915130000_notices` | Phase 7 notices, audiences, and read tracking |
