@@ -1,4 +1,6 @@
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
 import * as React from 'react';
 import { act } from 'react';
 
@@ -8,6 +10,10 @@ declare global {
 }
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+afterEach(() => {
+  cleanup();
+});
 
 if (!React.act) {
   (React as typeof React & { act: typeof act }).act = act;

@@ -14,6 +14,7 @@ import { AttendanceModule } from './attendance/attendance.module';
 import { LeaveModule } from './leave/leave.module';
 import { ComplaintsModule } from './complaints/complaints.module';
 import { NoticesModule } from './notices/notices.module';
+import { VisitorsModule } from './visitors/visitors.module';
 import { RbacModule } from './rbac/rbac.module';
 
 @Module({
@@ -36,6 +37,7 @@ import { RbacModule } from './rbac/rbac.module';
     LeaveModule,
     ComplaintsModule,
     NoticesModule,
+    VisitorsModule,
     RbacModule,
   ],
   providers: [

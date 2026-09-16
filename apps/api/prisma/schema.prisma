@@ -87,6 +87,16 @@ enum NoticeAudienceType {
   DEPARTMENT
 }
 
+enum VisitorStatus {
+  CHECKED_IN
+  CHECKED_OUT
+}
+
+enum VisitorHistoryEvent {
+  CHECKED_IN
+  CHECKED_OUT
+}
+
 model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
@@ -109,6 +119,8 @@ model Organization {
   notices     Notice[]
   noticeAudiences NoticeAudience[]
   noticeReads NoticeRead[]
+  visitors    Visitor[]
+  visitorHistories VisitorHistory[]
 
   @@index([status])
 }
@@ -151,6 +163,8 @@ model User {
   complaintHistoryEntries ComplaintHistory[] @relation("ComplaintHistoryActor")
   createdNotices Notice[] @relation("NoticeCreatedBy")
   noticeReads NoticeRead[]
+  createdVisitors Visitor[] @relation("VisitorCreatedBy")
+  visitorHistoryEntries VisitorHistory[] @relation("VisitorHistoryActor")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -277,6 +291,7 @@ model Staff {
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]
   assignedComplaints Complaint[]
+  hostedVisitors     Visitor[] @relation("VisitorHost")
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId, employeeCode])
@@ -489,4 +504,50 @@ model NoticeRead {
 
   @@unique([organizationId, noticeId, userId])
   @@index([organizationId, noticeId])
+}
+
+model Visitor {
+  id               String        @id @default(uuid()) @db.Uuid
+  organizationId   String        @db.Uuid
+  visitorCode      String
+  name             String
+  mobile           String
+  organizationName String?
+  vehicleNumber    String?
+  purpose          String
+  hostStaffId      String        @db.Uuid
+  checkInAt        DateTime
+  checkOutAt       DateTime?
+  status           VisitorStatus
+  remarks          String?
+  createdByUserId  String        @db.Uuid
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  hostStaff     Staff            @relation("VisitorHost", fields: [hostStaffId], references: [id], onDelete: Restrict)
+  createdBy     User             @relation("VisitorCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  history       VisitorHistory[]
+
+  @@unique([organizationId, visitorCode])
+  @@index([organizationId, status, checkInAt])
+  @@index([organizationId, hostStaffId, checkInAt])
+  @@index([organizationId, mobile])
+  @@index([organizationId, createdAt])
+}
+
+model VisitorHistory {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @db.Uuid
+  visitorId      String              @db.Uuid
+  eventType      VisitorHistoryEvent
+  comment        String?
+  actorUserId    String              @db.Uuid
+  createdAt      DateTime            @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  visitor      Visitor      @relation(fields: [visitorId], references: [id], onDelete: Restrict)
+  actorUser    User         @relation("VisitorHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, visitorId, createdAt])
 }

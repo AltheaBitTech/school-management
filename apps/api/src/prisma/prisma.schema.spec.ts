@@ -22,9 +22,10 @@ const PHASE_6_BUSINESS_MODELS = ['Complaint', 'ComplaintHistory'] as const;
 
 const PHASE_7_BUSINESS_MODELS = ['Notice', 'NoticeAudience', 'NoticeRead'] as const;
 
+const PHASE_8_BUSINESS_MODELS = ['Visitor', 'VisitorHistory'] as const;
+
 const FORBIDDEN_BUSINESS_MODELS = [
   'Student',
-  'Visitor',
   'Visit',
   'Asset',
   'DocumentTemplate',
@@ -74,6 +75,12 @@ describe('Prisma identity and RBAC schema', () => {
 
   it('exposes the Phase 7 notice models', () => {
     for (const modelName of PHASE_7_BUSINESS_MODELS) {
+      expect(Prisma.ModelName).toHaveProperty(modelName);
+    }
+  });
+
+  it('exposes the Phase 8 visitor models', () => {
+    for (const modelName of PHASE_8_BUSINESS_MODELS) {
       expect(Prisma.ModelName).toHaveProperty(modelName);
     }
   });

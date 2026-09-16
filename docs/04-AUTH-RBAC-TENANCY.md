@@ -632,8 +632,7 @@ leave.reject
 
 visitor.view
 visitor.create
-visitor.check_in
-visitor.check_out
+visitor.checkout
 
 notice.view
 notice.create
