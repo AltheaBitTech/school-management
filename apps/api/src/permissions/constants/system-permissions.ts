@@ -45,6 +45,7 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'visitor.checkout', description: 'Check out visitors' },
   { code: 'notice.view', description: 'View notices' },
   { code: 'notice.create', description: 'Create notices' },
+  { code: 'notice.update', description: 'Update notices' },
   { code: 'notice.publish', description: 'Publish notices' },
   { code: 'notice.archive', description: 'Archive notices' },
   { code: 'asset.view', description: 'View assets' },

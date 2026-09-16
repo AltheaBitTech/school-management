@@ -140,7 +140,7 @@ export class LeaveRequestsController {
       user.userId,
       user.organizationId,
     );
-    const canSubmitForOthers = permissions.includes('leave.view');
+    const canSubmitForOthers = permissions.includes('leave.manage_balances');
     const request = await this.leaveRequestsService.create(
       user.organizationId,
       user,

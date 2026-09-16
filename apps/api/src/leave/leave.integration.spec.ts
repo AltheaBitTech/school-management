@@ -28,6 +28,7 @@ describeIfDatabase('Leave integration', () => {
   let orgBId: string;
   let staffAId: string;
   let staffBId: string;
+  let staffCId: string;
   let userAId: string;
   let approverUserId: string;
   let leaveTypeAId: string;
@@ -80,8 +81,17 @@ describeIfDatabase('Leave integration', () => {
         lastName: 'StaffB',
       },
     });
+    const staffC = await prisma.staff.create({
+      data: {
+        organizationId: orgAId,
+        employeeCode: 'leave-staff-c',
+        firstName: 'Leave',
+        lastName: 'StaffC',
+      },
+    });
     staffAId = staffA.id;
     staffBId = staffB.id;
+    staffCId = staffC.id;
 
     leaveTypesService = new LeaveTypesService(prisma as unknown as PrismaService);
     leaveBalancesService = new LeaveBalancesService(
@@ -422,6 +432,72 @@ describeIfDatabase('Leave integration', () => {
         email: 'approver@example.com',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('allows self-service leave submission without manage_balances permission', async () => {
+    const request = await leaveRequestsService.create(
+      orgAId,
+      {
+        userId: userAId,
+        organizationId: orgAId,
+        sessionId: 'session-self',
+        email: 'staff@example.com',
+      },
+      {
+        staffId: staffAId,
+        leaveTypeId: leaveTypeAId,
+        startDate: '2026-10-01',
+        endDate: '2026-10-01',
+        reason: 'Self submission',
+      },
+      false,
+    );
+
+    expect(request.staffId).toBe(staffAId);
+  });
+
+  it('blocks leave submission for another staff without manage_balances permission', async () => {
+    await expect(
+      leaveRequestsService.create(
+        orgAId,
+        {
+          userId: userAId,
+          organizationId: orgAId,
+          sessionId: 'session-other',
+          email: 'staff@example.com',
+        },
+        {
+          staffId: staffCId,
+          leaveTypeId: leaveTypeAId,
+          startDate: '2026-10-02',
+          endDate: '2026-10-02',
+          reason: 'Should be forbidden',
+        },
+        false,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows leave submission for another staff with manage_balances permission', async () => {
+    const request = await leaveRequestsService.create(
+      orgAId,
+      {
+        userId: userAId,
+        organizationId: orgAId,
+        sessionId: 'session-admin',
+        email: 'admin@example.com',
+      },
+      {
+        staffId: staffCId,
+        leaveTypeId: leaveTypeAId,
+        startDate: '2026-10-03',
+        endDate: '2026-10-03',
+        reason: 'Admin submission',
+      },
+      true,
+    );
+
+    expect(request.staffId).toBe(staffCId);
   });
 
   it('denies leave approve permission when leave.approve is missing', async () => {

@@ -76,7 +76,7 @@ export class NoticesController {
   }
 
   @Patch(':id')
-  @RequirePermissions('notice.create')
+  @RequirePermissions('notice.update')
   @ApiOperation({ summary: 'Update a draft or scheduled notice' })
   @ApiOkResponse({ type: NoticeResponseDto })
   async update(

@@ -567,6 +567,31 @@ describeIfDatabase('Notices integration', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('denies notice update permission when notice.update is missing', async () => {
+    jest
+      .spyOn(permissionsService, 'getEffectivePermissions')
+      .mockResolvedValueOnce(['notice.view', 'notice.create']);
+
+    const request = {
+      user: {
+        userId: userAId,
+        organizationId: orgAId,
+        sessionId: 'session-a',
+        email: 'user@example.com',
+      },
+    };
+
+    jest.spyOn(Reflector.prototype, 'getAllAndOverride').mockReturnValue(['notice.update']);
+
+    const context = {
+      switchToHttp: () => ({ getRequest: () => request }),
+      getHandler: () => () => undefined,
+      getClass: () => class TestController {},
+    } as unknown as ExecutionContext;
+
+    await expect(permissionsGuard.canActivate(context)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('denies notice create permission when notice.create is missing', async () => {
     jest
       .spyOn(permissionsService, 'getEffectivePermissions')

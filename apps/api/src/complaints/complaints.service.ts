@@ -364,7 +364,7 @@ export class ComplaintsService {
     tx: Prisma.TransactionClient,
     organizationId: string,
   ): Promise<string> {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${organizationId}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${organizationId} || ':complaint'))`;
 
     const existingCodes = await tx.complaint.findMany({
       where: {

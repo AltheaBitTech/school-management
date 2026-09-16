@@ -58,6 +58,7 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       'visitor.checkout',
       'notice.view',
       'notice.create',
+      'notice.update',
       'notice.publish',
       'notice.archive',
       'asset.view',
