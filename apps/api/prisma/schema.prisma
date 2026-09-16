@@ -97,6 +97,35 @@ enum VisitorHistoryEvent {
   CHECKED_OUT
 }
 
+enum AssetCategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  UNDER_MAINTENANCE
+  RETIRED
+}
+
+enum MaintenanceType {
+  REPAIR
+  SERVICE
+  INSPECTION
+  OTHER
+}
+
+enum AssetHistoryEvent {
+  CREATED
+  ASSIGNED
+  UNASSIGNED
+  TRANSFERRED
+  MAINTENANCE_STARTED
+  MAINTENANCE_COMPLETED
+  RETIRED
+}
+
 model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
@@ -121,6 +150,11 @@ model Organization {
   noticeReads NoticeRead[]
   visitors    Visitor[]
   visitorHistories VisitorHistory[]
+  assetCategories AssetCategory[]
+  assets      Asset[]
+  assetMaintenances AssetMaintenance[]
+  assetTransfers AssetTransfer[]
+  assetHistories AssetHistory[]
 
   @@index([status])
 }
@@ -165,6 +199,10 @@ model User {
   noticeReads NoticeRead[]
   createdVisitors Visitor[] @relation("VisitorCreatedBy")
   visitorHistoryEntries VisitorHistory[] @relation("VisitorHistoryActor")
+  createdAssets Asset[] @relation("AssetCreatedBy")
+  assetMaintenanceEntries AssetMaintenance[] @relation("AssetMaintenanceCreatedBy")
+  assetTransfers AssetTransfer[] @relation("AssetTransferredBy")
+  assetHistoryEntries AssetHistory[] @relation("AssetHistoryActor")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -257,6 +295,7 @@ model Department {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   staff           Staff[]
   noticeAudiences NoticeAudience[]
+  assets          Asset[]
 
   @@unique([organizationId, code])
   @@index([organizationId, status])
@@ -292,6 +331,7 @@ model Staff {
   leaveRequests    LeaveRequest[]
   assignedComplaints Complaint[]
   hostedVisitors     Visitor[] @relation("VisitorHost")
+  assignedAssets     Asset[] @relation("AssetAssignedStaff")
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId, employeeCode])
@@ -550,4 +590,125 @@ model VisitorHistory {
   actorUser    User         @relation("VisitorHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, visitorId, createdAt])
+}
+
+model AssetCategory {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @db.Uuid
+  name           String
+  code           String
+  status         AssetCategoryStatus @default(ACTIVE)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  assets       Asset[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+}
+
+model Asset {
+  id               String      @id @default(uuid()) @db.Uuid
+  organizationId   String      @db.Uuid
+  assetCode        String
+  categoryId       String      @db.Uuid
+  name             String
+  description      String?
+  serialNumber     String?
+  barcode          String?
+  qrCode           String?
+  purchaseDate     DateTime?   @db.Date
+  purchaseCost     Decimal?    @db.Decimal(12, 2)
+  warrantyStartDate DateTime?  @db.Date
+  warrantyEndDate  DateTime?   @db.Date
+  departmentId     String?     @db.Uuid
+  location         String?
+  assignedStaffId  String?     @db.Uuid
+  status           AssetStatus
+  retiredAt        DateTime?
+  retirementReason String?
+  createdByUserId  String      @db.Uuid
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  category       AssetCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  department     Department?         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  assignedStaff  Staff?              @relation("AssetAssignedStaff", fields: [assignedStaffId], references: [id], onDelete: Restrict)
+  createdBy      User                @relation("AssetCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  maintenances   AssetMaintenance[]
+  transfers      AssetTransfer[]
+  history        AssetHistory[]
+
+  @@unique([organizationId, assetCode])
+  @@unique([organizationId, serialNumber])
+  @@unique([organizationId, barcode])
+  @@unique([organizationId, qrCode])
+  @@index([organizationId, status])
+  @@index([organizationId, categoryId])
+  @@index([organizationId, departmentId])
+  @@index([organizationId, assignedStaffId])
+  @@index([organizationId, serialNumber])
+  @@index([organizationId, barcode])
+  @@index([organizationId, createdAt])
+}
+
+model AssetMaintenance {
+  id              String          @id @default(uuid()) @db.Uuid
+  organizationId  String          @db.Uuid
+  assetId         String          @db.Uuid
+  maintenanceType MaintenanceType
+  description     String
+  startedAt       DateTime
+  completedAt     DateTime?
+  cost            Decimal?        @db.Decimal(12, 2)
+  vendorName      String?
+  remarks         String?
+  createdByUserId String          @db.Uuid
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  asset        Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("AssetMaintenanceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, assetId, startedAt])
+}
+
+model AssetTransfer {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @db.Uuid
+  assetId           String    @db.Uuid
+  fromDepartmentId  String?   @db.Uuid
+  toDepartmentId    String?   @db.Uuid
+  fromLocation      String?
+  toLocation        String?
+  fromStaffId       String?   @db.Uuid
+  toStaffId         String?   @db.Uuid
+  reason            String?
+  transferredByUserId String  @db.Uuid
+  transferredAt     DateTime
+
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  asset         Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  transferredBy User         @relation("AssetTransferredBy", fields: [transferredByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, assetId, transferredAt])
+}
+
+model AssetHistory {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @db.Uuid
+  assetId        String            @db.Uuid
+  eventType      AssetHistoryEvent
+  comment        String?
+  actorUserId    String            @db.Uuid
+  createdAt      DateTime          @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  asset        Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  actorUser    User         @relation("AssetHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, assetId, createdAt])
 }

@@ -24,10 +24,17 @@ const PHASE_7_BUSINESS_MODELS = ['Notice', 'NoticeAudience', 'NoticeRead'] as co
 
 const PHASE_8_BUSINESS_MODELS = ['Visitor', 'VisitorHistory'] as const;
 
+const PHASE_9_BUSINESS_MODELS = [
+  'AssetCategory',
+  'Asset',
+  'AssetMaintenance',
+  'AssetTransfer',
+  'AssetHistory',
+] as const;
+
 const FORBIDDEN_BUSINESS_MODELS = [
   'Student',
   'Visit',
-  'Asset',
   'DocumentTemplate',
   'GeneratedDocument',
   'ApprovalWorkflow',
@@ -81,6 +88,12 @@ describe('Prisma identity and RBAC schema', () => {
 
   it('exposes the Phase 8 visitor models', () => {
     for (const modelName of PHASE_8_BUSINESS_MODELS) {
+      expect(Prisma.ModelName).toHaveProperty(modelName);
+    }
+  });
+
+  it('exposes the Phase 9 asset models', () => {
+    for (const modelName of PHASE_9_BUSINESS_MODELS) {
       expect(Prisma.ModelName).toHaveProperty(modelName);
     }
   });

@@ -51,6 +51,8 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'asset.create', description: 'Create assets' },
   { code: 'asset.update', description: 'Update assets' },
   { code: 'asset.assign', description: 'Assign assets' },
+  { code: 'asset.transfer', description: 'Transfer assets' },
+  { code: 'asset.maintenance', description: 'Manage asset maintenance' },
   { code: 'asset.retire', description: 'Retire assets' },
   { code: 'document.view', description: 'View documents' },
   { code: 'document.generate', description: 'Generate documents' },

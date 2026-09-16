@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { ensureDefaultAssetCategories } from '../src/assets/utils/asset-category-seed.util';
 import {
   ORGANIZATION_ROLE_DEFINITIONS,
   PLATFORM_ROLE_DEFINITIONS,
@@ -138,7 +139,9 @@ async function main(): Promise<void> {
 
   if (organizationId) {
     await seedOrganizationRoles(organizationId, permissionIds);
+    await ensureDefaultAssetCategories(prisma, organizationId);
     console.log(`Seeded organization roles for organization ${organizationId}`);
+    console.log(`Seeded default asset categories for organization ${organizationId}`);
   } else {
     console.log(
       'Skipped organization role seeding. Set SEED_ORGANIZATION_ID to seed SCHOOL_ADMIN for an existing organization.',

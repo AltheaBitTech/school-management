@@ -64,6 +64,8 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       'asset.create',
       'asset.update',
       'asset.assign',
+      'asset.transfer',
+      'asset.maintenance',
       'asset.retire',
       'document.view',
       'document.generate',

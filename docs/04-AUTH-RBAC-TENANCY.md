@@ -643,6 +643,8 @@ asset.view
 asset.create
 asset.update
 asset.assign
+asset.transfer
+asset.maintenance
 asset.retire
 
 document.view

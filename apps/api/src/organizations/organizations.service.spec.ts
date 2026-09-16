@@ -77,6 +77,9 @@ describe('OrganizationsService', () => {
         rolePermission: {
           upsert: jest.fn().mockResolvedValue({ id: 'role-perm-1' }),
         },
+        assetCategory: {
+          upsert: jest.fn().mockResolvedValue({ id: 'category-1' }),
+        },
       }),
     );
 
