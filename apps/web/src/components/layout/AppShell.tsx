@@ -42,6 +42,9 @@ export function AppShell({ children }: AppShellProps) {
           <Button component={Link} href="/assets" color="inherit">
             Assets
           </Button>
+          <Button component={Link} href="/students" color="inherit">
+            Students
+          </Button>
           <Button component={Link} href="/documents" color="inherit">
             Documents
           </Button>

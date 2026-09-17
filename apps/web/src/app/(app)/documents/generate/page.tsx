@@ -9,17 +9,33 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { ApiError } from '@/lib/api/client';
 import { generateBonafideCertificate } from '@/lib/documents/documents-client';
 import { getStudentDisplayName, listStudents, type Student } from '@/lib/students/students-client';
 
 export default function GenerateDocumentPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress aria-label="Loading page" />
+        </Box>
+      }
+    >
+      <GenerateDocumentPageContent />
+    </Suspense>
+  );
+}
+
+function GenerateDocumentPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedStudentId = searchParams.get('studentId') ?? '';
   const [students, setStudents] = useState<Student[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState(preselectedStudentId);
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -47,7 +63,9 @@ export default function GenerateDocumentPage() {
         });
         if (!cancelled) {
           setStudents(response.data);
-          if (response.data.length > 0) {
+          if (preselectedStudentId && response.data.some((student) => student.id === preselectedStudentId)) {
+            setSelectedStudentId(preselectedStudentId);
+          } else if (response.data.length > 0) {
             setSelectedStudentId(response.data[0].id);
           }
         }
@@ -72,7 +90,7 @@ export default function GenerateDocumentPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [preselectedStudentId]);
 
   async function handleGenerate(): Promise<void> {
     if (!selectedStudentId) {

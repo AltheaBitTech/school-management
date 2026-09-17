@@ -48,6 +48,16 @@ export async function getStudent(id: string): Promise<Student> {
   return response.data;
 }
 
+export async function createStudent(payload: {
+  studentCode: string;
+  firstName: string;
+  lastName: string;
+  className?: string;
+}): Promise<Student> {
+  const response = await apiClient.post<StudentResponse>('/students', payload, { auth: true });
+  return response.data;
+}
+
 export function getStudentDisplayName(student: Pick<Student, 'firstName' | 'lastName' | 'displayName'>): string {
   if (student.displayName?.trim()) {
     return student.displayName.trim();
@@ -55,3 +65,20 @@ export function getStudentDisplayName(student: Pick<Student, 'firstName' | 'last
 
   return `${student.firstName} ${student.lastName}`.trim();
 }
+
+export function formatStudentStatus(status: StudentStatus): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'Active';
+    case 'INACTIVE':
+      return 'Inactive';
+    default:
+      return status;
+  }
+}
+
+export function formatStudentDate(value: string): string {
+  return new Date(value).toLocaleDateString();
+}
+
+export const STUDENT_STATUSES: StudentStatus[] = ['ACTIVE', 'INACTIVE'];
