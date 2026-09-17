@@ -134,6 +134,7 @@ describeIfDatabase('Organizations integration', () => {
     await prisma.role.deleteMany({ where: { organizationId } });
     await prisma.organizationSettings.deleteMany({ where: { organizationId } });
     await prisma.assetCategory.deleteMany({ where: { organizationId } });
+    await prisma.documentTemplate.deleteMany({ where: { organizationId } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.organization.deleteMany({ where: { id: organizationId } });
   }

@@ -32,6 +32,64 @@ export class FilesService {
     private readonly fileStorageService: FileStorageService,
   ) {}
 
+  async storeBuffer(
+    organizationId: string,
+    actor: AuthenticatedUser,
+    buffer: Buffer,
+    originalName: string,
+  ): Promise<File> {
+    const validated = validateUploadBuffer(buffer, 'application/pdf');
+    const sanitizedOriginalName = sanitizeOriginalName(originalName);
+    const fileId = randomUUID();
+    const storageKey = buildStorageKey(organizationId, fileId);
+    const checksum = createHash('sha256').update(validated.buffer).digest('hex');
+    const extension = extractExtension(sanitizedOriginalName);
+
+    try {
+      await this.fileStorageService.put(storageKey, validated.buffer);
+    } catch (error: unknown) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      this.logger.error(
+        `Unexpected storage failure for ${storageKey}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new InternalServerErrorException({
+        code: FILE_ERROR_CODES.FILE_STORAGE_FAILED,
+        message: 'Failed to store generated file',
+      });
+    }
+
+    try {
+      return await this.prisma.file.create({
+        data: {
+          id: fileId,
+          organizationId,
+          originalName: sanitizedOriginalName,
+          storageKey,
+          mimeType: validated.mimeType,
+          size: validated.size,
+          checksum,
+          extension,
+          storageProvider: LOCAL_STORAGE_PROVIDER,
+          createdById: actor.userId,
+        },
+      });
+    } catch (error: unknown) {
+      await this.bestEffortDelete(storageKey);
+      this.logger.error(
+        `Failed to persist generated file metadata for ${storageKey}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new InternalServerErrorException({
+        code: FILE_ERROR_CODES.FILE_STORAGE_FAILED,
+        message: 'Failed to persist generated file metadata',
+      });
+    }
+  }
+
   async upload(
     organizationId: string,
     actor: AuthenticatedUser,

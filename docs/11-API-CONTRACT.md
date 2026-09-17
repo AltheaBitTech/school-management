@@ -414,16 +414,16 @@ Transfers and retirement are business actions and should be audited.
 
 # 23. Document API
 
-```text
-GET  /document-templates
-POST /document-templates
-PATCH /document-templates/:id
+Implemented in Phase 10B for the Bonafide Certificate vertical slice:
 
-POST /documents/generate
+```text
 GET  /documents
+POST /documents/bonafide
 GET  /documents/:id
 GET  /documents/:id/download
 ```
+
+Future document types and template management endpoints remain out of scope for Phase 10B.
 
 Download authorization must be checked independently from document lookup.
 

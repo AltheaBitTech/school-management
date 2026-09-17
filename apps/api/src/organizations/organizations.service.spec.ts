@@ -80,6 +80,9 @@ describe('OrganizationsService', () => {
         assetCategory: {
           upsert: jest.fn().mockResolvedValue({ id: 'category-1' }),
         },
+        documentTemplate: {
+          upsert: jest.fn().mockResolvedValue({ id: 'template-1' }),
+        },
       }),
     );
 

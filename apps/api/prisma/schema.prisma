@@ -126,6 +126,23 @@ enum AssetHistoryEvent {
   RETIRED
 }
 
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DocumentType {
+  BONAFIDE_CERTIFICATE
+}
+
+enum DocumentOwnerType {
+  STUDENT
+}
+
+enum GeneratedDocumentStatus {
+  GENERATED
+}
+
 model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
@@ -156,6 +173,9 @@ model Organization {
   assetTransfers AssetTransfer[]
   assetHistories AssetHistory[]
   files       File[]
+  students    Student[]
+  documentTemplates DocumentTemplate[]
+  generatedDocuments GeneratedDocument[]
 
   @@index([status])
 }
@@ -205,6 +225,8 @@ model User {
   assetTransfers AssetTransfer[] @relation("AssetTransferredBy")
   assetHistoryEntries AssetHistory[] @relation("AssetHistoryActor")
   createdFiles File[] @relation("FileCreatedBy")
+  createdDocumentTemplates DocumentTemplate[] @relation("DocumentTemplateCreatedBy")
+  generatedDocuments GeneratedDocument[] @relation("GeneratedDocumentCreatedBy")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -464,9 +486,74 @@ model File {
   createdBy        User          @relation("FileCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   staffPhotos      Staff[]       @relation("StaffPhoto")
   leaveAttachments LeaveRequest[] @relation("LeaveAttachment")
+  generatedDocuments GeneratedDocument[]
 
   @@index([organizationId, createdAt])
   @@index([organizationId, id])
+}
+
+model Student {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid
+  studentCode    String
+  firstName      String
+  lastName       String
+  displayName    String?
+  dateOfBirth    DateTime?     @db.Date
+  className      String?
+  status         StudentStatus @default(ACTIVE)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, studentCode])
+  @@index([organizationId, status])
+  @@index([organizationId, lastName])
+}
+
+model DocumentTemplate {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  name           String
+  documentType   DocumentType
+  content        String
+  version        Int          @default(1)
+  active         Boolean      @default(true)
+  createdById    String?      @db.Uuid
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("DocumentTemplateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  generatedDocuments GeneratedDocument[]
+
+  @@unique([organizationId, documentType])
+  @@index([organizationId, active])
+}
+
+model GeneratedDocument {
+  id                String                  @id @default(uuid()) @db.Uuid
+  organizationId    String                  @db.Uuid
+  templateId        String                  @db.Uuid
+  templateVersion   Int
+  documentType      DocumentType
+  ownerType         DocumentOwnerType
+  ownerId           String                  @db.Uuid
+  fileId            String                  @db.Uuid
+  status            GeneratedDocumentStatus @default(GENERATED)
+  generatedByUserId String                  @db.Uuid
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  template     DocumentTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  file         File             @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  generatedBy  User             @relation("GeneratedDocumentCreatedBy", fields: [generatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, documentType])
+  @@index([organizationId, ownerType, ownerId])
+  @@index([organizationId, createdAt])
 }
 
 model Complaint {
