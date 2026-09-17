@@ -32,6 +32,8 @@ const PHASE_9_BUSINESS_MODELS = [
   'AssetHistory',
 ] as const;
 
+const PHASE_10A_BUSINESS_MODELS = ['File'] as const;
+
 const FORBIDDEN_BUSINESS_MODELS = [
   'Student',
   'Visit',
@@ -94,6 +96,12 @@ describe('Prisma identity and RBAC schema', () => {
 
   it('exposes the Phase 9 asset models', () => {
     for (const modelName of PHASE_9_BUSINESS_MODELS) {
+      expect(Prisma.ModelName).toHaveProperty(modelName);
+    }
+  });
+
+  it('exposes the Phase 10A file model', () => {
+    for (const modelName of PHASE_10A_BUSINESS_MODELS) {
       expect(Prisma.ModelName).toHaveProperty(modelName);
     }
   });

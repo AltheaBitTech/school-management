@@ -44,3 +44,5 @@ apps/api/prisma/*.db-journal
 # Misc
 .turbo/
 .cache/
+storage/files/
+apps/api/storage/files/

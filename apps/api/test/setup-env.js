@@ -6,3 +6,4 @@ process.env.CORS_ORIGIN ??= 'http://localhost:3000';
 process.env.JWT_ACCESS_SECRET ??= 'test-jwt-access-secret-minimum-32-characters';
 process.env.JWT_ACCESS_EXPIRES_IN ??= '15m';
 process.env.JWT_REFRESH_EXPIRES_IN ??= '7d';
+process.env.FILE_STORAGE_ROOT ??= 'storage/files';

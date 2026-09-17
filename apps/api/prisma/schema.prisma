@@ -155,6 +155,7 @@ model Organization {
   assetMaintenances AssetMaintenance[]
   assetTransfers AssetTransfer[]
   assetHistories AssetHistory[]
+  files       File[]
 
   @@index([status])
 }
@@ -203,6 +204,7 @@ model User {
   assetMaintenanceEntries AssetMaintenance[] @relation("AssetMaintenanceCreatedBy")
   assetTransfers AssetTransfer[] @relation("AssetTransferredBy")
   assetHistoryEntries AssetHistory[] @relation("AssetHistoryActor")
+  createdFiles File[] @relation("FileCreatedBy")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -323,6 +325,7 @@ model Staff {
 
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   user             User?        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  photoFile        File?        @relation("StaffPhoto", fields: [photoFileId], references: [id], onDelete: SetNull)
   department       Department?  @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   reportingManager Staff?       @relation("StaffReportingHierarchy", fields: [reportingManagerId], references: [id], onDelete: Restrict)
   directReports    Staff[]      @relation("StaffReportingHierarchy")
@@ -435,11 +438,35 @@ model LeaveRequest {
   staff          Staff        @relation(fields: [staffId], references: [id], onDelete: Restrict)
   leaveType      LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
   decidedBy      User?        @relation("LeaveRequestDecidedBy", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+  attachmentFile File?        @relation("LeaveAttachment", fields: [attachmentFileId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, staffId])
   @@index([organizationId, leaveTypeId])
   @@index([organizationId, status])
   @@index([organizationId, startDate, endDate])
+}
+
+model File {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @db.Uuid
+  originalName    String
+  storageKey      String   @unique
+  mimeType        String
+  size            Int
+  checksum        String?
+  extension       String?
+  storageProvider String   @default("local")
+  createdById     String   @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy        User          @relation("FileCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  staffPhotos      Staff[]       @relation("StaffPhoto")
+  leaveAttachments LeaveRequest[] @relation("LeaveAttachment")
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, id])
 }
 
 model Complaint {

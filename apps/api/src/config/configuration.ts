@@ -22,6 +22,10 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   CORS_ORIGIN!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  FILE_STORAGE_ROOT!: string;
 }
 
 export const CONFIGURATION_KEY = 'app';
@@ -31,6 +35,7 @@ export interface AppConfig {
   port: number;
   databaseUrl: string;
   corsOrigin: string;
+  fileStorageRoot: string;
   isProduction: boolean;
 }
 
@@ -40,6 +45,7 @@ export default (): { [CONFIGURATION_KEY]: AppConfig } => ({
     port: parseInt(process.env.PORT ?? '3001', 10),
     databaseUrl: process.env.DATABASE_URL ?? '',
     corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    fileStorageRoot: process.env.FILE_STORAGE_ROOT ?? 'storage/files',
     isProduction: process.env.NODE_ENV === NodeEnvironment.Production,
   },
 });
