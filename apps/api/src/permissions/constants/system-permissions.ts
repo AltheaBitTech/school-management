@@ -62,7 +62,11 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'document.generate', description: 'Generate documents' },
   { code: 'document.download', description: 'Download documents' },
   { code: 'approval.view', description: 'View approvals' },
-  { code: 'approval.act', description: 'Act on approvals' },
+  { code: 'approval.submit', description: 'Submit approval requests' },
+  { code: 'approval.approve', description: 'Approve pending approval requests' },
+  { code: 'approval.reject', description: 'Reject pending approval requests' },
+  { code: 'approval.cancel', description: 'Cancel pending approval requests' },
+  { code: 'approval.configure', description: 'Configure approval workflows' },
 ];
 
 export const SYSTEM_PERMISSION_CODES = SYSTEM_PERMISSIONS.map((permission) => permission.code);

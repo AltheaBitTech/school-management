@@ -75,7 +75,11 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       'document.generate',
       'document.download',
       'approval.view',
-      'approval.act',
+      'approval.submit',
+      'approval.approve',
+      'approval.reject',
+      'approval.cancel',
+      'approval.configure',
     ],
   },
 ];

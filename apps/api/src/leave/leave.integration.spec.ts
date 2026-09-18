@@ -10,7 +10,14 @@ import { LeaveRequestStatus, PrismaClient } from '@prisma/client';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions';
+import { ApprovalActionsService } from '../approvals/approval-actions.service';
+import { ApprovalEntityIntegrationService } from '../approvals/approval-entity-integration.service';
+import { ApprovalRequestsService } from '../approvals/approval-requests.service';
+import { ApproverResolutionService } from '../approvals/approver-resolution.service';
+import { ensureDefaultLeaveApprovalWorkflow } from '../approvals/utils/approval-workflow-seed.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { ensureSchoolAdminRole } from '../roles/organization-role-seed.util';
+import { LeaveApprovalIntegrationService } from './leave-approval-integration.service';
 import { LeaveBalancesService } from './leave-balances.service';
 import { LeaveRequestsService } from './leave-requests.service';
 import { LeaveTypesService } from './leave-types.service';
@@ -93,14 +100,37 @@ describeIfDatabase('Leave integration', () => {
     staffBId = staffB.id;
     staffCId = staffC.id;
 
+    await ensureSchoolAdminRole(prisma, orgAId);
+    await ensureDefaultLeaveApprovalWorkflow(prisma, orgAId);
+    const schoolAdminRole = await prisma.role.findFirstOrThrow({
+      where: { organizationId: orgAId, code: 'SCHOOL_ADMIN' },
+    });
+    await prisma.userRole.create({
+      data: { userId: approverUserId, roleId: schoolAdminRole.id },
+    });
+
     leaveTypesService = new LeaveTypesService(prisma as unknown as PrismaService);
     leaveBalancesService = new LeaveBalancesService(
       prisma as unknown as PrismaService,
       leaveTypesService,
     );
+    const leaveApprovalIntegration = new LeaveApprovalIntegrationService();
+    const approvalEntityIntegration = new ApprovalEntityIntegrationService(leaveApprovalIntegration);
+    const approverResolutionService = new ApproverResolutionService();
+    const approvalRequestsService = new ApprovalRequestsService(
+      prisma as unknown as PrismaService,
+      approverResolutionService,
+    );
+    const approvalActionsService = new ApprovalActionsService(
+      prisma as unknown as PrismaService,
+      approverResolutionService,
+      approvalEntityIntegration,
+    );
     leaveRequestsService = new LeaveRequestsService(
       prisma as unknown as PrismaService,
       leaveTypesService,
+      approvalRequestsService,
+      approvalActionsService,
     );
     permissionsService = new PermissionsService(prisma as unknown as PrismaService);
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
@@ -121,9 +151,18 @@ describeIfDatabase('Leave integration', () => {
   });
 
   afterAll(async () => {
+    await prisma.approvalAction.deleteMany({ where: { approvalRequest: { organizationId: { in: [orgAId, orgBId] } } } });
+    await prisma.approvalRequest.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
+    await prisma.approvalLevel.deleteMany({ where: { workflow: { organizationId: { in: [orgAId, orgBId] } } } });
+    await prisma.approvalWorkflow.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.leaveRequest.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.leaveBalance.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.leaveType.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
+    await prisma.userRole.deleteMany({ where: { user: { organizationId: { in: [orgAId, orgBId] } } } });
+    await prisma.rolePermission.deleteMany({
+      where: { role: { organizationId: { in: [orgAId, orgBId] } } },
+    });
+    await prisma.role.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.staff.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.user.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.organization.deleteMany({ where: { id: { in: [orgAId, orgBId] } } });
@@ -431,7 +470,7 @@ describeIfDatabase('Leave integration', () => {
         sessionId: 'session-2',
         email: 'approver@example.com',
       }),
-    ).rejects.toBeInstanceOf(ConflictException);
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('allows self-service leave submission without manage_balances permission', async () => {

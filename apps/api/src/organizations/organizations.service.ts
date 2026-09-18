@@ -10,6 +10,7 @@ import { PasswordService } from '../auth/services/password.service';
 import { normalizeEmail } from '../auth/utils/email.util';
 import { ensureDefaultAssetCategories } from '../assets/utils/asset-category-seed.util';
 import { ensureDefaultDocumentTemplates } from '../documents/utils/document-template-seed.util';
+import { ensureDefaultLeaveApprovalWorkflow } from '../approvals/utils/approval-workflow-seed.util';
 import { ensureSchoolAdminRole } from '../roles/organization-role-seed.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -75,6 +76,7 @@ export class OrganizationsService {
         const schoolAdminRole = await ensureSchoolAdminRole(tx, organization.id);
         await ensureDefaultAssetCategories(tx, organization.id);
         await ensureDefaultDocumentTemplates(tx, organization.id, adminUser.id);
+        await ensureDefaultLeaveApprovalWorkflow(tx, organization.id);
 
         await tx.userRole.create({
           data: {

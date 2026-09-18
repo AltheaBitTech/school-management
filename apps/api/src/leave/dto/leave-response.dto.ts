@@ -143,6 +143,9 @@ export class LeaveRequestDto {
   @ApiProperty({ enum: LeaveRequestStatus })
   status!: LeaveRequestStatus;
 
+  @ApiPropertyOptional({ format: 'uuid' })
+  approvalRequestId?: string | null;
+
   @ApiProperty()
   submittedAt!: string;
 

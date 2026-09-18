@@ -36,10 +36,15 @@ const PHASE_10A_BUSINESS_MODELS = ['File'] as const;
 
 const PHASE_10B_BUSINESS_MODELS = ['Student', 'DocumentTemplate', 'GeneratedDocument'] as const;
 
+const PHASE_11_BUSINESS_MODELS = [
+  'ApprovalWorkflow',
+  'ApprovalLevel',
+  'ApprovalRequest',
+  'ApprovalAction',
+] as const;
+
 const FORBIDDEN_BUSINESS_MODELS = [
   'Visit',
-  'ApprovalWorkflow',
-  'ApprovalRequest',
   'Event',
   'FeeStructure',
   'TransportRoute',
@@ -107,6 +112,12 @@ describe('Prisma identity and RBAC schema', () => {
 
   it('exposes the Phase 10B student and document models', () => {
     for (const modelName of PHASE_10B_BUSINESS_MODELS) {
+      expect(Prisma.ModelName).toHaveProperty(modelName);
+    }
+  });
+
+  it('exposes the Phase 11 approval models', () => {
+    for (const modelName of PHASE_11_BUSINESS_MODELS) {
       expect(Prisma.ModelName).toHaveProperty(modelName);
     }
   });

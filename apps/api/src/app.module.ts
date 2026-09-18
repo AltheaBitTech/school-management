@@ -19,6 +19,7 @@ import { AssetsModule } from './assets/assets.module';
 import { FilesModule } from './files/files.module';
 import { StudentsModule } from './students/students.module';
 import { DocumentsModule } from './documents/documents.module';
+import { ApprovalsModule } from './approvals/approvals.module';
 import { RbacModule } from './rbac/rbac.module';
 
 @Module({
@@ -46,6 +47,7 @@ import { RbacModule } from './rbac/rbac.module';
     FilesModule,
     StudentsModule,
     DocumentsModule,
+    ApprovalsModule,
     RbacModule,
   ],
   providers: [

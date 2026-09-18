@@ -124,6 +124,14 @@ describeIfDatabase('Organizations integration', () => {
   ): Promise<void> {
     await prisma.refreshSession.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.userRole.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.approvalAction.deleteMany({
+      where: { approvalRequest: { organizationId } },
+    });
+    await prisma.approvalRequest.deleteMany({ where: { organizationId } });
+    await prisma.approvalLevel.deleteMany({
+      where: { workflow: { organizationId } },
+    });
+    await prisma.approvalWorkflow.deleteMany({ where: { organizationId } });
 
     const roles = await prisma.role.findMany({ where: { organizationId } });
 

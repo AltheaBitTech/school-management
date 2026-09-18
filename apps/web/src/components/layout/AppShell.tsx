@@ -30,6 +30,9 @@ export function AppShell({ children }: AppShellProps) {
           <Button component={Link} href="/leave" color="inherit">
             Leave
           </Button>
+          <Button component={Link} href="/approvals" color="inherit">
+            Approvals
+          </Button>
           <Button component={Link} href="/complaints" color="inherit">
             Complaints
           </Button>

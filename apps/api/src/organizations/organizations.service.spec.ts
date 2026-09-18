@@ -70,6 +70,7 @@ describe('OrganizationsService', () => {
         },
         role: {
           upsert: jest.fn().mockResolvedValue({ id: 'role-1', code: 'SCHOOL_ADMIN' }),
+          findFirst: jest.fn().mockResolvedValue({ id: 'role-1', code: 'SCHOOL_ADMIN' }),
         },
         permission: {
           findUnique: jest.fn().mockResolvedValue({ id: 'perm-1' }),
@@ -82,6 +83,12 @@ describe('OrganizationsService', () => {
         },
         documentTemplate: {
           upsert: jest.fn().mockResolvedValue({ id: 'template-1' }),
+        },
+        approvalWorkflow: {
+          upsert: jest.fn().mockResolvedValue({ id: 'workflow-1' }),
+        },
+        approvalLevel: {
+          upsert: jest.fn().mockResolvedValue({ id: 'level-1' }),
         },
       }),
     );

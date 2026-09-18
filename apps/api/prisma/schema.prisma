@@ -143,6 +143,29 @@ enum GeneratedDocumentStatus {
   GENERATED
 }
 
+enum ApprovalEntityType {
+  LEAVE
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalActionType {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalApproverType {
+  ROLE
+  USER
+}
+
 model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
@@ -176,6 +199,8 @@ model Organization {
   students    Student[]
   documentTemplates DocumentTemplate[]
   generatedDocuments GeneratedDocument[]
+  approvalWorkflows ApprovalWorkflow[]
+  approvalRequests ApprovalRequest[]
 
   @@index([status])
 }
@@ -227,6 +252,9 @@ model User {
   createdFiles File[] @relation("FileCreatedBy")
   createdDocumentTemplates DocumentTemplate[] @relation("DocumentTemplateCreatedBy")
   generatedDocuments GeneratedDocument[] @relation("GeneratedDocumentCreatedBy")
+  submittedApprovalRequests ApprovalRequest[] @relation("ApprovalRequestSubmittedBy")
+  approvalActions ApprovalAction[] @relation("ApprovalActionActor")
+  configuredApprovalLevels ApprovalLevel[] @relation("ApprovalLevelUser")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -243,6 +271,7 @@ model Role {
   organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   rolePermissions RolePermission[]
   userRoles       UserRole[]
+  approvalLevels  ApprovalLevel[] @relation("ApprovalLevelRole")
 
   /// Organization-scoped uniqueness. Platform roles (organizationId = null) also rely on
   /// manual SQL index Role_platform_code_key — see prisma/MIGRATION-NOTES.md.
@@ -453,6 +482,7 @@ model LeaveRequest {
   submittedAt      DateTime           @default(now())
   decidedAt        DateTime?
   decidedByUserId  String?            @db.Uuid
+  approvalRequestId String?           @unique @db.Uuid
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -461,6 +491,7 @@ model LeaveRequest {
   leaveType      LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
   decidedBy      User?        @relation("LeaveRequestDecidedBy", fields: [decidedByUserId], references: [id], onDelete: Restrict)
   attachmentFile File?        @relation("LeaveAttachment", fields: [attachmentFileId], references: [id], onDelete: SetNull)
+  approvalRequest ApprovalRequest? @relation(fields: [approvalRequestId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, staffId])
   @@index([organizationId, leaveTypeId])
@@ -825,4 +856,81 @@ model AssetHistory {
   actorUser    User         @relation("AssetHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, assetId, createdAt])
+}
+
+model ApprovalWorkflow {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @db.Uuid
+  code           String
+  name           String
+  description    String?
+  entityType     ApprovalEntityType
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  levels       ApprovalLevel[]
+  requests     ApprovalRequest[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, entityType, isActive])
+}
+
+model ApprovalLevel {
+  id           String               @id @default(uuid()) @db.Uuid
+  workflowId   String               @db.Uuid
+  level        Int
+  name         String
+  approverType ApprovalApproverType
+  roleId       String?              @db.Uuid
+  userId       String?              @db.Uuid
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  role     Role?            @relation("ApprovalLevelRole", fields: [roleId], references: [id], onDelete: Restrict)
+  user     User?            @relation("ApprovalLevelUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([workflowId, level])
+}
+
+model ApprovalRequest {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @db.Uuid
+  workflowId     String                @db.Uuid
+  entityType     ApprovalEntityType
+  entityId       String                @db.Uuid
+  status         ApprovalRequestStatus @default(PENDING)
+  currentLevel   Int                   @default(1)
+  submittedById  String                @db.Uuid
+  completedAt    DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workflow     ApprovalWorkflow    @relation(fields: [workflowId], references: [id], onDelete: Restrict)
+  submittedBy  User                @relation("ApprovalRequestSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  actions      ApprovalAction[]
+  leaveRequest LeaveRequest?
+
+  @@unique([organizationId, entityType, entityId])
+  @@index([organizationId, status])
+  @@index([organizationId, entityType, status])
+  @@index([organizationId, status, currentLevel])
+}
+
+model ApprovalAction {
+  id                String             @id @default(uuid()) @db.Uuid
+  approvalRequestId String             @db.Uuid
+  level             Int
+  action            ApprovalActionType
+  actorUserId       String             @db.Uuid
+  comment           String?
+  createdAt         DateTime           @default(now())
+
+  approvalRequest ApprovalRequest @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  actor           User            @relation("ApprovalActionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([approvalRequestId, createdAt])
 }

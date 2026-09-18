@@ -6,11 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ApprovalEntityType,
   EmploymentStatus,
   LeaveRequest,
   LeaveRequestStatus,
   Prisma,
 } from '@prisma/client';
+import { ApprovalActionsService } from '../approvals/approval-actions.service';
+import { ApprovalRequestsService } from '../approvals/approval-requests.service';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { buildPaginationMeta } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,7 +21,6 @@ import { LEAVE_ERROR_CODES } from './constants/leave.constants';
 import { CreateLeaveRequestDto, ListLeaveRequestsQueryDto } from './dto/leave-request.dto';
 import { LeaveTypesService } from './leave-types.service';
 import {
-  calculateAvailableBalance,
   calculateLeaveDuration,
   datesOverlap,
   decimalToNumber,
@@ -67,6 +69,8 @@ export class LeaveRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leaveTypesService: LeaveTypesService,
+    private readonly approvalRequestsService: ApprovalRequestsService,
+    private readonly approvalActionsService: ApprovalActionsService,
   ) {}
 
   async create(
@@ -127,20 +131,35 @@ export class LeaveRequestsService {
 
     await this.assertNoOverlap(organizationId, dto.staffId, startDate, endDate);
 
-    return this.prisma.leaveRequest.create({
-      data: {
+    return this.prisma.$transaction(async (tx) => {
+      const request = await tx.leaveRequest.create({
+        data: {
+          organizationId,
+          staffId: dto.staffId,
+          leaveTypeId: dto.leaveTypeId,
+          startDate,
+          endDate,
+          duration,
+          halfDayPart: dto.halfDayPart ?? null,
+          reason: dto.reason?.trim() || null,
+          status: LeaveRequestStatus.PENDING_APPROVAL,
+          submittedAt: new Date(),
+        },
+        include: requestInclude,
+      });
+
+      const approvalRequest = await this.approvalRequestsService.createForEntity(tx, {
         organizationId,
-        staffId: dto.staffId,
-        leaveTypeId: dto.leaveTypeId,
-        startDate,
-        endDate,
-        duration,
-        halfDayPart: dto.halfDayPart ?? null,
-        reason: dto.reason?.trim() || null,
-        status: LeaveRequestStatus.PENDING_APPROVAL,
-        submittedAt: new Date(),
-      },
-      include: requestInclude,
+        entityType: ApprovalEntityType.LEAVE,
+        entityId: request.id,
+        submittedById: actor.userId,
+      });
+
+      return tx.leaveRequest.update({
+        where: { id: request.id },
+        data: { approvalRequestId: approvalRequest.id },
+        include: requestInclude,
+      });
     });
   }
 
@@ -190,64 +209,22 @@ export class LeaveRequestsService {
     requestId: string,
     approver: AuthenticatedUser,
   ): Promise<LeaveRequestWithRelations> {
-    return this.prisma.$transaction(async (tx) => {
-      const request = await this.lockPendingLeaveRequest(tx, organizationId, requestId);
+    const request = await this.findById(organizationId, requestId);
 
-      this.assertNotSelfApproval(request.staff.userId, approver.userId);
-
-      if (request.leaveType.tracksBalance) {
-        const balance = await tx.leaveBalance.findFirst({
-          where: {
-            organizationId,
-            staffId: request.staffId,
-            leaveTypeId: request.leaveTypeId,
-            periodStart: { lte: request.startDate },
-            periodEnd: { gte: request.startDate },
-          },
-        });
-
-        if (!balance) {
-          throw new BadRequestException({
-            code: LEAVE_ERROR_CODES.INSUFFICIENT_LEAVE_BALANCE,
-            message: 'No leave balance is configured for this request period',
-          });
-        }
-
-        await tx.$executeRaw`SELECT id FROM "LeaveBalance" WHERE id = ${balance.id}::uuid FOR UPDATE`;
-
-        const lockedBalance = await tx.leaveBalance.findUniqueOrThrow({
-          where: { id: balance.id },
-        });
-        const available = calculateAvailableBalance(lockedBalance);
-        const requestedDays = decimalToNumber(request.duration);
-
-        if (available < requestedDays) {
-          throw new BadRequestException({
-            code: LEAVE_ERROR_CODES.INSUFFICIENT_LEAVE_BALANCE,
-            message: 'Insufficient leave balance',
-          });
-        }
-
-        await tx.leaveBalance.update({
-          where: { id: balance.id },
-          data: {
-            usedAmount: {
-              increment: request.duration,
-            },
-          },
-        });
-      }
-
-      return tx.leaveRequest.update({
-        where: { id: requestId },
-        data: {
-          status: LeaveRequestStatus.APPROVED,
-          decidedAt: new Date(),
-          decidedByUserId: approver.userId,
-        },
-        include: requestInclude,
+    if (!request.approvalRequestId) {
+      throw new BadRequestException({
+        code: LEAVE_ERROR_CODES.APPROVAL_NOT_LINKED,
+        message: 'Leave request is not linked to an approval workflow',
       });
-    });
+    }
+
+    await this.approvalActionsService.approve(
+      organizationId,
+      request.approvalRequestId,
+      approver,
+    );
+
+    return this.findById(organizationId, requestId);
   }
 
   async reject(
@@ -255,21 +232,22 @@ export class LeaveRequestsService {
     requestId: string,
     approver: AuthenticatedUser,
   ): Promise<LeaveRequestWithRelations> {
-    return this.prisma.$transaction(async (tx) => {
-      const request = await this.lockPendingLeaveRequest(tx, organizationId, requestId);
+    const request = await this.findById(organizationId, requestId);
 
-      this.assertNotSelfApproval(request.staff.userId, approver.userId);
-
-      return tx.leaveRequest.update({
-        where: { id: requestId },
-        data: {
-          status: LeaveRequestStatus.REJECTED,
-          decidedAt: new Date(),
-          decidedByUserId: approver.userId,
-        },
-        include: requestInclude,
+    if (!request.approvalRequestId) {
+      throw new BadRequestException({
+        code: LEAVE_ERROR_CODES.APPROVAL_NOT_LINKED,
+        message: 'Leave request is not linked to an approval workflow',
       });
-    });
+    }
+
+    await this.approvalActionsService.reject(
+      organizationId,
+      request.approvalRequestId,
+      approver,
+    );
+
+    return this.findById(organizationId, requestId);
   }
 
   toDto(request: LeaveRequestWithRelations) {
@@ -284,6 +262,7 @@ export class LeaveRequestsService {
       halfDayPart: request.halfDayPart,
       reason: request.reason,
       status: request.status,
+      approvalRequestId: request.approvalRequestId,
       submittedAt: request.submittedAt.toISOString(),
       decidedAt: request.decidedAt?.toISOString() ?? null,
       decidedByUserId: request.decidedByUserId,
@@ -364,49 +343,4 @@ export class LeaveRequestsService {
     }
   }
 
-  private assertNotSelfApproval(
-    requesterUserId: string | null | undefined,
-    approverUserId: string,
-  ): void {
-    if (requesterUserId && requesterUserId === approverUserId) {
-      throw new ForbiddenException({
-        code: LEAVE_ERROR_CODES.SELF_APPROVAL_NOT_ALLOWED,
-        message: 'You cannot approve or reject your own leave request',
-      });
-    }
-  }
-
-  private async lockPendingLeaveRequest(
-    tx: Prisma.TransactionClient,
-    organizationId: string,
-    requestId: string,
-  ): Promise<
-    LeaveRequest & {
-      staff: { userId: string | null };
-      leaveType: LeaveRequestWithRelations['leaveType'] & { tracksBalance: boolean };
-    }
-  > {
-    const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM "LeaveRequest"
-      WHERE id = ${requestId}::uuid
-        AND "organizationId" = ${organizationId}::uuid
-        AND status = ${LeaveRequestStatus.PENDING_APPROVAL}::"LeaveRequestStatus"
-      FOR UPDATE
-    `;
-
-    if (lockedRows.length === 0) {
-      throw new ConflictException({
-        code: LEAVE_ERROR_CODES.INVALID_LEAVE_STATE,
-        message: 'Leave request is not pending approval',
-      });
-    }
-
-    return tx.leaveRequest.findFirstOrThrow({
-      where: { id: requestId, organizationId },
-      include: {
-        staff: { select: { userId: true } },
-        leaveType: true,
-      },
-    });
-  }
 }
