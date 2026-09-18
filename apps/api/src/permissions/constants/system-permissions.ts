@@ -67,6 +67,14 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'approval.reject', description: 'Reject pending approval requests' },
   { code: 'approval.cancel', description: 'Cancel pending approval requests' },
   { code: 'approval.configure', description: 'Configure approval workflows' },
+  { code: 'event.view', description: 'View events and venues' },
+  { code: 'event.create', description: 'Create events' },
+  { code: 'event.update', description: 'Update events' },
+  { code: 'event.cancel', description: 'Cancel events' },
+  { code: 'event.complete', description: 'Complete events' },
+  { code: 'event.archive', description: 'Archive events' },
+  { code: 'event.manage_participants', description: 'Manage event participants' },
+  { code: 'event.manage_venues', description: 'Manage event venues' },
 ];
 
 export const SYSTEM_PERMISSION_CODES = SYSTEM_PERMISSIONS.map((permission) => permission.code);

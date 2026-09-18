@@ -43,9 +43,10 @@ const PHASE_11_BUSINESS_MODELS = [
   'ApprovalAction',
 ] as const;
 
+const PHASE_12_BUSINESS_MODELS = ['Venue', 'Event', 'EventParticipant'] as const;
+
 const FORBIDDEN_BUSINESS_MODELS = [
   'Visit',
-  'Event',
   'FeeStructure',
   'TransportRoute',
   'Notification',
@@ -118,6 +119,12 @@ describe('Prisma identity and RBAC schema', () => {
 
   it('exposes the Phase 11 approval models', () => {
     for (const modelName of PHASE_11_BUSINESS_MODELS) {
+      expect(Prisma.ModelName).toHaveProperty(modelName);
+    }
+  });
+
+  it('exposes the Phase 12 event models', () => {
+    for (const modelName of PHASE_12_BUSINESS_MODELS) {
       expect(Prisma.ModelName).toHaveProperty(modelName);
     }
   });

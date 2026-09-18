@@ -12,6 +12,9 @@ export class OrganizationSummaryDto {
 
   @ApiProperty({ example: 'ACTIVE' })
   status!: string;
+
+  @ApiProperty({ example: 'UTC' })
+  timezone!: string;
 }
 
 export class OrganizationAdminSummaryDto {

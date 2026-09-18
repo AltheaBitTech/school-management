@@ -29,6 +29,10 @@ export interface OrganizationBootstrapResult {
   };
 }
 
+type OrganizationWithTimezone = Organization & {
+  settings?: { timezone: string } | null;
+};
+
 @Injectable()
 export class OrganizationsService {
   constructor(
@@ -143,16 +147,29 @@ export class OrganizationsService {
     return organization;
   }
 
-  async getOrganizationForAuthenticatedUser(organizationId: string): Promise<Organization> {
-    return this.getOrganizationById(organizationId);
+  async getOrganizationForAuthenticatedUser(organizationId: string): Promise<OrganizationWithTimezone> {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { settings: { select: { timezone: true } } },
+    });
+
+    if (!organization) {
+      throw new NotFoundException({
+        code: ORGANIZATION_ERROR_CODES.ORGANIZATION_NOT_FOUND,
+        message: 'Organization not found',
+      });
+    }
+
+    return organization;
   }
 
-  toOrganizationSummary(organization: Organization) {
+  toOrganizationSummary(organization: OrganizationWithTimezone) {
     return {
       id: organization.id,
       name: organization.name,
       code: organization.code,
       status: organization.status,
+      timezone: organization.settings?.timezone ?? 'UTC',
     };
   }
 }

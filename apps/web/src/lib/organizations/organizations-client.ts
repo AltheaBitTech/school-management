@@ -6,6 +6,7 @@ export interface OrganizationSummary {
   name: string;
   code: string;
   status: string;
+  timezone: string;
 }
 
 export interface OrganizationBootstrapResult {

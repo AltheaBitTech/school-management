@@ -20,6 +20,7 @@ import { FilesModule } from './files/files.module';
 import { StudentsModule } from './students/students.module';
 import { DocumentsModule } from './documents/documents.module';
 import { ApprovalsModule } from './approvals/approvals.module';
+import { EventsModule } from './events/events.module';
 import { RbacModule } from './rbac/rbac.module';
 
 @Module({
@@ -48,6 +49,7 @@ import { RbacModule } from './rbac/rbac.module';
     StudentsModule,
     DocumentsModule,
     ApprovalsModule,
+    EventsModule,
     RbacModule,
   ],
   providers: [

@@ -447,14 +447,39 @@ Business modules remain responsible for validating the underlying business reque
 # 25. Event API
 
 ```text
-GET  /events
-POST /events
-GET  /events/:id
-PATCH /events/:id
-POST /events/:id/cancel
+GET    /events
+POST   /events
+GET    /events/:id
+PATCH  /events/:id
+POST   /events/:id/schedule
+POST   /events/:id/cancel
+POST   /events/:id/complete
+POST   /events/:id/archive
+
+GET    /events/:id/participants
+POST   /events/:id/participants
+DELETE /events/:id/participants/:participantId
+
+GET    /venues
+POST   /venues
+GET    /venues/:id
+PATCH  /venues/:id
 ```
 
-Event participant visibility must respect organization and audience rules.
+The generic event `PATCH` endpoint updates event details, type, time, and venue.
+It does not accept `status`; lifecycle transitions use the explicit action
+endpoints above.
+
+Event lifecycle:
+
+```text
+DRAFT → SCHEDULED → COMPLETED → ARCHIVED
+DRAFT → CANCELLED
+SCHEDULED → CANCELLED
+```
+
+New events are created as `DRAFT`. Event participant visibility and all venue,
+event, and participant operations must respect organization and audience rules.
 
 ---
 

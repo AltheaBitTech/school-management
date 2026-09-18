@@ -166,6 +166,28 @@ enum ApprovalApproverType {
   USER
 }
 
+enum EventType {
+  SPORTS_DAY
+  PTM
+  HOLIDAY
+  EXAMINATION
+  MEETING
+  ANNUAL_DAY
+}
+
+enum EventStatus {
+  DRAFT
+  SCHEDULED
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
+
+enum EventParticipantType {
+  STAFF
+  STUDENT
+}
+
 model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
@@ -201,6 +223,9 @@ model Organization {
   generatedDocuments GeneratedDocument[]
   approvalWorkflows ApprovalWorkflow[]
   approvalRequests ApprovalRequest[]
+  venues      Venue[]
+  events      Event[]
+  eventParticipants EventParticipant[]
 
   @@index([status])
 }
@@ -220,6 +245,66 @@ model OrganizationSettings {
   updatedAt              DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Venue {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  location       String?
+  capacity       Int?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  events       Event[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, active])
+}
+
+model Event {
+  id              String      @id @default(uuid()) @db.Uuid
+  organizationId  String      @db.Uuid
+  title           String
+  description     String?
+  type            EventType
+  status          EventStatus @default(DRAFT)
+  startAt         DateTime
+  endAt           DateTime
+  venueId         String      @db.Uuid
+  createdByUserId String      @db.Uuid
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  archivedAt      DateTime?
+  cancelledAt     DateTime?
+  completedAt     DateTime?
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  venue        Venue               @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  createdBy    User                @relation("EventCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  participants EventParticipant[]
+
+  @@index([organizationId, status, startAt])
+  @@index([organizationId, venueId, startAt, endAt])
+  @@index([organizationId, type, startAt])
+}
+
+model EventParticipant {
+  id              String               @id @default(uuid()) @db.Uuid
+  organizationId  String               @db.Uuid
+  eventId         String               @db.Uuid
+  participantType  EventParticipantType
+  participantId   String               @db.Uuid
+  createdAt       DateTime             @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, eventId, participantType, participantId])
+  @@index([organizationId, eventId])
+  @@index([organizationId, participantType, participantId])
 }
 
 model User {
@@ -255,6 +340,7 @@ model User {
   submittedApprovalRequests ApprovalRequest[] @relation("ApprovalRequestSubmittedBy")
   approvalActions ApprovalAction[] @relation("ApprovalActionActor")
   configuredApprovalLevels ApprovalLevel[] @relation("ApprovalLevelUser")
+  createdEvents Event[] @relation("EventCreatedBy")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
