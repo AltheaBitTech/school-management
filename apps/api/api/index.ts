@@ -28,6 +28,17 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     });
   }
 
-  const expressHandler = await cachedHandlerPromise;
-  expressHandler(req, res);
+  try {
+    const expressHandler = await cachedHandlerPromise;
+    expressHandler(req, res);
+  } catch (error: unknown) {
+    // Logged so the real cause (e.g. a DB connection or env validation failure during app
+    // bootstrap) is visible in Vercel's function logs instead of a bare generic 500.
+    console.error('Failed to handle request: app bootstrap or request handling threw', error);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ message: 'Internal server error' }));
+    }
+  }
 }
