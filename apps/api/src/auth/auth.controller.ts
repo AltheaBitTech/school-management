@@ -24,6 +24,7 @@ import { AppConfig, CONFIGURATION_KEY } from '../config/configuration';
 import { AuthService } from './auth.service';
 import { AUTH_ERROR_CODES, REFRESH_COOKIE_NAME } from './constants/auth.constants';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Public } from './decorators/public.decorator';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { MeResponseDto } from './dto/me-response.dto';
@@ -133,6 +134,17 @@ export class AuthController {
   ): Promise<void> {
     await this.authService.logoutAll(user.userId);
     clearRefreshTokenCookie(response, this.isProduction());
+  }
+
+  @Post('complete-signup')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Complete signup for approved registration (set password)' })
+  async completeSignup(
+    @Body() body: { registrationRequestId: string; password: string },
+  ) {
+    return this.authService.completeSignup(body.registrationRequestId, body.password);
   }
 
   @Get('me')

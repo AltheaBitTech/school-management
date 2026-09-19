@@ -262,7 +262,35 @@ model Organization {
   feeStructures FeeStructure[]
   studentFees StudentFee[]
   feePayments FeePayment[]
+  registrationRequests OrganizationRegistrationRequest[]
 
+  @@index([status])
+}
+
+model OrganizationRegistrationRequest {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationName String
+  contactEmail     String   @unique
+  contactFirstName String
+  contactLastName  String
+  contactPhone     String?  @unique
+  address          String?
+  city             String?
+  state            String?
+  country          String   @default("India")
+  status           String   @default("PENDING")
+  rejectionReason  String?
+  approvedAt       DateTime?
+  approvedByUserId String?  @db.Uuid
+  organizationId   String?  @unique @db.Uuid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  approvedByUser   User?        @relation("ApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([contactEmail])
   @@index([status])
 }
 
@@ -380,6 +408,7 @@ model User {
   auditLogEntries AuditLog[] @relation("AuditLogActor")
   notifications Notification[] @relation("NotificationRecipient")
   recordedFeePayments FeePayment[] @relation("FeePaymentCreatedBy")
+  approvedRegistrations OrganizationRegistrationRequest[] @relation("ApprovedBy")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])

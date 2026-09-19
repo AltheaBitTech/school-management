@@ -208,4 +208,33 @@ export class AuthService {
       message: 'Invalid credentials',
     });
   }
+
+  async completeSignup(registrationRequestId: string, password: string) {
+    const registration = await this.prisma.organizationRegistrationRequest.findUnique({
+      where: { id: registrationRequestId },
+    });
+
+    if (!registration || registration.status !== 'APPROVED') {
+      throw new UnauthorizedException('Invalid or unapproved registration request');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: registration.contactEmail },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const passwordHash = await this.passwordService.hash(password);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        status: UserStatus.ACTIVE,
+      },
+    });
+
+    return { message: 'Signup completed. You can now log in.' };
+  }
 }

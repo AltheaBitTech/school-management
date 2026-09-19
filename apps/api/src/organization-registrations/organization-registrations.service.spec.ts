@@ -1,0 +1,264 @@
+import { ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { PrismaService } from '../prisma/prisma.service';
+import { PasswordService } from '../auth/services/password.service';
+import { OrganizationRegistrationsService } from './organization-registrations.service';
+import { CreateOrganizationRegistrationRequestDto } from './dto/create-organization-registration-request.dto';
+
+describe('OrganizationRegistrationsService', () => {
+  let service: OrganizationRegistrationsService;
+  let prismaService: PrismaService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrganizationRegistrationsService,
+        {
+          provide: PrismaService,
+          useValue: {
+            user: {
+              findFirst: jest.fn(),
+            },
+            organizationRegistrationRequest: {
+              findUnique: jest.fn(),
+              findMany: jest.fn(),
+              create: jest.fn(),
+              delete: jest.fn(),
+            },
+          },
+        },
+        {
+          provide: PasswordService,
+          useValue: {
+            hashPassword: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<OrganizationRegistrationsService>(OrganizationRegistrationsService);
+    prismaService = module.get<PrismaService>(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('submitRegistrationRequest', () => {
+    const validDto: CreateOrganizationRegistrationRequestDto = {
+      organizationName: 'Test School',
+      contactEmail: 'principal@test.edu',
+      contactFirstName: 'John',
+      contactLastName: 'Doe',
+      contactPhone: '9876543210',
+      address: 'Test Address',
+      city: 'Test City',
+      state: 'Test State',
+      country: 'India',
+    };
+
+    it('should create a pending registration request successfully', async () => {
+      const now = new Date();
+      const mockRequest = {
+        id: 'test-id',
+        organizationName: 'Test School',
+        contactEmail: 'principal@test.edu',
+        contactFirstName: 'John',
+        contactLastName: 'Doe',
+        contactPhone: null,
+        address: null,
+        city: null,
+        state: null,
+        country: 'India',
+        status: 'PENDING',
+        rejectionReason: null,
+        approvedAt: null,
+        approvedByUserId: null,
+        organizationId: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'create').mockResolvedValue(mockRequest);
+
+      const result = await service.submitRegistrationRequest(validDto);
+
+      expect(result.id).toBe('test-id');
+      expect(result.status).toBe('PENDING');
+      expect(result.message).toContain('submitted successfully');
+      expect(prismaService.organizationRegistrationRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organizationName: validDto.organizationName,
+            contactEmail: validDto.contactEmail.toLowerCase(),
+            status: 'PENDING',
+          }),
+        }),
+      );
+    });
+
+    it('should reject if email is already registered as a user', async () => {
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue({ id: 'user-id' } as any);
+
+      await expect(service.submitRegistrationRequest(validDto)).rejects.toThrow(ConflictException);
+    });
+
+    it('should reject if a pending registration request already exists for this email', async () => {
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue({
+        id: 'request-id',
+        status: 'PENDING',
+      } as any);
+
+      await expect(service.submitRegistrationRequest(validDto)).rejects.toThrow(ConflictException);
+    });
+
+    it('should normalize email to lowercase and trim whitespace', async () => {
+      const dtoWithWhitespace = {
+        ...validDto,
+        contactEmail: '  PRINCIPAL@TEST.EDU  ',
+      };
+
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'create').mockResolvedValue({
+        id: 'test-id',
+        organizationName: 'Test School',
+        contactEmail: 'principal@test.edu',
+        contactFirstName: 'John',
+        contactLastName: 'Doe',
+        contactPhone: null,
+        address: null,
+        city: null,
+        state: null,
+        country: 'India',
+        status: 'PENDING',
+        rejectionReason: null,
+        approvedAt: null,
+        approvedByUserId: null,
+        organizationId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      await service.submitRegistrationRequest(dtoWithWhitespace);
+
+      expect(prismaService.organizationRegistrationRequest.findUnique).toHaveBeenCalledWith({
+        where: { contactEmail: 'principal@test.edu' },
+      });
+
+      expect(prismaService.organizationRegistrationRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            contactEmail: 'principal@test.edu',
+          }),
+        }),
+      );
+    });
+
+    it('should set default country to India if not provided', async () => {
+      const dtoWithoutCountry = { ...validDto, country: undefined };
+
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'create').mockResolvedValue({
+        id: 'test-id',
+        organizationName: 'Test School',
+        contactEmail: 'principal@test.edu',
+        contactFirstName: 'John',
+        contactLastName: 'Doe',
+        contactPhone: null,
+        address: null,
+        city: null,
+        state: null,
+        country: 'India',
+        status: 'PENDING',
+        rejectionReason: null,
+        approvedAt: null,
+        approvedByUserId: null,
+        organizationId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      await service.submitRegistrationRequest(dtoWithoutCountry);
+
+      expect(prismaService.organizationRegistrationRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            country: 'India',
+          }),
+        }),
+      );
+    });
+
+    it('should delete rejected request and create new one for same email', async () => {
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue({
+        id: 'old-request-id',
+        status: 'REJECTED',
+      } as any);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'delete').mockResolvedValue({} as any);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'create').mockResolvedValue({
+        id: 'new-request-id',
+        status: 'PENDING',
+        createdAt: new Date(),
+      } as any);
+
+      const result = await service.submitRegistrationRequest(validDto);
+
+      expect(prismaService.organizationRegistrationRequest.delete).toHaveBeenCalledWith({
+        where: { id: 'old-request-id' },
+      });
+      expect(result.id).toBe('new-request-id');
+    });
+  });
+
+  describe('findById', () => {
+    it('should find a registration request by ID', async () => {
+      const mockRequest = { id: 'test-id', status: 'PENDING' };
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue(mockRequest as any);
+
+      const result = await service.findById('test-id');
+
+      expect(result).toEqual(mockRequest);
+      expect(prismaService.organizationRegistrationRequest.findUnique).toHaveBeenCalledWith({
+        where: { id: 'test-id' },
+      });
+    });
+  });
+
+  describe('findByEmail', () => {
+    it('should find a registration request by email', async () => {
+      const mockRequest = { id: 'test-id', contactEmail: 'principal@test.edu' };
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue(mockRequest as any);
+
+      const result = await service.findByEmail('PRINCIPAL@TEST.EDU');
+
+      expect(result).toEqual(mockRequest);
+      expect(prismaService.organizationRegistrationRequest.findUnique).toHaveBeenCalledWith({
+        where: { contactEmail: 'principal@test.edu' },
+      });
+    });
+  });
+
+  describe('findPending', () => {
+    it('should find all pending registration requests', async () => {
+      const mockRequests = [
+        { id: '1', status: 'PENDING' },
+        { id: '2', status: 'PENDING' },
+      ];
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findMany').mockResolvedValue(mockRequests as any);
+
+      const result = await service.findPending();
+
+      expect(result).toEqual(mockRequests);
+      expect(prismaService.organizationRegistrationRequest.findMany).toHaveBeenCalledWith({
+        where: { status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
+});

@@ -16,7 +16,15 @@ export const PLATFORM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
   {
     code: PLATFORM_ROLE_CODES.SAAS_SUPER_ADMIN,
     name: 'SaaS Super Admin',
-    permissions: ['platform.organization.view', 'platform.organization.create', 'platform.role.assign', 'audit.view'],
+    permissions: [
+      'platform.organization.view',
+      'platform.organization.create',
+      'platform.organization.registration.view',
+      'platform.organization.registration.approve',
+      'platform.organization.registration.reject',
+      'platform.role.assign',
+      'audit.view',
+    ],
   },
 ];
 

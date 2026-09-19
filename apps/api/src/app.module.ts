@@ -26,6 +26,7 @@ import { AuditModule } from './audit/audit.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FeesModule } from './fees/fees.module';
 import { RbacModule } from './rbac/rbac.module';
+import { OrganizationRegistrationsModule } from './organization-registrations/organization-registrations.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { RbacModule } from './rbac/rbac.module';
     PermissionsModule,
     HealthModule,
     AuthModule,
+    OrganizationRegistrationsModule,
     OrganizationsModule,
     DepartmentsModule,
     StaffModule,

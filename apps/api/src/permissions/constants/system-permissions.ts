@@ -81,6 +81,9 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'fee.create', description: 'Create fee structures' },
   { code: 'fee.assign', description: 'Assign fees to students' },
   { code: 'fee.record_payment', description: 'Record student fee payments' },
+  { code: 'platform.organization.registration.view', description: 'View pending organization registration requests' },
+  { code: 'platform.organization.registration.approve', description: 'Approve organization registration requests' },
+  { code: 'platform.organization.registration.reject', description: 'Reject organization registration requests' },
 ];
 
 export const SYSTEM_PERMISSION_CODES = SYSTEM_PERMISSIONS.map((permission) => permission.code);
