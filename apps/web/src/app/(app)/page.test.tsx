@@ -70,7 +70,7 @@ describe('HomePage', () => {
     vi.mocked(listNotifications).mockReset();
   });
 
-  it('shows a sign-in prompt when the user is not authenticated', async () => {
+  it('shows a landing page when the user is not authenticated', async () => {
     vi.mocked(useAuthSession).mockReturnValue({
       isReady: true,
       isAuthenticated: false,
@@ -81,7 +81,8 @@ describe('HomePage', () => {
     render(<HomePage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Register School' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Sign In' })).toBeInTheDocument();
     });
     expect(listStaff).not.toHaveBeenCalled();
   });
