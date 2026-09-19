@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -16,6 +17,7 @@ import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { getRequestId } from '../common/middleware/correlation-id.middleware';
 import { ApprovalActionsService } from './approval-actions.service';
 import { ApprovalRequestsService } from './approval-requests.service';
 import { ApprovalWorkflowsService } from './approval-workflows.service';
@@ -32,6 +34,7 @@ import {
   PaginatedApprovalRequestsResponseDto,
   PaginatedApprovalWorkflowsResponseDto,
 } from './dto/approval-response.dto';
+import { Request } from 'express';
 
 @ApiTags('approvals')
 @ApiBearerAuth()
@@ -88,9 +91,16 @@ export class ApprovalsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ApprovalDecisionDto,
+    @Req() request: Request,
   ) {
-    const request = await this.approvalActionsService.approve(user.organizationId, id, user, dto);
-    const loaded = await this.approvalRequestsService.findById(user.organizationId, request.id);
+    const approvalRequest = await this.approvalActionsService.approve(
+      user.organizationId,
+      id,
+      user,
+      dto,
+      { requestId: getRequestId(request) },
+    );
+    const loaded = await this.approvalRequestsService.findById(user.organizationId, approvalRequest.id);
     return { data: await this.approvalRequestsService.toDto(loaded) };
   }
 
@@ -102,9 +112,16 @@ export class ApprovalsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ApprovalDecisionDto,
+    @Req() request: Request,
   ) {
-    const request = await this.approvalActionsService.reject(user.organizationId, id, user, dto);
-    const loaded = await this.approvalRequestsService.findById(user.organizationId, request.id);
+    const approvalRequest = await this.approvalActionsService.reject(
+      user.organizationId,
+      id,
+      user,
+      dto,
+      { requestId: getRequestId(request) },
+    );
+    const loaded = await this.approvalRequestsService.findById(user.organizationId, approvalRequest.id);
     return { data: await this.approvalRequestsService.toDto(loaded) };
   }
 }

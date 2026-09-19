@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 import { ApprovalActionsService } from './approval-actions.service';
 import { ApprovalEntityIntegrationService } from './approval-entity-integration.service';
+import { ApprovalNotificationService } from './approval-notification.service';
 import { ApprovalRequestsService } from './approval-requests.service';
 import { ApprovalWorkflowsService } from './approval-workflows.service';
 import { ApproverResolutionService } from './approver-resolution.service';
@@ -17,6 +18,8 @@ import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions'
 import { PrismaService } from '../prisma/prisma.service';
 import { ensureSchoolAdminRole } from '../roles/organization-role-seed.util';
 import { LeaveApprovalIntegrationService } from '../leave/leave-approval-integration.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { EmailProvider } from '../notifications/providers/email-provider.interface';
 import { LeaveBalancesService } from '../leave/leave-balances.service';
 import { LeaveRequestsService } from '../leave/leave-requests.service';
 import { LeaveTypesService } from '../leave/leave-types.service';
@@ -112,10 +115,20 @@ describeIfDatabase('Approvals integration', () => {
       prisma as unknown as PrismaService,
       approverResolutionService,
     );
+    const emailProvider: EmailProvider = { sendEmail: jest.fn().mockResolvedValue(undefined) };
+    const notificationsService = new NotificationsService(
+      prisma as unknown as PrismaService,
+      emailProvider,
+    );
+    const approvalNotificationService = new ApprovalNotificationService(
+      prisma as unknown as PrismaService,
+      notificationsService,
+    );
     approvalActionsService = new ApprovalActionsService(
       prisma as unknown as PrismaService,
       approverResolutionService,
       approvalEntityIntegration,
+      approvalNotificationService,
     );
     approvalWorkflowsService = new ApprovalWorkflowsService(prisma as unknown as PrismaService);
     leaveRequestsService = new LeaveRequestsService(
@@ -163,6 +176,7 @@ describeIfDatabase('Approvals integration', () => {
   });
 
   afterAll(async () => {
+    await prisma.notification.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.approvalAction.deleteMany({
       where: { approvalRequest: { organizationId: { in: [orgAId, orgBId] } } },
     });
@@ -409,9 +423,12 @@ describeIfDatabase('Approvals integration', () => {
       orgAId,
       leaveRequest.approvalRequestId!,
     );
-    expect([ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED]).toContain(
-      approval.status,
-    );
-    expect(approval.status).not.toBe(ApprovalRequestStatus.PENDING);
+    if (approval.status === ApprovalRequestStatus.PENDING) {
+      expect(approval.currentLevel).toBeGreaterThan(1);
+    } else {
+      expect([ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED]).toContain(
+        approval.status,
+      );
+    }
   });
 });

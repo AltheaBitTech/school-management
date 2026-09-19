@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -15,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { getRequestId } from '../common/middleware/correlation-id.middleware';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PermissionsService } from '../permissions/permissions.service';
 import { CreateLeaveRequestDto, ListLeaveRequestsQueryDto } from './dto/leave-request.dto';
@@ -31,6 +33,7 @@ import {
 import { LeaveBalancesService } from './leave-balances.service';
 import { LeaveRequestsService } from './leave-requests.service';
 import { LeaveTypesService } from './leave-types.service';
+import { Request } from 'express';
 
 @ApiTags('leave-types')
 @ApiBearerAuth()
@@ -169,9 +172,12 @@ export class LeaveRequestsController {
   async approve(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
   ) {
-    const request = await this.leaveRequestsService.approve(user.organizationId, id, user);
-    return { data: this.leaveRequestsService.toDto(request) };
+    const leaveRequest = await this.leaveRequestsService.approve(user.organizationId, id, user, {
+      requestId: getRequestId(request),
+    });
+    return { data: this.leaveRequestsService.toDto(leaveRequest) };
   }
 
   @Post(':id/reject')
@@ -181,8 +187,11 @@ export class LeaveRequestsController {
   async reject(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
   ) {
-    const request = await this.leaveRequestsService.reject(user.organizationId, id, user);
-    return { data: this.leaveRequestsService.toDto(request) };
+    const leaveRequest = await this.leaveRequestsService.reject(user.organizationId, id, user, {
+      requestId: getRequestId(request),
+    });
+    return { data: this.leaveRequestsService.toDto(leaveRequest) };
   }
 }

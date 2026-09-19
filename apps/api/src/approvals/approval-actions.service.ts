@@ -14,6 +14,7 @@ import {
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApprovalEntityIntegrationService } from './approval-entity-integration.service';
+import { ApprovalNotificationService } from './approval-notification.service';
 import { ApproverResolutionService } from './approver-resolution.service';
 import { APPROVAL_ERROR_CODES } from './constants/approval.constants';
 import { ApprovalDecisionDto } from './dto/approval.dto';
@@ -30,6 +31,7 @@ export class ApprovalActionsService {
     private readonly prisma: PrismaService,
     private readonly approverResolutionService: ApproverResolutionService,
     private readonly entityIntegrationService: ApprovalEntityIntegrationService,
+    private readonly approvalNotificationService: ApprovalNotificationService,
   ) {}
 
   async approve(
@@ -37,8 +39,9 @@ export class ApprovalActionsService {
     approvalRequestId: string,
     actor: AuthenticatedUser,
     dto?: ApprovalDecisionDto,
+    options?: { requestId?: string },
   ): Promise<ApprovalRequest> {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const request = await this.lockPendingApprovalRequest(tx, organizationId, approvalRequestId);
 
       if (request.submittedById === actor.userId) {
@@ -92,6 +95,16 @@ export class ApprovalActionsService {
 
       return finalized;
     });
+
+    if (result.status === ApprovalRequestStatus.APPROVED) {
+      await this.approvalNotificationService.notifyLeaveOutcomeIfFinalized(
+        organizationId,
+        result,
+        options?.requestId,
+      );
+    }
+
+    return result;
   }
 
   async reject(
@@ -99,8 +112,9 @@ export class ApprovalActionsService {
     approvalRequestId: string,
     actor: AuthenticatedUser,
     dto?: ApprovalDecisionDto,
+    options?: { requestId?: string },
   ): Promise<ApprovalRequest> {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const request = await this.lockPendingApprovalRequest(tx, organizationId, approvalRequestId);
 
       if (request.submittedById === actor.userId) {
@@ -140,6 +154,14 @@ export class ApprovalActionsService {
 
       return finalized;
     });
+
+    await this.approvalNotificationService.notifyLeaveOutcomeIfFinalized(
+      organizationId,
+      result,
+      options?.requestId,
+    );
+
+    return result;
   }
 
   private getCurrentLevelConfig(request: LockedApprovalRequest): ApprovalLevel {

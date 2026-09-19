@@ -47,11 +47,12 @@ const PHASE_12_BUSINESS_MODELS = ['Venue', 'Event', 'EventParticipant'] as const
 
 const AUDIT_FOUNDATION_MODELS = ['AuditLog'] as const;
 
+const NOTIFICATION_FOUNDATION_MODELS = ['Notification'] as const;
+
 const FORBIDDEN_BUSINESS_MODELS = [
   'Visit',
   'FeeStructure',
   'TransportRoute',
-  'Notification',
   'ActivityLog',
   'ParentGuardian',
   'StudentGuardian',
@@ -132,6 +133,12 @@ describe('Prisma identity and RBAC schema', () => {
 
   it('exposes the audit foundation model', () => {
     for (const modelName of AUDIT_FOUNDATION_MODELS) {
+      expect(Prisma.ModelName).toHaveProperty(modelName);
+    }
+  });
+
+  it('exposes the notification foundation model', () => {
+    for (const modelName of NOTIFICATION_FOUNDATION_MODELS) {
       expect(Prisma.ModelName).toHaveProperty(modelName);
     }
   });

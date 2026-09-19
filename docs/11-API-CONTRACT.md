@@ -485,16 +485,62 @@ event, and participant operations must respect organization and audience rules.
 
 # 26. Notification API
 
-```text
-GET   /notifications
-POST  /notifications/:id/read
-POST  /notifications/read-all
+## Notifications
 
-GET   /notification-preferences
-PATCH /notification-preferences
+```text
+GET /notifications
+POST /notifications/:id/read
 ```
 
-Users should only access their own notifications unless an administrative permission explicitly permits broader access.
+Access model:
+
+- Authenticated users only
+- Self access only (`recipientUserId` must match the current user)
+- Always scoped to the authenticated user's organization
+- Client must not supply `organizationId` or `recipientUserId`
+
+Supported query parameters for list:
+
+```text
+page=1
+pageSize=25
+```
+
+List responses are paginated, ordered newest first with deterministic tie-breaking
+by notification ID.
+
+Mark-read lookups must match:
+
+```text
+id
+organizationId
+recipientUserId
+```
+
+Users cannot mark another user's notification as read.
+
+Representative preference endpoints (not implemented in Notification Foundation):
+
+```text
+GET   /notification-preferences
+PATCH /notification-preferences
+POST  /notifications/read-all
+```
+
+## Provider configuration
+
+Notification Foundation supports configuration-based email delivery:
+
+```text
+EMAIL_PROVIDER=console|resend
+RESEND_API_KEY=...
+RESEND_FROM_EMAIL=...
+```
+
+When `EMAIL_PROVIDER=console`, Resend credentials are not required.
+When `EMAIL_PROVIDER=resend`, `RESEND_API_KEY` and `RESEND_FROM_EMAIL` are required.
+
+Email delivery failures do not roll back already-completed business operations.
 
 ---
 

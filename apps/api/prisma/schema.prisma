@@ -49,6 +49,17 @@ enum HalfDayPart {
   SECOND_HALF
 }
 
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 enum ComplaintCategory {
   ELECTRICAL
   PLUMBING
@@ -227,6 +238,7 @@ model Organization {
   events      Event[]
   eventParticipants EventParticipant[]
   auditLogs   AuditLog[]
+  notifications Notification[]
 
   @@index([status])
 }
@@ -343,6 +355,7 @@ model User {
   configuredApprovalLevels ApprovalLevel[] @relation("ApprovalLevelUser")
   createdEvents Event[] @relation("EventCreatedBy")
   auditLogEntries AuditLog[] @relation("AuditLogActor")
+  notifications Notification[] @relation("NotificationRecipient")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -1042,4 +1055,25 @@ model AuditLog {
   @@index([organizationId, createdAt])
   @@index([organizationId, action])
   @@index([organizationId, entityType, entityId])
+}
+
+model Notification {
+  id              String               @id @default(uuid()) @db.Uuid
+  organizationId  String               @db.Uuid
+  recipientUserId String               @db.Uuid
+  channel         NotificationChannel  @default(IN_APP)
+  eventKey        String
+  title           String
+  body            String
+  status          NotificationStatus   @default(PENDING)
+  readAt          DateTime?
+  metadata        Json?
+  requestId       String?
+  createdAt       DateTime             @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  recipient    User         @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, recipientUserId, createdAt])
+  @@index([organizationId, status])
 }

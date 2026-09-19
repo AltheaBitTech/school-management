@@ -208,6 +208,7 @@ export class LeaveRequestsService {
     organizationId: string,
     requestId: string,
     approver: AuthenticatedUser,
+    options?: { requestId?: string },
   ): Promise<LeaveRequestWithRelations> {
     const request = await this.findById(organizationId, requestId);
 
@@ -222,6 +223,8 @@ export class LeaveRequestsService {
       organizationId,
       request.approvalRequestId,
       approver,
+      undefined,
+      { requestId: options?.requestId },
     );
 
     return this.findById(organizationId, requestId);
@@ -231,6 +234,7 @@ export class LeaveRequestsService {
     organizationId: string,
     requestId: string,
     approver: AuthenticatedUser,
+    options?: { requestId?: string },
   ): Promise<LeaveRequestWithRelations> {
     const request = await this.findById(organizationId, requestId);
 
@@ -245,6 +249,8 @@ export class LeaveRequestsService {
       organizationId,
       request.approvalRequestId,
       approver,
+      undefined,
+      { requestId: options?.requestId },
     );
 
     return this.findById(organizationId, requestId);

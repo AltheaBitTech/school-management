@@ -12,12 +12,15 @@ import { PermissionsService } from '../permissions/permissions.service';
 import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions';
 import { ApprovalActionsService } from '../approvals/approval-actions.service';
 import { ApprovalEntityIntegrationService } from '../approvals/approval-entity-integration.service';
+import { ApprovalNotificationService } from '../approvals/approval-notification.service';
 import { ApprovalRequestsService } from '../approvals/approval-requests.service';
 import { ApproverResolutionService } from '../approvals/approver-resolution.service';
 import { ensureDefaultLeaveApprovalWorkflow } from '../approvals/utils/approval-workflow-seed.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { ensureSchoolAdminRole } from '../roles/organization-role-seed.util';
 import { LeaveApprovalIntegrationService } from './leave-approval-integration.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { EmailProvider } from '../notifications/providers/email-provider.interface';
 import { LeaveBalancesService } from './leave-balances.service';
 import { LeaveRequestsService } from './leave-requests.service';
 import { LeaveTypesService } from './leave-types.service';
@@ -121,10 +124,20 @@ describeIfDatabase('Leave integration', () => {
       prisma as unknown as PrismaService,
       approverResolutionService,
     );
+    const emailProvider: EmailProvider = { sendEmail: jest.fn().mockResolvedValue(undefined) };
+    const notificationsService = new NotificationsService(
+      prisma as unknown as PrismaService,
+      emailProvider,
+    );
+    const approvalNotificationService = new ApprovalNotificationService(
+      prisma as unknown as PrismaService,
+      notificationsService,
+    );
     const approvalActionsService = new ApprovalActionsService(
       prisma as unknown as PrismaService,
       approverResolutionService,
       approvalEntityIntegration,
+      approvalNotificationService,
     );
     leaveRequestsService = new LeaveRequestsService(
       prisma as unknown as PrismaService,
@@ -151,6 +164,7 @@ describeIfDatabase('Leave integration', () => {
   });
 
   afterAll(async () => {
+    await prisma.notification.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.approvalAction.deleteMany({ where: { approvalRequest: { organizationId: { in: [orgAId, orgBId] } } } });
     await prisma.approvalRequest.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.approvalLevel.deleteMany({ where: { workflow: { organizationId: { in: [orgAId, orgBId] } } } });
