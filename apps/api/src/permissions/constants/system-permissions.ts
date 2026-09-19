@@ -75,6 +75,7 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'event.archive', description: 'Archive events' },
   { code: 'event.manage_participants', description: 'Manage event participants' },
   { code: 'event.manage_venues', description: 'Manage event venues' },
+  { code: 'report.event.view', description: 'View Event operations reports' },
 ];
 
 export const SYSTEM_PERMISSION_CODES = SYSTEM_PERMISSIONS.map((permission) => permission.code);

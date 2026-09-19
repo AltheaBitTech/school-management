@@ -502,6 +502,42 @@ Users should only access their own notifications unless an administrative permis
 
 Reports should use explicit endpoints or a consistent reporting resource.
 
+## Event Operations Report
+
+```text
+GET /reports/events
+```
+
+Required permission:
+
+```text
+report.event.view
+```
+
+Supported query parameters:
+
+```text
+fromDate=YYYY-MM-DD
+toDate=YYYY-MM-DD
+type=SPORTS_DAY|PTM|HOLIDAY|EXAMINATION|MEETING|ANNUAL_DAY
+status=DRAFT|SCHEDULED|COMPLETED|ARCHIVED|CANCELLED
+venueId=<uuid>
+page=1
+pageSize=25
+```
+
+`fromDate` and `toDate` are calendar dates in the authenticated
+organization's configured timezone. The backend converts the local-day
+boundaries to UTC instants before querying Event timestamps. The report is
+always scoped to the authenticated organization; `organizationId` is not an
+accepted client filter.
+
+The response contains paginated report rows, pagination metadata, and summary
+counts by Event status. Report rows expose only Event identity, title, type,
+status, timestamps, and Venue identity/name.
+
+Users without `report.event.view` receive `403 Forbidden`.
+
 Examples:
 
 ```text

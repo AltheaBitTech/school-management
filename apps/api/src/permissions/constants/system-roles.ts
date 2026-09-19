@@ -88,6 +88,7 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       'event.archive',
       'event.manage_participants',
       'event.manage_venues',
+      'report.event.view',
     ],
   },
 ];

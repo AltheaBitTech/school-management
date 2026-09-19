@@ -21,6 +21,7 @@ import { StudentsModule } from './students/students.module';
 import { DocumentsModule } from './documents/documents.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { EventsModule } from './events/events.module';
+import { EventReportsModule } from './reports/events/event-reports.module';
 import { RbacModule } from './rbac/rbac.module';
 
 @Module({
@@ -50,6 +51,7 @@ import { RbacModule } from './rbac/rbac.module';
     DocumentsModule,
     ApprovalsModule,
     EventsModule,
+    EventReportsModule,
     RbacModule,
   ],
   providers: [
