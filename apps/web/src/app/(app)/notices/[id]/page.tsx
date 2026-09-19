@@ -3,7 +3,6 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
@@ -13,6 +12,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   acknowledgeNotice,
@@ -25,19 +25,6 @@ import {
   publishNotice,
   type Notice,
 } from '@/lib/notices/notices-client';
-
-function statusColor(status: Notice['status']): 'default' | 'warning' | 'success' | 'info' {
-  switch (status) {
-    case 'PUBLISHED':
-      return 'success';
-    case 'SCHEDULED':
-      return 'info';
-    case 'ARCHIVED':
-      return 'default';
-    default:
-      return 'warning';
-  }
-}
 
 export default function NoticeDetailPage() {
   const params = useParams<{ id: string }>();
@@ -133,7 +120,10 @@ export default function NoticeDetailPage() {
             {notice.title}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-            <Chip size="small" label={formatNoticeStatus(notice.status)} color={statusColor(notice.status)} />
+            <StatusChip
+              status={notice.status}
+              label={formatNoticeStatus(notice.status)}
+            />
           </Stack>
         </Box>
         <Stack direction="row" spacing={1}>

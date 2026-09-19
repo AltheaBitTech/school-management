@@ -1,16 +1,16 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { FormActions, FormSection } from '@/components/ui/FormSection';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { ApiError } from '@/lib/api/client';
 import { createLeaveRequest, listLeaveTypes, type LeaveType } from '@/lib/leave/leave-client';
 import { listStaff, type StaffMember } from '@/lib/staff/staff-client';
@@ -75,15 +75,13 @@ export default function NewLeaveRequestPage() {
 
   return (
     <Stack spacing={3} component="form" onSubmit={handleSubmit}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          New leave request
-        </Typography>
-        <Typography color="text.secondary">Submit a leave request for approval.</Typography>
-      </Box>
+      <PageHeader
+        title="New leave request"
+        description="Submit a leave request for approval."
+      />
 
-      <Stack spacing={2} maxWidth="sm">
-        <TextField select label="Staff" value={staffId} onChange={(e) => setStaffId(e.target.value)} required>
+      <FormSection>
+        <TextField select label="Staff" value={staffId} onChange={(e) => setStaffId(e.target.value)} required fullWidth>
           {staff.map((member) => (
             <MenuItem key={member.id} value={member.id}>
               {member.displayName || `${member.firstName} ${member.lastName}`}
@@ -96,6 +94,7 @@ export default function NewLeaveRequestPage() {
           value={leaveTypeId}
           onChange={(e) => setLeaveTypeId(e.target.value)}
           required
+          fullWidth
         >
           {leaveTypes.map((type) => (
             <MenuItem key={type.id} value={type.id}>
@@ -110,6 +109,7 @@ export default function NewLeaveRequestPage() {
           onChange={(e) => setStartDate(e.target.value)}
           InputLabelProps={{ shrink: true }}
           required
+          fullWidth
         />
         <TextField
           label="End date"
@@ -118,6 +118,7 @@ export default function NewLeaveRequestPage() {
           onChange={(e) => setEndDate(e.target.value)}
           InputLabelProps={{ shrink: true }}
           required
+          fullWidth
         />
         <TextField
           label="Reason"
@@ -125,19 +126,20 @@ export default function NewLeaveRequestPage() {
           onChange={(e) => setReason(e.target.value)}
           multiline
           minRows={3}
+          fullWidth
         />
 
         {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
-        <Stack direction="row" spacing={2}>
+        <FormActions>
           <Button type="submit" variant="contained" disabled={isSubmitting}>
             {isSubmitting ? 'Submitting…' : 'Submit request'}
           </Button>
           <Button component={Link} href="/leave">
             Cancel
           </Button>
-        </Stack>
-      </Stack>
+        </FormActions>
+      </FormSection>
     </Stack>
   );
 }

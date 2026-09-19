@@ -1,15 +1,15 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { FormActions, FormSection } from '@/components/ui/FormSection';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { ApiError } from '@/lib/api/client';
 import { createStudent } from '@/lib/students/students-client';
 
@@ -57,16 +57,12 @@ export default function NewStudentPage() {
 
   return (
     <Stack spacing={3} component="form" onSubmit={handleSubmit}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          Create student
-        </Typography>
-        <Typography color="text.secondary">
-          Add a minimal student record for your organization.
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Create student"
+        description="Add a minimal student record for your organization."
+      />
 
-      <Stack spacing={2} maxWidth="sm">
+      <FormSection>
         <TextField
           label="Student code"
           value={studentCode}
@@ -100,15 +96,15 @@ export default function NewStudentPage() {
         {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
         {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
-        <Stack direction="row" spacing={2}>
+        <FormActions>
           <Button type="submit" variant="contained" disabled={isSubmitting}>
             {isSubmitting ? 'Creating…' : 'Create student'}
           </Button>
           <Button component={Link} href="/students">
             Cancel
           </Button>
-        </Stack>
-      </Stack>
+        </FormActions>
+      </FormSection>
     </Stack>
   );
 }

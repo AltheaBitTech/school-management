@@ -1,19 +1,19 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { FormEvent, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { FormActions, FormSection } from '@/components/ui/FormSection';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   createDepartment,
@@ -95,45 +95,40 @@ export default function DepartmentsPage() {
 
   return (
     <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          Departments
-        </Typography>
-        <Typography color="text.secondary">
-          Maintain the departments used for staff assignment.
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Departments"
+        description="Maintain the departments used for staff assignment."
+      />
 
-      <Stack spacing={2} component="form" onSubmit={handleCreate} maxWidth="sm">
-        <Typography variant="h6">Create department</Typography>
-        <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} required />
-        <TextField
-          label="Code"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          required
-          helperText="Lowercase letters, numbers, or hyphens"
-        />
-        <Button type="submit" variant="contained" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating…' : 'Create department'}
-        </Button>
-      </Stack>
+      <FormSection title="Create department">
+        <Stack spacing={2} component="form" onSubmit={handleCreate}>
+          <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} required fullWidth />
+          <TextField
+            label="Code"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            required
+            helperText="Lowercase letters, numbers, or hyphens"
+            fullWidth
+          />
+          <FormActions>
+            <Button type="submit" variant="contained" disabled={isSubmitting}>
+              {isSubmitting ? 'Creating…' : 'Create department'}
+            </Button>
+          </FormActions>
+        </Stack>
+      </FormSection>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress aria-label="Loading departments" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading departments" /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && departments.length === 0 ? (
-        <Alert severity="info">No departments yet. Create one to assign staff members.</Alert>
+        <EmptyState message="No departments yet. Create one to assign staff members." />
       ) : null}
 
       {!isLoading && departments.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
+        <AppTable aria-label="Departments">
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
@@ -157,7 +152,9 @@ export default function DepartmentsPage() {
                     )}
                   </TableCell>
                   <TableCell>{department.code}</TableCell>
-                  <TableCell>{department.status}</TableCell>
+                  <TableCell>
+                    <StatusChip status={department.status} />
+                  </TableCell>
                   <TableCell align="right">
                     {editingId === department.id ? (
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -183,8 +180,7 @@ export default function DepartmentsPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </Box>
+        </AppTable>
       ) : null}
     </Stack>
   );

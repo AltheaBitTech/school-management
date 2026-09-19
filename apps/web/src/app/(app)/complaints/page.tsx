@@ -1,22 +1,20 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   COMPLAINT_PRIORITIES,
@@ -31,33 +29,6 @@ import {
   type ComplaintStatus,
 } from '@/lib/complaints/complaints-client';
 import { listStaff, type StaffMember } from '@/lib/staff/staff-client';
-
-function priorityColor(priority: ComplaintPriority): 'default' | 'warning' | 'error' | 'info' {
-  switch (priority) {
-    case 'CRITICAL':
-      return 'error';
-    case 'HIGH':
-      return 'warning';
-    case 'MEDIUM':
-      return 'info';
-    default:
-      return 'default';
-  }
-}
-
-function statusColor(status: ComplaintStatus): 'default' | 'warning' | 'success' | 'info' {
-  switch (status) {
-    case 'CLOSED':
-      return 'success';
-    case 'COMPLETED':
-      return 'info';
-    case 'IN_PROGRESS':
-    case 'ASSIGNED':
-      return 'warning';
-    default:
-      return 'default';
-  }
-}
 
 export default function ComplaintsPage() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
@@ -125,19 +96,15 @@ export default function ComplaintsPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Complaints
-          </Typography>
-          <Typography color="text.secondary">
-            Track maintenance requests from submission through resolution.
-          </Typography>
-        </Box>
-        <Button component={Link} href="/complaints/new" variant="contained">
-          New complaint
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Complaints"
+        description="Track maintenance requests from submission through resolution."
+        actions={
+          <Button component={Link} href="/complaints/new" variant="contained">
+            New complaint
+          </Button>
+        }
+      />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
         <TextField
@@ -184,63 +151,55 @@ export default function ComplaintsPage() {
         </TextField>
       </Stack>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress aria-label="Loading complaints" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading complaints" /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && complaints.length === 0 ? (
-        <Alert severity="info">No complaints found for the selected filters.</Alert>
+        <EmptyState message="No complaints found for the selected filters." />
       ) : null}
 
       {!isLoading && complaints.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Code</TableCell>
-                <TableCell>Title</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Priority</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Assignee</TableCell>
-                <TableCell align="right">Actions</TableCell>
+        <AppTable aria-label="Complaints">
+          <TableHead>
+            <TableRow>
+              <TableCell>Code</TableCell>
+              <TableCell>Title</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell>Priority</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Assignee</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {complaints.map((complaint) => (
+              <TableRow key={complaint.id} hover>
+                <TableCell>{complaint.complaintCode}</TableCell>
+                <TableCell>{complaint.title}</TableCell>
+                <TableCell>{formatComplaintCategory(complaint.category)}</TableCell>
+                <TableCell>
+                  <StatusChip
+                    status={complaint.priority}
+                    label={formatComplaintPriority(complaint.priority)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <StatusChip
+                    status={complaint.status}
+                    label={formatComplaintStatus(complaint.status)}
+                  />
+                </TableCell>
+                <TableCell>{getStaffDisplayName(complaint.assignedToStaff)}</TableCell>
+                <TableCell align="right">
+                  <Button component={Link} href={`/complaints/${complaint.id}`} size="small">
+                    View
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {complaints.map((complaint) => (
-                <TableRow key={complaint.id} hover>
-                  <TableCell>{complaint.complaintCode}</TableCell>
-                  <TableCell>{complaint.title}</TableCell>
-                  <TableCell>{formatComplaintCategory(complaint.category)}</TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      label={formatComplaintPriority(complaint.priority)}
-                      color={priorityColor(complaint.priority)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      label={formatComplaintStatus(complaint.status)}
-                      color={statusColor(complaint.status)}
-                    />
-                  </TableCell>
-                  <TableCell>{getStaffDisplayName(complaint.assignedToStaff)}</TableCell>
-                  <TableCell align="right">
-                    <Button component={Link} href={`/complaints/${complaint.id}`} size="small">
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
+            ))}
+          </TableBody>
+        </AppTable>
       ) : null}
     </Stack>
   );

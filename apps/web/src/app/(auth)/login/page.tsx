@@ -3,35 +3,35 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
+import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { login } from '@/lib/auth/auth-client';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [organizationCode, setOrganizationCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorMessage(null);
-    setSuccessMessage(null);
     setIsSubmitting(true);
 
     try {
-      const session = await login({
+      await login({
         organizationCode,
         email,
         password,
       });
-
-      setSuccessMessage(`Signed in as ${session.user.email}. Refresh token stored in HttpOnly cookie.`);
+      router.push('/');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Login failed');
     } finally {
@@ -40,15 +40,28 @@ export default function LoginPage() {
   }
 
   return (
-    <Box component="main" sx={{ py: 8 }}>
-      <Container maxWidth="sm">
+    <Box
+      component="main"
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        px: 2,
+        py: 6,
+        bgcolor: 'background.default',
+      }}
+    >
+      <Paper variant="outlined" sx={{ width: '100%', maxWidth: 440, mx: 'auto', p: { xs: 3, sm: 4 } }}>
         <Stack spacing={3}>
-          <Stack spacing={1}>
+          <Stack spacing={0.75}>
+            <Typography variant="h5" component="p" color="primary" sx={{ fontWeight: 700 }}>
+              CampusOps
+            </Typography>
             <Typography variant="h4" component="h1">
               Sign in
             </Typography>
             <Typography color="text.secondary">
-              Authenticate with your organization code, email, and password.
+              Use your organization code, email, and password.
             </Typography>
           </Stack>
 
@@ -82,15 +95,17 @@ export default function LoginPage() {
               />
 
               {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-              {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
 
-              <Button type="submit" variant="contained" disabled={isSubmitting}>
+              <Button type="submit" variant="contained" disabled={isSubmitting} fullWidth>
                 {isSubmitting ? 'Signing in…' : 'Sign in'}
+              </Button>
+              <Button component={Link} href="/" variant="text">
+                Back to home
               </Button>
             </Stack>
           </Box>
         </Stack>
-      </Container>
+      </Paper>
     </Box>
   );
 }

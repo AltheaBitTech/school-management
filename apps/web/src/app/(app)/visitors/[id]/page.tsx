@@ -3,7 +3,6 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
@@ -13,6 +12,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   checkOutVisitor,
@@ -175,10 +175,9 @@ export default function VisitorDetailPage() {
           </Typography>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography>Status:</Typography>
-            <Chip
+            <StatusChip
+              status={visitor.status}
               label={formatVisitorStatus(visitor.status)}
-              color={visitor.status === 'CHECKED_IN' ? 'success' : 'default'}
-              size="small"
             />
           </Stack>
         </Stack>

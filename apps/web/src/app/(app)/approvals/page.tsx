@@ -1,22 +1,20 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   APPROVAL_STATUSES,
@@ -26,19 +24,6 @@ import {
   type ApprovalRequest,
   type ApprovalRequestStatus,
 } from '@/lib/approvals/approvals-client';
-
-function statusColor(status: ApprovalRequestStatus): 'warning' | 'success' | 'error' | 'default' {
-  switch (status) {
-    case 'PENDING':
-      return 'warning';
-    case 'APPROVED':
-      return 'success';
-    case 'REJECTED':
-      return 'error';
-    default:
-      return 'default';
-  }
-}
 
 export default function ApprovalsPage() {
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
@@ -93,14 +78,10 @@ export default function ApprovalsPage() {
 
   return (
     <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          Approvals
-        </Typography>
-        <Typography color="text.secondary">
-          Review pending approval requests and track approval status.
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Approvals"
+        description="Review pending approval requests and track approval status."
+      />
 
       <TextField
         select
@@ -117,55 +98,48 @@ export default function ApprovalsPage() {
         ))}
       </TextField>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress aria-label="Loading approvals" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading approvals" /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && requests.length === 0 ? (
-        <Alert severity="info">No approval requests found.</Alert>
+        <EmptyState message="No approval requests found." />
       ) : null}
 
       {!isLoading && requests.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Entity</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Current level</TableCell>
-                <TableCell>Approver</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell align="right">Actions</TableCell>
+        <AppTable aria-label="Approvals">
+          <TableHead>
+            <TableRow>
+              <TableCell>Entity</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Current level</TableCell>
+              <TableCell>Approver</TableCell>
+              <TableCell>Created</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {requests.map((request) => (
+              <TableRow key={request.id} hover>
+                <TableCell>{formatApprovalEntityType(request.entityType)}</TableCell>
+                <TableCell>
+                  <StatusChip
+                    status={request.status}
+                    label={formatApprovalStatus(request.status)}
+                  />
+                </TableCell>
+                <TableCell>{request.currentLevelName ?? request.currentLevel}</TableCell>
+                <TableCell>{request.currentApproverSummary ?? '—'}</TableCell>
+                <TableCell>{new Date(request.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell align="right">
+                  <Button component={Link} href={`/approvals/${request.id}`} size="small">
+                    View
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell>{formatApprovalEntityType(request.entityType)}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={formatApprovalStatus(request.status)}
-                      color={statusColor(request.status)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{request.currentLevelName ?? request.currentLevel}</TableCell>
-                  <TableCell>{request.currentApproverSummary ?? '—'}</TableCell>
-                  <TableCell>{new Date(request.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell align="right">
-                    <Button component={Link} href={`/approvals/${request.id}`} size="small">
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
+            ))}
+          </TableBody>
+        </AppTable>
       ) : null}
     </Stack>
   );

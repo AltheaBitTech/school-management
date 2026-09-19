@@ -1,23 +1,21 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import {
   ASSET_STATUSES,
   formatAssetStatus,
@@ -32,23 +30,6 @@ import {
 import { ApiError } from '@/lib/api/client';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
-
-function statusColor(
-  status: AssetStatus,
-): 'success' | 'primary' | 'warning' | 'default' {
-  switch (status) {
-    case 'AVAILABLE':
-      return 'success';
-    case 'ASSIGNED':
-      return 'primary';
-    case 'UNDER_MAINTENANCE':
-      return 'warning';
-    case 'RETIRED':
-      return 'default';
-    default:
-      return 'default';
-  }
-}
 
 export default function AssetsPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -147,19 +128,15 @@ export default function AssetsPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Assets
-          </Typography>
-          <Typography color="text.secondary">
-            Track school assets, assignments, maintenance, and lifecycle status.
-          </Typography>
-        </Box>
-        <Button component={Link} href="/assets/new" variant="contained">
-          Register asset
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Assets"
+        description="Track school assets, assignments, maintenance, and lifecycle status."
+        actions={
+          <Button component={Link} href="/assets/new" variant="contained">
+            Register asset
+          </Button>
+        }
+      />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap">
         <TextField
@@ -227,21 +204,16 @@ export default function AssetsPage() {
         />
       </Stack>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress aria-label="Loading assets" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading assets" /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && assets.length === 0 ? (
-        <Alert severity="info">No assets found for the selected filters.</Alert>
+        <EmptyState message="No assets found for the selected filters." />
       ) : null}
 
       {!isLoading && assets.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
+        <AppTable minWidth={1080} aria-label="Assets">
             <TableHead>
               <TableRow>
                 <TableCell>Code</TableCell>
@@ -257,16 +229,12 @@ export default function AssetsPage() {
             </TableHead>
             <TableBody>
               {assets.map((asset) => (
-                <TableRow key={asset.id}>
+                <TableRow key={asset.id} hover>
                   <TableCell>{asset.assetCode}</TableCell>
                   <TableCell>{asset.name}</TableCell>
                   <TableCell>{asset.category?.name ?? '—'}</TableCell>
                   <TableCell>
-                    <Chip
-                      label={formatAssetStatus(asset.status)}
-                      color={statusColor(asset.status)}
-                      size="small"
-                    />
+                    <StatusChip status={asset.status} label={formatAssetStatus(asset.status)} />
                   </TableCell>
                   <TableCell>{asset.department?.name ?? '—'}</TableCell>
                   <TableCell>
@@ -278,7 +246,7 @@ export default function AssetsPage() {
                   <TableCell>
                     {isWarrantyActive(asset) ? (
                       <Tooltip title="Warranty active">
-                        <Chip label="Active" color="success" size="small" variant="outlined" />
+                        <StatusChip status="ACTIVE" label="Active" />
                       </Tooltip>
                     ) : (
                       '—'
@@ -292,8 +260,7 @@ export default function AssetsPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </Box>
+        </AppTable>
       ) : null}
     </Stack>
   );

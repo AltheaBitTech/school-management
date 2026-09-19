@@ -73,6 +73,7 @@ describeIfDatabase('Files integration', () => {
   let filesService: FilesService;
   let localProvider: LocalFileStorageProvider;
   let fileStorageService: FileStorageService;
+  let configService: ConfigService;
   let permissionsService: PermissionsService;
   let permissionsGuard: PermissionsGuard;
   let tempRoot: string;
@@ -137,7 +138,7 @@ describeIfDatabase('Files integration', () => {
     actorB.userId = userBId;
     actorB.organizationId = orgBId;
 
-    const configService = {
+    configService = {
       get: (key: string) =>
         key === CONFIGURATION_KEY
           ? {
@@ -148,7 +149,11 @@ describeIfDatabase('Files integration', () => {
 
     localProvider = new LocalFileStorageProvider(configService);
     fileStorageService = new FileStorageService(localProvider);
-    filesService = new FilesService(prisma as unknown as PrismaService, fileStorageService);
+    filesService = new FilesService(
+      prisma as unknown as PrismaService,
+      fileStorageService,
+      configService,
+    );
     permissionsService = new PermissionsService(prisma as unknown as PrismaService);
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
   });
@@ -315,6 +320,7 @@ describeIfDatabase('Files integration', () => {
     const failingService = new FilesService(
       prisma as unknown as PrismaService,
       new FileStorageService(new FailingPutStorageProvider(localProvider)),
+      configService,
     );
 
     const beforeCount = await prisma.file.count({ where: { organizationId: orgAId } });

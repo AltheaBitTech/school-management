@@ -14,6 +14,7 @@ import Stack from '@mui/material/Stack';
 import SvgIcon from '@mui/material/SvgIcon';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOptionalAuthSession } from '@/components/providers/AuthSessionProvider';
 import { getAccessToken } from '@/lib/auth/session';
 import {
   countUnreadNotifications,
@@ -35,7 +36,8 @@ function NotificationsBellIcon(): React.ReactNode {
 }
 
 export function NotificationMenu(): React.ReactElement | null {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const session = useOptionalAuthSession();
+  const isAuthenticated = session ? session.isAuthenticated : Boolean(getAccessToken());
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -75,10 +77,6 @@ export function NotificationMenu(): React.ReactElement | null {
         setIsLoading(false);
       }
     }
-  }, []);
-
-  useEffect(() => {
-    setIsAuthenticated(Boolean(getAccessToken()));
   }, []);
 
   useEffect(() => {
@@ -123,6 +121,10 @@ export function NotificationMenu(): React.ReactElement | null {
     }
   }
 
+  if (session && !session.isReady) {
+    return null;
+  }
+
   if (!isAuthenticated) {
     return null;
   }
@@ -157,7 +159,11 @@ export function NotificationMenu(): React.ReactElement | null {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{
           paper: {
-            sx: { width: 360, maxWidth: '100%' },
+            sx: {
+              width: 380,
+              maxWidth: 'calc(100vw - 24px)',
+              maxHeight: 'min(480px, calc(100vh - 72px))',
+            },
           },
         }}
       >
@@ -165,17 +171,22 @@ export function NotificationMenu(): React.ReactElement | null {
           <Typography variant="subtitle1" component="h2">
             Notifications
           </Typography>
+          {unreadCount > 0 ? (
+            <Typography variant="caption" color="text.secondary">
+              {unreadCount} unread
+            </Typography>
+          ) : null}
         </Box>
 
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 1.5 }}>
           {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress size={24} aria-label="Loading notifications" />
             </Box>
           ) : null}
 
           {!isLoading && errorMessage ? (
-            <Stack spacing={1.5}>
+            <Stack spacing={1.5} sx={{ px: 0.5, py: 1 }}>
               <Alert severity="error">{errorMessage}</Alert>
               <Button onClick={() => void loadNotifications()} size="small" variant="outlined">
                 Retry
@@ -190,7 +201,9 @@ export function NotificationMenu(): React.ReactElement | null {
           ) : null}
 
           {!isLoading && !errorMessage && notifications.length === 0 ? (
-            <Alert severity="info">No notifications yet</Alert>
+            <Box sx={{ px: 1.5, py: 4, textAlign: 'center' }}>
+              <Typography color="text.secondary">No notifications yet</Typography>
+            </Box>
           ) : null}
 
           {!isLoading && !errorMessage && notifications.length > 0 ? (
@@ -208,9 +221,21 @@ export function NotificationMenu(): React.ReactElement | null {
                       alignItems: 'flex-start',
                       borderRadius: 1,
                       mb: 0.5,
+                      gap: 1,
                       bgcolor: isUnread ? 'action.hover' : 'transparent',
                     }}
                   >
+                    <Box
+                      aria-hidden
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        mt: 1,
+                        flexShrink: 0,
+                        bgcolor: isUnread ? 'primary.main' : 'transparent',
+                      }}
+                    />
                     <ListItemText
                       primary={
                         <Typography

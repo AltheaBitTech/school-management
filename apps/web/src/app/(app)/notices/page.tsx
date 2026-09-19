@@ -1,22 +1,20 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   formatNoticeStatus,
@@ -25,19 +23,6 @@ import {
   type Notice,
   type NoticeStatus,
 } from '@/lib/notices/notices-client';
-
-function statusColor(status: NoticeStatus): 'default' | 'warning' | 'success' | 'info' {
-  switch (status) {
-    case 'PUBLISHED':
-      return 'success';
-    case 'SCHEDULED':
-      return 'info';
-    case 'ARCHIVED':
-      return 'default';
-    default:
-      return 'warning';
-  }
-}
 
 export default function NoticesPage() {
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -94,19 +79,15 @@ export default function NoticesPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Notices
-          </Typography>
-          <Typography color="text.secondary">
-            Publish school notices and circulars to targeted audiences.
-          </Typography>
-        </Box>
-        <Button component={Link} href="/notices/new" variant="contained">
-          New notice
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Notices"
+        description="Publish school notices and circulars to targeted audiences."
+        actions={
+          <Button component={Link} href="/notices/new" variant="contained">
+            New notice
+          </Button>
+        }
+      />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
         <TextField
@@ -131,57 +112,47 @@ export default function NoticesPage() {
         />
       </Stack>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress aria-label="Loading notices" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading notices" /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && notices.length === 0 ? (
-        <Alert severity="info">No notices found for the selected filters.</Alert>
+        <EmptyState message="No notices found for the selected filters." />
       ) : null}
 
       {!isLoading && notices.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Published</TableCell>
-                <TableCell>Scheduled</TableCell>
-                <TableCell align="right">Actions</TableCell>
+        <AppTable aria-label="Notices">
+          <TableHead>
+            <TableRow>
+              <TableCell>Title</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Published</TableCell>
+              <TableCell>Scheduled</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {notices.map((notice) => (
+              <TableRow key={notice.id} hover>
+                <TableCell>{notice.title}</TableCell>
+                <TableCell>
+                  <StatusChip status={notice.status} label={formatNoticeStatus(notice.status)} />
+                </TableCell>
+                <TableCell>
+                  {notice.publishedAt ? new Date(notice.publishedAt).toLocaleString() : '—'}
+                </TableCell>
+                <TableCell>
+                  {notice.scheduledAt ? new Date(notice.scheduledAt).toLocaleString() : '—'}
+                </TableCell>
+                <TableCell align="right">
+                  <Button component={Link} href={`/notices/${notice.id}`} size="small">
+                    View
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {notices.map((notice) => (
-                <TableRow key={notice.id} hover>
-                  <TableCell>{notice.title}</TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      label={formatNoticeStatus(notice.status)}
-                      color={statusColor(notice.status)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {notice.publishedAt ? new Date(notice.publishedAt).toLocaleString() : '—'}
-                  </TableCell>
-                  <TableCell>
-                    {notice.scheduledAt ? new Date(notice.scheduledAt).toLocaleString() : '—'}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button component={Link} href={`/notices/${notice.id}`} size="small">
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
+            ))}
+          </TableBody>
+        </AppTable>
       ) : null}
     </Stack>
   );

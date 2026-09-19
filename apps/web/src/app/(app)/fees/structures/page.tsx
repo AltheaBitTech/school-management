@@ -1,20 +1,20 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { FormActions, FormSection } from '@/components/ui/FormSection';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   createFeeStructure,
@@ -91,96 +91,95 @@ export default function FeeStructuresPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Fee structures
-          </Typography>
-          <Typography color="text.secondary">
-            Define reusable fee amounts for student assignments.
-          </Typography>
-        </Box>
-        <Button component={Link} href="/fees" variant="outlined">
-          Back to fees
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Fee structures"
+        description="Define reusable fee amounts for student assignments."
+        actions={
+          <Button component={Link} href="/fees" variant="outlined">
+            Back to fees
+          </Button>
+        }
+      />
 
-      <Stack spacing={2} component="form" onSubmit={handleCreate} maxWidth="sm">
-        <Typography variant="h6">Create fee structure</Typography>
-        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
-        <TextField
-          label="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          multiline
-          minRows={2}
-        />
-        <TextField
-          label="Amount"
-          type="number"
-          inputProps={{ min: 0.01, step: 0.01 }}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          required
-        />
-        <TextField
-          label="Period start"
-          type="date"
-          value={periodStart}
-          onChange={(e) => setPeriodStart(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          required
-        />
-        <TextField
-          label="Period end"
-          type="date"
-          value={periodEnd}
-          onChange={(e) => setPeriodEnd(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          required
-        />
-        <Button type="submit" variant="contained" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating…' : 'Create fee structure'}
-        </Button>
-      </Stack>
+      <FormSection title="Create fee structure">
+        <Stack spacing={2} component="form" onSubmit={handleCreate}>
+          <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required fullWidth />
+          <TextField
+            label="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+          />
+          <TextField
+            label="Amount"
+            type="number"
+            inputProps={{ min: 0.01, step: 0.01 }}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+            fullWidth
+          />
+          <TextField
+            label="Period start"
+            type="date"
+            value={periodStart}
+            onChange={(e) => setPeriodStart(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            required
+            fullWidth
+          />
+          <TextField
+            label="Period end"
+            type="date"
+            value={periodEnd}
+            onChange={(e) => setPeriodEnd(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            required
+            fullWidth
+          />
+          <FormActions>
+            <Button type="submit" variant="contained" disabled={isSubmitting}>
+              {isSubmitting ? 'Creating…' : 'Create fee structure'}
+            </Button>
+          </FormActions>
+        </Stack>
+      </FormSection>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress aria-label="Loading fee structures" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading fee structures" /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && structures.length === 0 ? (
-        <Alert severity="info">No fee structures found.</Alert>
+        <EmptyState message="No fee structures found." />
       ) : null}
 
       {!isLoading && structures.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Period</TableCell>
-                <TableCell>Status</TableCell>
+        <AppTable aria-label="Fee structures">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Amount</TableCell>
+              <TableCell>Period</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {structures.map((structure) => (
+              <TableRow key={structure.id} hover>
+                <TableCell>{structure.name}</TableCell>
+                <TableCell>{formatCurrency(structure.amount)}</TableCell>
+                <TableCell>
+                  {formatFeeDate(structure.periodStart)} to {formatFeeDate(structure.periodEnd)}
+                </TableCell>
+                <TableCell>
+                  <StatusChip status={structure.status} />
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {structures.map((structure) => (
-                <TableRow key={structure.id} hover>
-                  <TableCell>{structure.name}</TableCell>
-                  <TableCell>{formatCurrency(structure.amount)}</TableCell>
-                  <TableCell>
-                    {formatFeeDate(structure.periodStart)} to {formatFeeDate(structure.periodEnd)}
-                  </TableCell>
-                  <TableCell>{structure.status}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
+            ))}
+          </TableBody>
+        </AppTable>
       ) : null}
     </Stack>
   );

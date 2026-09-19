@@ -65,6 +65,7 @@ describeIfDatabase('Documents integration', () => {
   let documentsService: DocumentsService;
   let studentsService: StudentsService;
   let filesService: FilesService;
+  let configService: ConfigService;
   let permissionsService: PermissionsService;
   let permissionsGuard: PermissionsGuard;
   let tempRoot: string;
@@ -161,7 +162,7 @@ describeIfDatabase('Documents integration', () => {
     studentBId = studentB.id;
     inactiveStudentAId = inactiveStudent.id;
 
-    const configService = {
+    configService = {
       get: (key: string) =>
         key === CONFIGURATION_KEY
           ? {
@@ -172,7 +173,11 @@ describeIfDatabase('Documents integration', () => {
 
     const localProvider = new LocalFileStorageProvider(configService);
     const fileStorageService = new FileStorageService(localProvider);
-    filesService = new FilesService(prisma as unknown as PrismaService, fileStorageService);
+    filesService = new FilesService(
+      prisma as unknown as PrismaService,
+      fileStorageService,
+      configService,
+    );
     studentsService = new StudentsService(prisma as unknown as PrismaService);
     documentsService = new DocumentsService(
       prisma as unknown as PrismaService,
@@ -281,6 +286,7 @@ describeIfDatabase('Documents integration', () => {
     const failingFilesService = new FilesService(
       prisma as unknown as PrismaService,
       new FileStorageService(failingProvider),
+      configService,
     );
     const failingDocumentsService = new DocumentsService(
       prisma as unknown as PrismaService,

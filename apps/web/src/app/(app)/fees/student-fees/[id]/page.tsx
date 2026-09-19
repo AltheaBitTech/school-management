@@ -3,6 +3,8 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -10,17 +12,21 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState } from '@/components/ui/AppTable';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   FEE_PAYMENT_METHODS,
@@ -38,6 +44,8 @@ import {
 export default function StudentFeeDetailPage() {
   const params = useParams<{ id: string }>();
   const studentFeeId = params.id;
+  const theme = useTheme();
+  const fullScreenDialog = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
 
   const [studentFee, setStudentFee] = useState<StudentFeeDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,19 +133,15 @@ export default function StudentFeeDetailPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Student fee details
-          </Typography>
-          <Typography color="text.secondary">
-            Review balances, payment history, and record new payments.
-          </Typography>
-        </Box>
-        <Button component={Link} href="/fees/student-fees" variant="outlined">
-          Back to student fees
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Student fee details"
+        description="Review balances, payment history, and record new payments."
+        actions={
+          <Button component={Link} href="/fees/student-fees" variant="outlined">
+            Back to student fees
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -155,16 +159,48 @@ export default function StudentFeeDetailPage() {
             <Typography color="text.secondary">
               {getStudentDisplayNameFromFee(studentFee.student)}
             </Typography>
-            <Typography>
-              Assigned: {formatCurrency(studentFee.assignedAmount)} | Paid:{' '}
-              {formatCurrency(studentFee.paidAmount)} | Outstanding:{' '}
-              {formatCurrency(studentFee.outstandingAmount)}
-            </Typography>
-            <Typography>Status: {formatStudentFeeStatus(studentFee.status)}</Typography>
-            <Typography>
-              Due date: {studentFee.dueDate ? formatFeeDate(studentFee.dueDate) : '—'}
-            </Typography>
+            <StatusChip
+              status={studentFee.status}
+              label={formatStudentFeeStatus(studentFee.status)}
+            />
           </Stack>
+
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+            }}
+          >
+            <Card variant="outlined">
+              <CardContent>
+                <Typography color="text.secondary" variant="body2">
+                  Assigned
+                </Typography>
+                <Typography variant="h6">{formatCurrency(studentFee.assignedAmount)}</Typography>
+              </CardContent>
+            </Card>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography color="text.secondary" variant="body2">
+                  Paid
+                </Typography>
+                <Typography variant="h6">{formatCurrency(studentFee.paidAmount)}</Typography>
+              </CardContent>
+            </Card>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography color="text.secondary" variant="body2">
+                  Outstanding
+                </Typography>
+                <Typography variant="h6">{formatCurrency(studentFee.outstandingAmount)}</Typography>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Typography color="text.secondary">
+            Due date: {studentFee.dueDate ? formatFeeDate(studentFee.dueDate) : '—'}
+          </Typography>
 
           {studentFee.status !== 'PAID' ? (
             <Box>
@@ -174,14 +210,12 @@ export default function StudentFeeDetailPage() {
             </Box>
           ) : null}
 
-          <Box sx={{ overflowX: 'auto' }}>
-            <Typography variant="h6" gutterBottom>
-              Payment history
-            </Typography>
+          <Stack spacing={1.5}>
+            <Typography variant="h6">Payment history</Typography>
             {studentFee.payments.length === 0 ? (
-              <Alert severity="info">No payments recorded yet.</Alert>
+              <EmptyState message="No payments recorded yet." />
             ) : (
-              <Table>
+              <AppTable aria-label="Payment history">
                 <TableHead>
                   <TableRow>
                     <TableCell>Date</TableCell>
@@ -193,7 +227,7 @@ export default function StudentFeeDetailPage() {
                 </TableHead>
                 <TableBody>
                   {studentFee.payments.map((payment) => (
-                    <TableRow key={payment.id}>
+                    <TableRow key={payment.id} hover>
                       <TableCell>{formatFeeDate(payment.paymentDate)}</TableCell>
                       <TableCell>{formatCurrency(payment.amount)}</TableCell>
                       <TableCell>{formatFeePaymentMethod(payment.paymentMethod)}</TableCell>
@@ -202,13 +236,19 @@ export default function StudentFeeDetailPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </AppTable>
             )}
-          </Box>
+          </Stack>
         </>
       ) : null}
 
-      <Dialog open={paymentDialogOpen} onClose={() => setPaymentDialogOpen(false)} fullWidth maxWidth="sm">
+      <Dialog
+        open={paymentDialogOpen}
+        onClose={() => setPaymentDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        fullScreen={fullScreenDialog}
+      >
         <Box component="form" onSubmit={handleRecordPayment}>
           <DialogTitle>Record payment</DialogTitle>
           <DialogContent>
@@ -223,6 +263,7 @@ export default function StudentFeeDetailPage() {
               <TextField
                 label="Amount"
                 type="number"
+                fullWidth
                 inputProps={{
                   min: 0.01,
                   step: 0.01,

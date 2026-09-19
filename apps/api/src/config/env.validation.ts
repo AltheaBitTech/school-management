@@ -2,6 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { EnvironmentAuthVariables } from './auth.configuration';
 import { EnvironmentEmailVariables } from './email.configuration';
+import { EnvironmentStorageVariables } from './storage.configuration';
 import { EnvironmentVariables } from './configuration';
 
 export function validateEnvironment(config: Record<string, unknown>): Record<string, unknown> {
@@ -17,6 +18,10 @@ export function validateEnvironment(config: Record<string, unknown>): Record<str
     EMAIL_PROVIDER: config.EMAIL_PROVIDER ?? 'console',
     RESEND_API_KEY: config.RESEND_API_KEY,
     RESEND_FROM_EMAIL: config.RESEND_FROM_EMAIL,
+    STORAGE_PROVIDER: config.STORAGE_PROVIDER ?? 'local',
+    SUPABASE_URL: config.SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: config.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_STORAGE_BUCKET: config.SUPABASE_STORAGE_BUCKET,
   };
 
   const validated = plainToInstance(EnvironmentVariables, normalized, {
@@ -31,6 +36,10 @@ export function validateEnvironment(config: Record<string, unknown>): Record<str
     enableImplicitConversion: true,
   });
 
+  const storageValidated = plainToInstance(EnvironmentStorageVariables, normalized, {
+    enableImplicitConversion: true,
+  });
+
   const errors = [
     ...validateSync(validated, {
       skipMissingProperties: false,
@@ -39,6 +48,9 @@ export function validateEnvironment(config: Record<string, unknown>): Record<str
       skipMissingProperties: false,
     }),
     ...validateSync(emailValidated, {
+      skipMissingProperties: false,
+    }),
+    ...validateSync(storageValidated, {
       skipMissingProperties: false,
     }),
   ];

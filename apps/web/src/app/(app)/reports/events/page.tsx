@@ -17,7 +17,6 @@ import Typography from '@mui/material/Typography';
 import type { ChangeEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { ApiError } from '@/lib/api/client';
 import {
   EVENT_STATUSES,
   EVENT_TYPES,
@@ -31,12 +30,7 @@ import {
 } from '@/lib/events/events-client';
 import { getCurrentOrganization } from '@/lib/organizations/organizations-client';
 import { getEventReport, type EventReport } from '@/lib/reports/event-reports-client';
-
-export function isEventReportForbiddenError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'statusCode' in error
-    ? (error as { statusCode?: number }).statusCode === 403
-    : error instanceof ApiError && error.statusCode === 403;
-}
+import { isEventReportForbiddenError } from '@/lib/reports/event-report-errors';
 
 export default function EventReportPage() {
   const [report, setReport] = useState<EventReport | null>(null);

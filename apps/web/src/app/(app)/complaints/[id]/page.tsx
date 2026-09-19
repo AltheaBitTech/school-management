@@ -3,7 +3,6 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
@@ -15,6 +14,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   addComplaintComment,
@@ -204,8 +204,14 @@ export default function ComplaintDetailPage() {
       <Paper sx={{ p: 3 }}>
         <Stack spacing={2}>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Chip label={formatComplaintStatus(complaint.status)} color="primary" />
-            <Chip label={formatComplaintPriority(complaint.priority)} />
+            <StatusChip
+              status={complaint.status}
+              label={formatComplaintStatus(complaint.status)}
+            />
+            <StatusChip
+              status={complaint.priority}
+              label={formatComplaintPriority(complaint.priority)}
+            />
           </Stack>
 
           <Typography variant="body1">{complaint.description}</Typography>

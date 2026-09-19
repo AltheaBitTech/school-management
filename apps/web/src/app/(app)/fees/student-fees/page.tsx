@@ -1,21 +1,21 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { FormActions, FormSection } from '@/components/ui/FormSection';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   assignStudentFee,
@@ -106,53 +106,63 @@ export default function StudentFeesPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Student fees
-          </Typography>
-          <Typography color="text.secondary">
-            Assign fee structures to students and track outstanding balances.
-          </Typography>
-        </Box>
-        <Button component={Link} href="/fees" variant="outlined">
-          Back to fees
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Student fees"
+        description="Assign fee structures to students and track outstanding balances."
+        actions={
+          <Button component={Link} href="/fees" variant="outlined">
+            Back to fees
+          </Button>
+        }
+      />
 
-      <Stack spacing={2} component="form" onSubmit={handleAssign} maxWidth="sm">
-        <Typography variant="h6">Assign fee to student</Typography>
-        <TextField select label="Student" value={studentId} onChange={(e) => setStudentId(e.target.value)} required>
-          {students.map((student) => (
-            <MenuItem key={student.id} value={student.id}>
-              {getStudentDisplayName(student)} ({student.studentCode})
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          label="Fee structure"
-          value={feeStructureId}
-          onChange={(e) => setFeeStructureId(e.target.value)}
-          required
-        >
-          {structures.map((structure) => (
-            <MenuItem key={structure.id} value={structure.id}>
-              {structure.name} — {formatCurrency(structure.amount)}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          label="Due date"
-          type="date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-        />
-        <Button type="submit" variant="contained" disabled={isSubmitting}>
-          {isSubmitting ? 'Assigning…' : 'Assign fee'}
-        </Button>
-      </Stack>
+      <FormSection title="Assign fee to student">
+        <Stack spacing={2} component="form" onSubmit={handleAssign}>
+          <TextField
+            select
+            label="Student"
+            value={studentId}
+            onChange={(e) => setStudentId(e.target.value)}
+            required
+            fullWidth
+          >
+            <MenuItem value="">Select student</MenuItem>
+            {students.map((student) => (
+              <MenuItem key={student.id} value={student.id}>
+                {getStudentDisplayName(student)} ({student.studentCode})
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Fee structure"
+            value={feeStructureId}
+            onChange={(e) => setFeeStructureId(e.target.value)}
+            required
+            fullWidth
+          >
+            <MenuItem value="">Select fee structure</MenuItem>
+            {structures.map((structure) => (
+              <MenuItem key={structure.id} value={structure.id}>
+                {structure.name} — {formatCurrency(structure.amount)}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Due date"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          />
+          <FormActions>
+            <Button type="submit" variant="contained" disabled={isSubmitting}>
+              {isSubmitting ? 'Assigning…' : 'Assign fee'}
+            </Button>
+          </FormActions>
+        </Stack>
+      </FormSection>
 
       <TextField
         select
@@ -169,55 +179,54 @@ export default function StudentFeesPage() {
         ))}
       </TextField>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress aria-label="Loading student fees" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading student fees" /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && studentFees.length === 0 ? (
-        <Alert severity="info">No student fees found for the selected filter.</Alert>
+        <EmptyState message="No student fees found for the selected filter." />
       ) : null}
 
       {!isLoading && studentFees.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Student</TableCell>
-                <TableCell>Fee structure</TableCell>
-                <TableCell>Assigned</TableCell>
-                <TableCell>Paid</TableCell>
-                <TableCell>Outstanding</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Due date</TableCell>
-                <TableCell align="right">Actions</TableCell>
+        <AppTable minWidth={960} aria-label="Student fees">
+          <TableHead>
+            <TableRow>
+              <TableCell>Student</TableCell>
+              <TableCell>Fee structure</TableCell>
+              <TableCell>Assigned</TableCell>
+              <TableCell>Paid</TableCell>
+              <TableCell>Outstanding</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Due date</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {studentFees.map((studentFee) => (
+              <TableRow key={studentFee.id} hover>
+                <TableCell>{getStudentDisplayNameFromFee(studentFee.student)}</TableCell>
+                <TableCell>{studentFee.feeStructure?.name ?? '—'}</TableCell>
+                <TableCell>{formatCurrency(studentFee.assignedAmount)}</TableCell>
+                <TableCell>{formatCurrency(studentFee.paidAmount)}</TableCell>
+                <TableCell>{formatCurrency(studentFee.outstandingAmount)}</TableCell>
+                <TableCell>
+                  <StatusChip
+                    status={studentFee.status}
+                    label={formatStudentFeeStatus(studentFee.status)}
+                  />
+                </TableCell>
+                <TableCell>
+                  {studentFee.dueDate ? formatFeeDate(studentFee.dueDate) : '—'}
+                </TableCell>
+                <TableCell align="right">
+                  <Button component={Link} href={`/fees/student-fees/${studentFee.id}`} size="small">
+                    View
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {studentFees.map((studentFee) => (
-                <TableRow key={studentFee.id} hover>
-                  <TableCell>{getStudentDisplayNameFromFee(studentFee.student)}</TableCell>
-                  <TableCell>{studentFee.feeStructure?.name ?? '—'}</TableCell>
-                  <TableCell>{formatCurrency(studentFee.assignedAmount)}</TableCell>
-                  <TableCell>{formatCurrency(studentFee.paidAmount)}</TableCell>
-                  <TableCell>{formatCurrency(studentFee.outstandingAmount)}</TableCell>
-                  <TableCell>{formatStudentFeeStatus(studentFee.status)}</TableCell>
-                  <TableCell>
-                    {studentFee.dueDate ? formatFeeDate(studentFee.dueDate) : '—'}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button component={Link} href={`/fees/student-fees/${studentFee.id}`} size="small">
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
+            ))}
+          </TableBody>
+        </AppTable>
       ) : null}
     </Stack>
   );

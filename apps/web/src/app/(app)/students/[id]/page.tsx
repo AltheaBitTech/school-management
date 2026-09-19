@@ -3,7 +3,6 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -11,6 +10,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   formatStudentDate,
@@ -18,12 +18,7 @@ import {
   getStudent,
   getStudentDisplayName,
   type Student,
-  type StudentStatus,
 } from '@/lib/students/students-client';
-
-function statusColor(status: StudentStatus): 'success' | 'default' {
-  return status === 'ACTIVE' ? 'success' : 'default';
-}
 
 export default function StudentDetailPage() {
   const params = useParams<{ id: string }>();
@@ -124,11 +119,9 @@ export default function StudentDetailPage() {
           </Typography>
           <Typography component="div">
             <strong>Status:</strong>{' '}
-            <Chip
+            <StatusChip
+              status={student.status}
               label={formatStudentStatus(student.status)}
-              color={statusColor(student.status)}
-              size="small"
-              sx={{ ml: 1 }}
             />
           </Typography>
           <Typography>

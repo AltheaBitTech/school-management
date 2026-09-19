@@ -1,22 +1,20 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
 import {
@@ -28,10 +26,6 @@ import {
   type Visitor,
   type VisitorStatus,
 } from '@/lib/visitors/visitors-client';
-
-function statusColor(status: VisitorStatus): 'success' | 'default' {
-  return status === 'CHECKED_IN' ? 'success' : 'default';
-}
 
 export default function VisitorsPage() {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
@@ -120,19 +114,15 @@ export default function VisitorsPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Visitors
-          </Typography>
-          <Typography color="text.secondary">
-            Register visitors, track current check-ins, and review visit history.
-          </Typography>
-        </Box>
-        <Button component={Link} href="/visitors/new" variant="contained">
-          Register visitor
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Visitors"
+        description="Register visitors, track current check-ins, and review visit history."
+        actions={
+          <Button component={Link} href="/visitors/new" variant="contained">
+            Register visitor
+          </Button>
+        }
+      />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap">
         <TextField
@@ -180,65 +170,55 @@ export default function VisitorsPage() {
         />
       </Stack>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress aria-label="Loading visitors" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading visitors" /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && visitors.length === 0 ? (
-        <Alert severity="info">No visitors found for the selected filters.</Alert>
+        <EmptyState message="No visitors found for the selected filters." />
       ) : null}
 
       {!isLoading && visitors.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Code</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Mobile</TableCell>
-                <TableCell>Purpose</TableCell>
-                <TableCell>Host</TableCell>
-                <TableCell>Check-in</TableCell>
-                <TableCell>Check-out</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
+        <AppTable minWidth={960} aria-label="Visitors">
+          <TableHead>
+            <TableRow>
+              <TableCell>Code</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Mobile</TableCell>
+              <TableCell>Purpose</TableCell>
+              <TableCell>Host</TableCell>
+              <TableCell>Check-in</TableCell>
+              <TableCell>Check-out</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {visitors.map((visitor) => (
+              <TableRow key={visitor.id} hover>
+                <TableCell>{visitor.visitorCode}</TableCell>
+                <TableCell>{visitor.name}</TableCell>
+                <TableCell>{visitor.mobile}</TableCell>
+                <TableCell>{visitor.purpose}</TableCell>
+                <TableCell>
+                  {visitor.hostStaff ? getVisitorStaffDisplayName(visitor.hostStaff) : '—'}
+                </TableCell>
+                <TableCell>{formatDateTime(visitor.checkInAt)}</TableCell>
+                <TableCell>
+                  {visitor.checkOutAt ? formatDateTime(visitor.checkOutAt) : '—'}
+                </TableCell>
+                <TableCell>
+                  <StatusChip status={visitor.status} label={formatVisitorStatus(visitor.status)} />
+                </TableCell>
+                <TableCell align="right">
+                  <Button component={Link} href={`/visitors/${visitor.id}`} size="small">
+                    View
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {visitors.map((visitor) => (
-                <TableRow key={visitor.id}>
-                  <TableCell>{visitor.visitorCode}</TableCell>
-                  <TableCell>{visitor.name}</TableCell>
-                  <TableCell>{visitor.mobile}</TableCell>
-                  <TableCell>{visitor.purpose}</TableCell>
-                  <TableCell>
-                    {visitor.hostStaff ? getVisitorStaffDisplayName(visitor.hostStaff) : '—'}
-                  </TableCell>
-                  <TableCell>{formatDateTime(visitor.checkInAt)}</TableCell>
-                  <TableCell>
-                    {visitor.checkOutAt ? formatDateTime(visitor.checkOutAt) : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={formatVisitorStatus(visitor.status)}
-                      color={statusColor(visitor.status)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button component={Link} href={`/visitors/${visitor.id}`} size="small">
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
+            ))}
+          </TableBody>
+        </AppTable>
       ) : null}
     </Stack>
   );

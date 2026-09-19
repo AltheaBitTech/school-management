@@ -1,16 +1,16 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { FormActions, FormSection } from '@/components/ui/FormSection';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { ApiError } from '@/lib/api/client';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { createStaff } from '@/lib/staff/staff-client';
@@ -67,51 +67,53 @@ export default function CreateStaffPage() {
 
   return (
     <Stack spacing={3} component="form" onSubmit={handleSubmit}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          Add staff
-        </Typography>
-        <Typography color="text.secondary">
-          Create an operational staff profile for your school.
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Add staff"
+        description="Create an operational staff profile for your school."
+      />
 
-      <Stack spacing={2} maxWidth="sm">
+      <FormSection>
         <TextField
           label="Employee code"
           value={employeeCode}
           onChange={(event) => setEmployeeCode(event.target.value)}
           required
           helperText="Use lowercase letters, numbers, or hyphens"
+          fullWidth
         />
         <TextField
           label="First name"
           value={firstName}
           onChange={(event) => setFirstName(event.target.value)}
           required
+          fullWidth
         />
         <TextField
           label="Last name"
           value={lastName}
           onChange={(event) => setLastName(event.target.value)}
           required
+          fullWidth
         />
         <TextField
           label="Email"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
+          fullWidth
         />
         <TextField
           label="Designation"
           value={designation}
           onChange={(event) => setDesignation(event.target.value)}
+          fullWidth
         />
         <TextField
           select
           label="Department"
           value={departmentId}
           onChange={(event) => setDepartmentId(event.target.value)}
+          fullWidth
         >
           <MenuItem value="">No department</MenuItem>
           {departments.map((department) => (
@@ -123,15 +125,15 @@ export default function CreateStaffPage() {
 
         {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
-        <Stack direction="row" spacing={2}>
+        <FormActions>
           <Button type="submit" variant="contained" disabled={isSubmitting}>
             {isSubmitting ? 'Creating…' : 'Create staff'}
           </Button>
           <Button component={Link} href="/staff">
             Cancel
           </Button>
-        </Stack>
-      </Stack>
+        </FormActions>
+      </FormSection>
     </Stack>
   );
 }

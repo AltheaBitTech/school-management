@@ -1,22 +1,20 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
   EVENT_STATUSES,
@@ -97,15 +95,17 @@ export default function EventsPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">Events</Typography>
-          <Typography color="text.secondary">Plan school events in a date-aware operational calendar.</Typography>
-        </Box>
-        <Button component={Link} href="/events/new" variant="contained">New event</Button>
-      </Stack>
+      <PageHeader
+        title="Events"
+        description="Plan school events in a date-aware operational calendar."
+        actions={
+          <Button component={Link} href="/events/new" variant="contained">
+            New event
+          </Button>
+        }
+      />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} flexWrap="wrap" useFlexGap>
         <TextField select label="Status" value={status} onChange={(event) => setStatus(event.target.value as EventStatus | '')} sx={{ minWidth: 170 }}>
           <MenuItem value="">All statuses</MenuItem>
           {EVENT_STATUSES.map((item) => <MenuItem key={item} value={item}>{formatEventStatus(item)}</MenuItem>)}
@@ -122,25 +122,41 @@ export default function EventsPage() {
         <TextField label="To" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} />
       </Stack>
 
-      {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-      {venueError && <Alert severity="warning">{venueError}. Venue filtering is unavailable.</Alert>}
-      {isLoading ? <CircularProgress /> : events.length === 0 ? (
-        <Alert severity="info">No events match the selected filters.</Alert>
+      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {venueError ? <Alert severity="warning">{venueError}. Venue filtering is unavailable.</Alert> : null}
+      {isLoading ? (
+        <LoadingState label="Loading events" />
+      ) : events.length === 0 ? (
+        <EmptyState message="No events match the selected filters." />
       ) : (
-        <Table size="small">
-          <TableHead><TableRow><TableCell>Event</TableCell><TableCell>Type</TableCell><TableCell>When</TableCell><TableCell>Venue</TableCell><TableCell>Status</TableCell></TableRow></TableHead>
+        <AppTable aria-label="Events">
+          <TableHead>
+            <TableRow>
+              <TableCell>Event</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>When</TableCell>
+              <TableCell>Venue</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
           <TableBody>
             {events.map((event) => (
               <TableRow key={event.id} hover>
-                <TableCell><Link href={`/events/${event.id}`}>{event.title}</Link></TableCell>
+                <TableCell>
+                  <Button component={Link} href={`/events/${event.id}`} size="small">
+                    {event.title}
+                  </Button>
+                </TableCell>
                 <TableCell>{formatEventType(event.type)}</TableCell>
                 <TableCell>{formatEventDateTime(event.startAt, organizationTimezone)}</TableCell>
                 <TableCell>{event.venue.name}</TableCell>
-                <TableCell><Chip size="small" label={formatEventStatus(event.status)} /></TableCell>
+                <TableCell>
+                  <StatusChip status={event.status} label={formatEventStatus(event.status)} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </AppTable>
       )}
     </Stack>
   );

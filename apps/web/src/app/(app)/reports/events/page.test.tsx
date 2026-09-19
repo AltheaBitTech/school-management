@@ -2,7 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EventReportPage from '@/app/(app)/reports/events/page';
-import { isEventReportForbiddenError } from '@/app/(app)/reports/events/page';
+import { isEventReportForbiddenError } from '@/lib/reports/event-report-errors';
 
 vi.mock('@/lib/reports/event-reports-client', () => ({
   getEventReport: vi.fn(),

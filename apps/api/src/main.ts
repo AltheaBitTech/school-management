@@ -1,17 +1,11 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import cookieParser from 'cookie-parser';
-import { AppModule } from './app.module';
-import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
-import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { createApp } from './bootstrap';
 import { AppConfig, CONFIGURATION_KEY } from './config/configuration';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
-  });
+  const app = await createApp();
+  app.enableShutdownHooks();
 
   const logger = new Logger('Bootstrap');
   const configService = app.get(ConfigService);
@@ -20,41 +14,6 @@ async function bootstrap(): Promise<void> {
   if (!appConfig) {
     throw new Error('Application configuration is unavailable');
   }
-
-  app.setGlobalPrefix('api/v1');
-
-  app.enableCors({
-    origin: appConfig.corsOrigin,
-    credentials: true,
-  });
-
-  app.use(cookieParser());
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
-
-  app.useGlobalFilters(new GlobalExceptionFilter(configService));
-  app.useGlobalInterceptors(new LoggingInterceptor());
-
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('CampusOps API')
-    .setDescription('School Operations Management SaaS API')
-    .setVersion('0.0.1')
-    .addBearerAuth()
-    .build();
-
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, document);
-
-  app.enableShutdownHooks();
 
   await app.listen(appConfig.port);
 

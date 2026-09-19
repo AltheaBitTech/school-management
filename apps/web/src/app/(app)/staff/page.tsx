@@ -1,21 +1,20 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState, TablePaginationBar } from '@/components/ui/AppTable';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import {
@@ -104,19 +103,15 @@ export default function StaffListPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Staff
-          </Typography>
-          <Typography color="text.secondary">
-            Manage school staff profiles for your organization.
-          </Typography>
-        </Box>
-        <Button component={Link} href="/staff/new" variant="contained">
-          Add staff
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Staff"
+        description="Manage school staff profiles for your organization."
+        actions={
+          <Button component={Link} href="/staff/new" variant="contained">
+            Add staff
+          </Button>
+        }
+      />
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
         <TextField
@@ -137,7 +132,7 @@ export default function StaffListPage() {
             setPage(1);
             setDepartmentId(event.target.value);
           }}
-          sx={{ minWidth: 220 }}
+          sx={{ minWidth: { md: 220 } }}
         >
           <MenuItem value="">All departments</MenuItem>
           {departments.map((department) => (
@@ -148,66 +143,49 @@ export default function StaffListPage() {
         </TextField>
       </Stack>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress aria-label="Loading staff" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading staff" /> : null}
 
       {!isLoading && errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && !errorMessage && staff.length === 0 ? (
-        <Alert severity="info">No staff members found. Create the first staff profile to get started.</Alert>
+        <EmptyState message="No staff members found. Create the first staff profile to get started." />
       ) : null}
 
       {!isLoading && !errorMessage && staff.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Employee code</TableCell>
-                <TableCell>Department</TableCell>
-                <TableCell>Designation</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
+        <AppTable aria-label="Staff">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Employee code</TableCell>
+              <TableCell>Department</TableCell>
+              <TableCell>Designation</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {staff.map((member) => (
+              <TableRow key={member.id} hover>
+                <TableCell>{getStaffDisplayName(member)}</TableCell>
+                <TableCell>{member.employeeCode}</TableCell>
+                <TableCell>{member.department?.name ?? '—'}</TableCell>
+                <TableCell>{member.designation ?? '—'}</TableCell>
+                <TableCell>
+                  <StatusChip status={member.employmentStatus} />
+                </TableCell>
+                <TableCell align="right">
+                  <Button component={Link} href={`/staff/${member.id}`} size="small">
+                    View
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {staff.map((member) => (
-                <TableRow key={member.id} hover>
-                  <TableCell>{getStaffDisplayName(member)}</TableCell>
-                  <TableCell>{member.employeeCode}</TableCell>
-                  <TableCell>{member.department?.name ?? '—'}</TableCell>
-                  <TableCell>{member.designation ?? '—'}</TableCell>
-                  <TableCell>{member.employmentStatus}</TableCell>
-                  <TableCell align="right">
-                    <Button component={Link} href={`/staff/${member.id}`} size="small">
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
+            ))}
+          </TableBody>
+        </AppTable>
       ) : null}
 
-      {!isLoading && totalPages > 1 ? (
-        <Stack direction="row" spacing={1} justifyContent="flex-end">
-          <Button disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
-            Previous
-          </Button>
-          <Typography sx={{ alignSelf: 'center' }}>
-            Page {page} of {totalPages}
-          </Typography>
-          <Button
-            disabled={page >= totalPages}
-            onClick={() => setPage((current) => current + 1)}
-          >
-            Next
-          </Button>
-        </Stack>
+      {!isLoading ? (
+        <TablePaginationBar page={page} totalPages={totalPages} onPageChange={setPage} />
       ) : null}
     </Stack>
   );

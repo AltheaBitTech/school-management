@@ -3,7 +3,6 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
@@ -14,6 +13,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
 import { getStudentDisplayName, listStudents, type Student } from '@/lib/students/students-client';
@@ -139,7 +139,7 @@ export default function EventDetailPage() {
       </Stack>
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
       {successMessage && <Alert severity="success">{successMessage}</Alert>}
-      <Chip label={formatEventStatus(event.status)} sx={{ width: 'fit-content' }} />
+      <StatusChip status={event.status} label={formatEventStatus(event.status)} />
       <Stack spacing={1}><Typography><strong>When:</strong> {formatEventDateTime(event.startAt, organizationTimezone)} - {formatEventDateTime(event.endAt, organizationTimezone)}</Typography><Typography><strong>Venue:</strong> {event.venue.name}{event.venue.location ? `, ${event.venue.location}` : ''}</Typography><Typography><strong>Description:</strong> {event.description || 'No description.'}</Typography></Stack>
       <Divider />
       <Stack spacing={2}>

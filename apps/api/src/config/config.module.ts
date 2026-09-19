@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import authConfiguration from './auth.configuration';
 import configuration from './configuration';
 import emailConfiguration from './email.configuration';
+import storageConfiguration from './storage.configuration';
 import { validateEnvironment } from './env.validation';
 
 @Global()
@@ -10,7 +11,7 @@ import { validateEnvironment } from './env.validation';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [configuration, authConfiguration, emailConfiguration],
+      load: [configuration, authConfiguration, emailConfiguration, storageConfiguration],
       validate: validateEnvironment,
     }),
   ],

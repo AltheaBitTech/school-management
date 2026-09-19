@@ -1,20 +1,18 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { ApiError } from '@/lib/api/client';
 import {
   ATTENDANCE_STATUS_OPTIONS,
@@ -158,14 +156,10 @@ export default function AttendancePage() {
 
   return (
     <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          Staff attendance
-        </Typography>
-        <Typography color="text.secondary">
-          Mark and review daily attendance for your organization.
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Staff attendance"
+        description="Mark and review daily attendance for your organization."
+      />
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
         <TextField
@@ -191,22 +185,17 @@ export default function AttendancePage() {
         </TextField>
       </Stack>
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress aria-label="Loading attendance" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading attendance" /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
       {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
 
       {!isLoading && activeStaff.length === 0 ? (
-        <Alert severity="info">No active staff members found for the selected filters.</Alert>
+        <EmptyState message="No active staff members found for the selected filters." />
       ) : null}
 
       {!isLoading && activeStaff.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
+        <AppTable minWidth={880} aria-label="Attendance">
             <TableHead>
               <TableRow>
                 <TableCell>Staff</TableCell>
@@ -268,8 +257,7 @@ export default function AttendancePage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </Box>
+        </AppTable>
       ) : null}
     </Stack>
   );

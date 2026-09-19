@@ -5,13 +5,12 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { File } from '@prisma/client';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  FILE_ERROR_CODES,
-  LOCAL_STORAGE_PROVIDER,
-} from './constants/file.constants';
+import { STORAGE_CONFIG_KEY, StorageConfig } from '../config/storage.configuration';
+import { FILE_ERROR_CODES } from './constants/file.constants';
 import { FileStorageService } from './storage/file-storage.service';
 import { FileResponseDto } from './dto/file-response.dto';
 import { validateUploadBuffer } from './utils/file-validation.util';
@@ -30,7 +29,12 @@ export class FilesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileStorageService: FileStorageService,
+    private readonly configService: ConfigService,
   ) {}
+
+  private get activeStorageProvider(): string {
+    return this.configService.get<StorageConfig>(STORAGE_CONFIG_KEY)?.provider ?? 'local';
+  }
 
   async storeBuffer(
     organizationId: string,
@@ -73,7 +77,7 @@ export class FilesService {
           size: validated.size,
           checksum,
           extension,
-          storageProvider: LOCAL_STORAGE_PROVIDER,
+          storageProvider: this.activeStorageProvider,
           createdById: actor.userId,
         },
       });
@@ -130,7 +134,7 @@ export class FilesService {
           size: validated.size,
           checksum,
           extension,
-          storageProvider: LOCAL_STORAGE_PROVIDER,
+          storageProvider: this.activeStorageProvider,
           createdById: actor.userId,
         },
       });
