@@ -226,6 +226,7 @@ model Organization {
   venues      Venue[]
   events      Event[]
   eventParticipants EventParticipant[]
+  auditLogs   AuditLog[]
 
   @@index([status])
 }
@@ -341,6 +342,7 @@ model User {
   approvalActions ApprovalAction[] @relation("ApprovalActionActor")
   configuredApprovalLevels ApprovalLevel[] @relation("ApprovalLevelUser")
   createdEvents Event[] @relation("EventCreatedBy")
+  auditLogEntries AuditLog[] @relation("AuditLogActor")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -1019,4 +1021,25 @@ model ApprovalAction {
   actor           User            @relation("ApprovalActionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([approvalRequestId, createdAt])
+}
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  actorUserId    String   @db.Uuid
+  action         String
+  entityType     String
+  entityId       String   @db.Uuid
+  requestId      String?
+  before         Json?
+  after          Json?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actor        User         @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, action])
+  @@index([organizationId, entityType, entityId])
 }

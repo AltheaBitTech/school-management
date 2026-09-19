@@ -22,6 +22,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { EventsModule } from './events/events.module';
 import { EventReportsModule } from './reports/events/event-reports.module';
+import { AuditModule } from './audit/audit.module';
 import { RbacModule } from './rbac/rbac.module';
 
 @Module({
@@ -52,6 +53,7 @@ import { RbacModule } from './rbac/rbac.module';
     ApprovalsModule,
     EventsModule,
     EventReportsModule,
+    AuditModule,
     RbacModule,
   ],
   providers: [

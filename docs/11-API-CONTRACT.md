@@ -563,8 +563,47 @@ Exports must use the same authorization rules as the underlying report.
 
 # 28. Audit API
 
+## Audit Logs
+
 ```text
 GET /audit-logs
+```
+
+Required permission:
+
+```text
+audit.view
+```
+
+Supported query parameters:
+
+```text
+action=<audit action>
+entityType=<entity type>
+entityId=<uuid>
+fromDate=YYYY-MM-DD
+toDate=YYYY-MM-DD
+page=1
+pageSize=25
+```
+
+Audit logs are always scoped to the authenticated user's organization.
+`organizationId` is not an accepted client filter.
+
+Date filters use UTC calendar-day boundaries on `createdAt`.
+
+The response contains paginated audit rows and pagination metadata.
+Rows expose actor, action, entity, request ID, sanitized snapshots, metadata,
+and timestamp.
+
+Users without `audit.view` receive `403 Forbidden`.
+
+Audit records are append-only and cannot be created or modified through a
+public write endpoint.
+
+Representative activity endpoint (not implemented in Audit Foundation):
+
+```text
 GET /activity
 ```
 

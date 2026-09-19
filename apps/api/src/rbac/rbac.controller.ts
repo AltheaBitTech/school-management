@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -25,6 +26,8 @@ import { RequirePermissions } from '../common/decorators/require-permissions.dec
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RolesService } from '../roles/roles.service';
 import { AssignRoleDto } from '../roles/dto/assign-role.dto';
+import { getRequestId } from '../common/middleware/correlation-id.middleware';
+import { Request } from 'express';
 
 class RbacTestDataDto {
   @ApiProperty()
@@ -55,8 +58,11 @@ export class RbacController {
     @CurrentUser() actor: AuthenticatedUser,
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body() assignRoleDto: AssignRoleDto,
+    @Req() request: Request,
   ): Promise<void> {
-    await this.rolesService.assignRoleToUser(actor, userId, assignRoleDto.roleId);
+    await this.rolesService.assignRoleToUser(actor, userId, assignRoleDto.roleId, {
+      requestId: getRequestId(request),
+    });
   }
 }
 

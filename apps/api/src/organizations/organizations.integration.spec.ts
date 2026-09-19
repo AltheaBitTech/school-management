@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AUTH_CONFIG_KEY } from '../config/auth.configuration';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { AuditService } from '../audit/audit.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions';
 import { PLATFORM_ROLE_CODES } from '../permissions/constants/system-roles';
@@ -82,7 +83,12 @@ describeIfDatabase('Organizations integration', () => {
       passwordService,
     );
     permissionsService = new PermissionsService(prisma as unknown as PrismaService);
-    rolesService = new RolesService(prisma as unknown as PrismaService, permissionsService);
+    const auditService = new AuditService(prisma as unknown as PrismaService);
+    rolesService = new RolesService(
+      prisma as unknown as PrismaService,
+      permissionsService,
+      auditService,
+    );
 
     const configService = {
       get: (key: string) => {

@@ -2,6 +2,7 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaClient } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { PermissionsService } from '../permissions/permissions.service';
 import { RolesService } from '../roles/roles.service';
@@ -33,7 +34,12 @@ describeIfDatabase('RBAC integration', () => {
     await prisma.$connect();
 
     permissionsService = new PermissionsService(prisma as unknown as PrismaService);
-    rolesService = new RolesService(prisma as unknown as PrismaService, permissionsService);
+    const auditService = new AuditService(prisma as unknown as PrismaService);
+    rolesService = new RolesService(
+      prisma as unknown as PrismaService,
+      permissionsService,
+      auditService,
+    );
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
 
     const orgA = await prisma.organization.create({

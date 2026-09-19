@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { Role, User } from '@prisma/client';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
+import { AuditService } from '../audit/audit.service';
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
 import { RBAC_ERROR_CODES } from '../common/constants/rbac.constants';
 import { PermissionsService } from '../permissions/permissions.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,12 +17,14 @@ export class RolesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissionsService: PermissionsService,
+    private readonly auditService: AuditService,
   ) {}
 
   async assignRoleToUser(
     actor: AuthenticatedUser,
     targetUserId: string,
     roleId: string,
+    options?: { requestId?: string },
   ): Promise<void> {
     const [targetUser, role] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: targetUserId } }),
@@ -57,11 +61,31 @@ export class RolesService {
     }
 
     try {
-      await this.prisma.userRole.create({
-        data: {
-          userId: targetUser.id,
-          roleId: role.id,
-        },
+      await this.prisma.$transaction(async (tx) => {
+        await tx.userRole.create({
+          data: {
+            userId: targetUser.id,
+            roleId: role.id,
+          },
+        });
+
+        await this.auditService.record(
+          {
+            organizationId: targetUser.organizationId,
+            actorUserId: actor.userId,
+            action: AUDIT_ACTIONS.USER_ROLE_ASSIGNED,
+            entityType: AUDIT_ENTITY_TYPES.USER,
+            entityId: targetUser.id,
+            requestId: options?.requestId,
+            metadata: {
+              targetUserId: targetUser.id,
+              roleId: role.id,
+              roleCode: role.code,
+              roleName: role.name,
+            },
+          },
+          tx,
+        );
       });
     } catch {
       throw new ConflictException({
