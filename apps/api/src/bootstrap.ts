@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerCustomOptions, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -56,7 +56,18 @@ export async function createApp(): Promise<INestApplication> {
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, document);
+  // Swagger UI's bundled JS/CSS are served straight off disk at request time rather than
+  // required, so Vercel's serverless function bundler never traces/includes them. Loading them
+  // from a CDN (pinned to the installed swagger-ui-dist version) sidesteps that entirely.
+  const swaggerUiVersion = '5.32.13';
+  const swaggerCustomOptions: SwaggerCustomOptions = {
+    customCssUrl: `https://cdn.jsdelivr.net/npm/swagger-ui-dist@${swaggerUiVersion}/swagger-ui.css`,
+    customJs: [
+      `https://cdn.jsdelivr.net/npm/swagger-ui-dist@${swaggerUiVersion}/swagger-ui-bundle.js`,
+      `https://cdn.jsdelivr.net/npm/swagger-ui-dist@${swaggerUiVersion}/swagger-ui-standalone-preset.js`,
+    ],
+  };
+  SwaggerModule.setup('docs', app, document, swaggerCustomOptions);
 
   return app;
 }
