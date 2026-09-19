@@ -5,6 +5,7 @@ import Container from '@mui/material/Container';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Link from 'next/link';
+import { NotificationMenu } from '@/components/notifications/NotificationMenu';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -58,6 +59,7 @@ export function AppShell({ children }: AppShellProps) {
             Event reports
           </Button>
           <Box sx={{ flexGrow: 1 }} />
+          <NotificationMenu />
           <Button component={Link} href="/login" variant="outlined" size="small">
             Sign in
           </Button>
