@@ -375,6 +375,54 @@ If the academic ERP is the source of truth, synchronization/import APIs should b
 
 ---
 
+# 16A. Fees API (MVP)
+
+Implemented fee-management endpoints for the first vertical slice:
+
+```text
+GET    /fees/structures
+POST   /fees/structures
+GET    /fees/student-fees
+POST   /fees/student-fees
+GET    /fees/student-fees/:id
+POST   /fees/student-fees/:id/payments
+GET    /fees/students/:studentId/summary
+```
+
+Permissions:
+
+- `fee.view` — list/read fee structures, student fees, and student summaries
+- `fee.create` — create fee structures
+- `fee.assign` — assign a fee structure to a student
+- `fee.record_payment` — record a payment against a student fee assignment
+
+Rules:
+
+- Organization context is derived from the authenticated user; client-supplied `organizationId` is not accepted.
+- Fee structure and payment amounts must be greater than zero.
+- Payment amount cannot exceed the server-calculated outstanding balance.
+- Student fee status is server-derived: `PENDING`, `PARTIALLY_PAID`, or `PAID`.
+- Payments against a `PAID` student fee are rejected.
+- Payment recording and student-fee status updates occur atomically in a transaction with row locking.
+- Cross-tenant access to fee structures, student fees, students, or payments returns the standard not-found/forbidden behavior.
+
+List endpoints support pagination and basic filters:
+
+- `/fees/structures` — optional `status`
+- `/fees/student-fees` — optional `studentId`, `feeStructureId`, `status`
+
+Payment methods: `CASH`, `BANK_TRANSFER`, `UPI`, `OTHER`.
+
+Audit events recorded for create/assign/payment actions:
+
+- `FEE_STRUCTURE_CREATED`
+- `STUDENT_FEE_ASSIGNED`
+- `FEE_PAYMENT_RECORDED`
+
+This slice does not include payment gateways, refunds, receipts, reminders, or accounting ledger behavior.
+
+---
+
 # 17. Attendance API
 
 ```text

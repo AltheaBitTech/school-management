@@ -1,6 +1,9 @@
 export const AUDIT_ACTIONS = {
   USER_CREATED: 'USER_CREATED',
   USER_ROLE_ASSIGNED: 'USER_ROLE_ASSIGNED',
+  FEE_STRUCTURE_CREATED: 'FEE_STRUCTURE_CREATED',
+  STUDENT_FEE_ASSIGNED: 'STUDENT_FEE_ASSIGNED',
+  FEE_PAYMENT_RECORDED: 'FEE_PAYMENT_RECORDED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -8,6 +11,9 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
 export const AUDIT_ENTITY_TYPES = {
   USER: 'User',
   ROLE: 'Role',
+  FEE_STRUCTURE: 'FeeStructure',
+  STUDENT_FEE: 'StudentFee',
+  FEE_PAYMENT: 'FeePayment',
 } as const;
 
 export const AUDIT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;

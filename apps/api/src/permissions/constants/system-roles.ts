@@ -91,6 +91,10 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       'event.manage_venues',
       'report.event.view',
       'audit.view',
+      'fee.view',
+      'fee.create',
+      'fee.assign',
+      'fee.record_payment',
     ],
   },
 ];

@@ -77,6 +77,10 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'event.manage_participants', description: 'Manage event participants' },
   { code: 'event.manage_venues', description: 'Manage event venues' },
   { code: 'report.event.view', description: 'View Event operations reports' },
+  { code: 'fee.view', description: 'View fee structures and student fees' },
+  { code: 'fee.create', description: 'Create fee structures' },
+  { code: 'fee.assign', description: 'Assign fees to students' },
+  { code: 'fee.record_payment', description: 'Record student fee payments' },
 ];
 
 export const SYSTEM_PERMISSION_CODES = SYSTEM_PERMISSIONS.map((permission) => permission.code);

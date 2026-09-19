@@ -24,6 +24,7 @@ import { EventsModule } from './events/events.module';
 import { EventReportsModule } from './reports/events/event-reports.module';
 import { AuditModule } from './audit/audit.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { FeesModule } from './fees/fees.module';
 import { RbacModule } from './rbac/rbac.module';
 
 @Module({
@@ -56,6 +57,7 @@ import { RbacModule } from './rbac/rbac.module';
     EventReportsModule,
     AuditModule,
     NotificationsModule,
+    FeesModule,
     RbacModule,
   ],
   providers: [
