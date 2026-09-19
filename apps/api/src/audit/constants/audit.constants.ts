@@ -1,4 +1,5 @@
 export const AUDIT_ACTIONS = {
+  USER_CREATED: 'USER_CREATED',
   USER_ROLE_ASSIGNED: 'USER_ROLE_ASSIGNED',
 } as const;
 

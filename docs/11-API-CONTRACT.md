@@ -282,15 +282,78 @@ POST   /staff
 GET    /staff/:id
 PATCH  /staff/:id
 POST   /staff/:id/deactivate
+POST   /staff/:id/provision-login
 ```
 
-The API should enforce:
+`POST /staff/:id/provision-login` creates a login account for an existing staff member in the authenticated organization.
+
+Request body:
+
+```json
+{
+  "email": "rajesh.kumar@sunrise-school.test",
+  "password": "TemporaryPass123!",
+  "roleId": "<uuid>"
+}
+```
+
+Rules:
+
+- `organizationId` is derived from the authenticated user; it must not be supplied by the client
+- Requires `user.create` and `role.assign`
+- Staff must belong to the authenticated organization
+- Staff must not already have `userId`
+- Offboarded staff cannot be provisioned
+- Email is normalized and must be unique within the organization
+- Role must belong to the same organization; platform/SaaS roles are rejected
+- Password is hashed server-side and never returned
+- User creation, role assignment, staff linkage, and audit records occur in one transaction
+
+Response:
+
+```json
+{
+  "data": {
+    "staff": { "...Staff..." },
+    "loginEmail": "rajesh.kumar@sunrise-school.test"
+  }
+}
+```
+
+Representative errors:
+
+```text
+STAFF_NOT_FOUND
+STAFF_LOGIN_ALREADY_PROVISIONED
+STAFF_NOT_ELIGIBLE_FOR_LOGIN
+DUPLICATE_USER_EMAIL
+INVALID_ROLE
+FORBIDDEN
+```
+
+The Staff API should enforce:
 
 - Tenant isolation
 - Permission checks
 - Employee code uniqueness
 - Valid department
 - Valid reporting manager
+
+---
+
+# 15a. Roles API
+
+```text
+GET /roles
+```
+
+Lists organization-scoped roles for the authenticated tenant.
+
+Rules:
+
+- Requires `role.view`
+- Returns only roles where `organizationId` matches the authenticated organization
+- Platform/SaaS roles (`organizationId = null`) are excluded
 
 ---
 

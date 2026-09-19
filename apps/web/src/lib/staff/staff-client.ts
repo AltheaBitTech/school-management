@@ -103,6 +103,32 @@ export async function deactivateStaff(id: string): Promise<StaffMember> {
   return response.data;
 }
 
+export interface ProvisionStaffLoginInput {
+  email: string;
+  password: string;
+  roleId: string;
+}
+
+export interface ProvisionStaffLoginResult {
+  staff: StaffMember;
+  loginEmail: string;
+}
+
+interface ProvisionStaffLoginResponse {
+  data: ProvisionStaffLoginResult;
+}
+
+export async function provisionStaffLogin(
+  id: string,
+  input: ProvisionStaffLoginInput,
+): Promise<ProvisionStaffLoginResult> {
+  const response = await apiClient.post<ProvisionStaffLoginResponse>(
+    `/staff/${id}/provision-login`,
+    input,
+  );
+  return response.data;
+}
+
 export function getStaffDisplayName(staff: StaffMember): string {
   return staff.displayName?.trim() || `${staff.firstName} ${staff.lastName}`.trim();
 }

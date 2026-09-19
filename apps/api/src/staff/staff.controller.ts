@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +23,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { getRequestId } from '../common/middleware/correlation-id.middleware';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { ListStaffQueryDto } from './dto/list-staff-query.dto';
 import {
@@ -29,14 +31,21 @@ import {
   StaffResponseDto,
 } from './dto/staff-response.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
+import { ProvisionStaffLoginDto } from './dto/provision-staff-login.dto';
+import { ProvisionStaffLoginResponseDto } from './dto/provision-staff-login-response.dto';
+import { StaffLoginProvisioningService } from './staff-login-provisioning.service';
 import { StaffService } from './staff.service';
+import { Request } from 'express';
 
 @ApiTags('staff')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('staff')
 export class StaffController {
-  constructor(private readonly staffService: StaffService) {}
+  constructor(
+    private readonly staffService: StaffService,
+    private readonly staffLoginProvisioningService: StaffLoginProvisioningService,
+  ) {}
 
   @Get()
   @RequirePermissions('staff.view')
@@ -97,5 +106,31 @@ export class StaffController {
   ) {
     const staff = await this.staffService.deactivate(user.organizationId, id);
     return { data: this.staffService.toDto(staff) };
+  }
+
+  @Post(':id/provision-login')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('user.create', 'role.assign')
+  @ApiOperation({ summary: 'Provision a login account for an existing staff member' })
+  @ApiOkResponse({ type: ProvisionStaffLoginResponseDto })
+  async provisionLogin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ProvisionStaffLoginDto,
+    @Req() request: Request,
+  ): Promise<ProvisionStaffLoginResponseDto> {
+    const result = await this.staffLoginProvisioningService.provisionLogin(
+      user,
+      id,
+      dto,
+      { requestId: getRequestId(request) },
+    );
+
+    return {
+      data: {
+        staff: this.staffService.toDto(result.staff),
+        loginEmail: result.loginEmail,
+      },
+    };
   }
 }
