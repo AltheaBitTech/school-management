@@ -116,6 +116,7 @@ describeIfDatabase('Organizations integration', () => {
       passwordService,
       tokenService,
       refreshSessionService,
+      auditService,
     );
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
   });

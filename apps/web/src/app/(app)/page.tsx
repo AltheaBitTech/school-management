@@ -239,7 +239,7 @@ export default function HomePage() {
               </Typography>
               <Button
                 component={Link}
-                href="/auth/login"
+                href="/login"
                 variant="outlined"
                 size="large"
                 sx={{ mt: 'auto' }}

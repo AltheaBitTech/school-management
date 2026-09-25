@@ -1,7 +1,9 @@
-import { ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { PasswordService } from '../auth/services/password.service';
+import { EMAIL_PROVIDER } from '../notifications/providers/email-provider.interface';
 import { OrganizationRegistrationsService } from './organization-registrations.service';
 import { CreateOrganizationRegistrationRequestDto } from './dto/create-organization-registration-request.dto';
 
@@ -19,18 +21,36 @@ describe('OrganizationRegistrationsService', () => {
             user: {
               findFirst: jest.fn(),
             },
+            organization: {
+              findFirst: jest.fn(),
+              findUnique: jest.fn(),
+            },
             organizationRegistrationRequest: {
               findUnique: jest.fn(),
               findMany: jest.fn(),
               create: jest.fn(),
               delete: jest.fn(),
+              update: jest.fn(),
             },
+            $transaction: jest.fn(),
           },
         },
         {
-          provide: PasswordService,
+          provide: AuditService,
           useValue: {
-            hashPassword: jest.fn(),
+            record: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue({ corsOrigin: 'http://localhost:3000' }),
+          },
+        },
+        {
+          provide: EMAIL_PROVIDER,
+          useValue: {
+            sendEmail: jest.fn(),
           },
         },
       ],
@@ -100,7 +120,7 @@ describe('OrganizationRegistrationsService', () => {
     });
 
     it('should reject if email is already registered as a user', async () => {
-      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue({ id: 'user-id' } as any);
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue({ id: 'user-id' } as never);
 
       await expect(service.submitRegistrationRequest(validDto)).rejects.toThrow(ConflictException);
     });
@@ -110,7 +130,7 @@ describe('OrganizationRegistrationsService', () => {
       jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue({
         id: 'request-id',
         status: 'PENDING',
-      } as any);
+      } as never);
 
       await expect(service.submitRegistrationRequest(validDto)).rejects.toThrow(ConflictException);
     });
@@ -141,7 +161,7 @@ describe('OrganizationRegistrationsService', () => {
         organizationId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as any);
+      } as never);
 
       await service.submitRegistrationRequest(dtoWithWhitespace);
 
@@ -181,7 +201,7 @@ describe('OrganizationRegistrationsService', () => {
         organizationId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as any);
+      } as never);
 
       await service.submitRegistrationRequest(dtoWithoutCountry);
 
@@ -199,13 +219,13 @@ describe('OrganizationRegistrationsService', () => {
       jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue({
         id: 'old-request-id',
         status: 'REJECTED',
-      } as any);
-      jest.spyOn(prismaService.organizationRegistrationRequest, 'delete').mockResolvedValue({} as any);
+      } as never);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'delete').mockResolvedValue({} as never);
       jest.spyOn(prismaService.organizationRegistrationRequest, 'create').mockResolvedValue({
         id: 'new-request-id',
         status: 'PENDING',
         createdAt: new Date(),
-      } as any);
+      } as never);
 
       const result = await service.submitRegistrationRequest(validDto);
 
@@ -219,7 +239,7 @@ describe('OrganizationRegistrationsService', () => {
   describe('findById', () => {
     it('should find a registration request by ID', async () => {
       const mockRequest = { id: 'test-id', status: 'PENDING' };
-      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue(mockRequest as any);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue(mockRequest as never);
 
       const result = await service.findById('test-id');
 
@@ -233,7 +253,7 @@ describe('OrganizationRegistrationsService', () => {
   describe('findByEmail', () => {
     it('should find a registration request by email', async () => {
       const mockRequest = { id: 'test-id', contactEmail: 'principal@test.edu' };
-      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue(mockRequest as any);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue(mockRequest as never);
 
       const result = await service.findByEmail('PRINCIPAL@TEST.EDU');
 
@@ -250,7 +270,7 @@ describe('OrganizationRegistrationsService', () => {
         { id: '1', status: 'PENDING' },
         { id: '2', status: 'PENDING' },
       ];
-      jest.spyOn(prismaService.organizationRegistrationRequest, 'findMany').mockResolvedValue(mockRequests as any);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findMany').mockResolvedValue(mockRequests as never);
 
       const result = await service.findPending();
 
@@ -258,6 +278,32 @@ describe('OrganizationRegistrationsService', () => {
       expect(prismaService.organizationRegistrationRequest.findMany).toHaveBeenCalledWith({
         where: { status: 'PENDING' },
         orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
+
+  describe('getSignupContext', () => {
+    it('should return signup context for approved registration', async () => {
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'findUnique').mockResolvedValue({
+        id: 'request-id',
+        status: 'APPROVED',
+        organizationId: 'org-id',
+        organizationName: 'Test School',
+        contactEmail: 'principal@test.edu',
+        organization: { code: 'school-abc123' },
+      } as never);
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue({
+        passwordHash: null,
+      } as never);
+
+      const result = await service.getSignupContext('request-id');
+
+      expect(result).toEqual({
+        registrationRequestId: 'request-id',
+        organizationName: 'Test School',
+        contactEmail: 'principal@test.edu',
+        organizationCode: 'school-abc123',
+        signupCompleted: false,
       });
     });
   });

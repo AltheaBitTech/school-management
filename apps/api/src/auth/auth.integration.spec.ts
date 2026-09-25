@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { PasswordService } from './services/password.service';
 import { RefreshSessionService } from './services/refresh-session.service';
 import { TokenService } from './services/token.service';
+import { AuditService } from '../audit/audit.service';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -51,6 +52,7 @@ describeIfDatabase('Auth integration', () => {
       passwordService,
       tokenService,
       refreshSessionService,
+      new AuditService(prisma as unknown as PrismaService),
     );
 
     const organization = await prisma.organization.create({

@@ -1,5 +1,7 @@
 import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { OrganizationRegistrationsController } from './organization-registrations.controller';
 import { OrganizationRegistrationsService } from './organization-registrations.service';
 import { CreateOrganizationRegistrationRequestDto } from './dto/create-organization-registration-request.dto';
@@ -19,7 +21,12 @@ describe('OrganizationRegistrationsController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<OrganizationRegistrationsController>(OrganizationRegistrationsController);
     service = module.get<OrganizationRegistrationsService>(OrganizationRegistrationsService);

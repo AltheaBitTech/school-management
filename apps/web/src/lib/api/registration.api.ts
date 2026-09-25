@@ -18,6 +18,14 @@ export interface SubmitRegistrationResponse {
   message: string;
 }
 
+export interface RegistrationSignupContext {
+  registrationRequestId: string;
+  organizationName: string;
+  contactEmail: string;
+  organizationCode: string;
+  signupCompleted: boolean;
+}
+
 export const registrationApi = {
   submitRegistrationRequest: async (
     data: SubmitRegistrationRequest,
@@ -28,5 +36,12 @@ export const registrationApi = {
       { auth: false },
     );
     return response;
+  },
+
+  getSignupContext: async (registrationRequestId: string): Promise<RegistrationSignupContext> => {
+    return apiClient.get<RegistrationSignupContext>(
+      `/public/organizations/register/${registrationRequestId}/signup-context`,
+      { auth: false },
+    );
   },
 };

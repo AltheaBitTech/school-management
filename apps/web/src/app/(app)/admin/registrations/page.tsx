@@ -1,8 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, Table, TableBody, TableCell, TableHead, TableRow, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, CircularProgress, Box } from '@mui/material';
+import {
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Alert,
+  CircularProgress,
+  Box,
+  Typography,
+  Stack,
+} from '@mui/material';
 import { apiClient } from '@/lib/api/client';
+import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { isForbiddenError } from '@/lib/auth/auth-client';
 
 interface RegistrationRequest {
   id: string;
@@ -14,24 +35,41 @@ interface RegistrationRequest {
   createdAt: string;
 }
 
+interface ApproveRegistrationResponse {
+  organizationId: string;
+  organizationName: string;
+  organizationCode: string;
+  adminUserId: string;
+  adminEmail: string;
+  completeSignupUrl: string;
+}
+
 export default function RegistrationsPage() {
   const [requests, setRequests] = useState<RegistrationRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [approvalResult, setApprovalResult] = useState<ApproveRegistrationResponse | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadRequests();
+    void loadRequests();
   }, []);
 
   const loadRequests = async () => {
     try {
       setLoading(true);
+      setForbidden(false);
+      setError('');
       const data = await apiClient.get<RegistrationRequest[]>('/public/organizations/admin/requests', { auth: true });
       setRequests(data);
-    } catch {
+    } catch (err) {
+      if (isForbiddenError(err)) {
+        setForbidden(true);
+        return;
+      }
       setError('Failed to load registration requests');
     } finally {
       setLoading(false);
@@ -40,9 +78,19 @@ export default function RegistrationsPage() {
 
   const handleApprove = async (id: string) => {
     try {
-      await apiClient.post(`/public/organizations/admin/requests/${id}/approve`, {}, { auth: true });
+      setError('');
+      const result = await apiClient.post<ApproveRegistrationResponse>(
+        `/public/organizations/admin/requests/${id}/approve`,
+        {},
+        { auth: true },
+      );
+      setApprovalResult(result);
       await loadRequests();
-    } catch {
+    } catch (err) {
+      if (isForbiddenError(err)) {
+        setForbidden(true);
+        return;
+      }
       setError('Failed to approve request');
     }
   };
@@ -50,62 +98,89 @@ export default function RegistrationsPage() {
   const handleOpenReject = (id: string) => {
     setSelectedId(id);
     setRejectionReason('');
-    setDialogOpen(true);
+    setRejectDialogOpen(true);
   };
 
   const handleReject = async () => {
-    if (!selectedId) return;
+    if (!selectedId || !rejectionReason.trim()) {
+      setError('A rejection reason is required');
+      return;
+    }
+
     try {
-      await apiClient.post(`/public/organizations/admin/requests/${selectedId}/reject`, { reason: rejectionReason }, { auth: true });
-      setDialogOpen(false);
+      setError('');
+      await apiClient.post(
+        `/public/organizations/admin/requests/${selectedId}/reject`,
+        { reason: rejectionReason.trim() },
+        { auth: true },
+      );
+      setRejectDialogOpen(false);
       await loadRequests();
-    } catch {
+    } catch (err) {
+      if (isForbiddenError(err)) {
+        setForbidden(true);
+        return;
+      }
       setError('Failed to reject request');
     }
   };
 
-  if (loading) return <CircularProgress />;
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+        <CircularProgress aria-label="Loading registration requests" />
+      </Box>
+    );
+  }
+
+  if (forbidden) {
+    return <ForbiddenState message="You do not have permission to manage organization registrations." />;
+  }
 
   return (
     <Box sx={{ p: 3 }}>
-      <h1>Pending Registration Requests</h1>
+      <Typography variant="h4" sx={{ mb: 3 }}>Pending Registration Requests</Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Card>
         <CardContent>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                <TableCell>School Name</TableCell>
-                <TableCell>Contact Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Submitted</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {requests.map(req => (
-                <TableRow key={req.id}>
-                  <TableCell>{req.organizationName}</TableCell>
-                  <TableCell>{req.contactFirstName} {req.contactLastName}</TableCell>
-                  <TableCell>{req.contactEmail}</TableCell>
-                  <TableCell>{new Date(req.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Button size="small" variant="contained" onClick={() => handleApprove(req.id)} sx={{ mr: 1 }}>
-                      Approve
-                    </Button>
-                    <Button size="small" variant="outlined" color="error" onClick={() => handleOpenReject(req.id)}>
-                      Reject
-                    </Button>
-                  </TableCell>
+          {requests.length === 0 ? (
+            <Typography color="text.secondary">No pending registration requests.</Typography>
+          ) : (
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                  <TableCell>School Name</TableCell>
+                  <TableCell>Contact Name</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Submitted</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {requests.map(req => (
+                  <TableRow key={req.id}>
+                    <TableCell>{req.organizationName}</TableCell>
+                    <TableCell>{req.contactFirstName} {req.contactLastName}</TableCell>
+                    <TableCell>{req.contactEmail}</TableCell>
+                    <TableCell>{new Date(req.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button size="small" variant="contained" onClick={() => void handleApprove(req.id)} sx={{ mr: 1 }}>
+                        Approve
+                      </Button>
+                      <Button size="small" variant="outlined" color="error" onClick={() => handleOpenReject(req.id)}>
+                        Reject
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+      <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Reject Registration</DialogTitle>
         <DialogContent>
           <TextField
@@ -120,9 +195,39 @@ export default function RegistrationsPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleReject} variant="contained" color="error">
+          <Button onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => void handleReject()} variant="contained" color="error" disabled={!rejectionReason.trim()}>
             Reject
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(approvalResult)} onClose={() => setApprovalResult(null)} maxWidth="md" fullWidth>
+        <DialogTitle>Registration Approved</DialogTitle>
+        <DialogContent>
+          {approvalResult ? (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Typography>
+                <strong>{approvalResult.organizationName}</strong> is ready for administrator signup.
+              </Typography>
+              <Alert severity="success">
+                Organization code: <strong>{approvalResult.organizationCode}</strong>
+              </Alert>
+              <TextField
+                fullWidth
+                label="Complete signup link"
+                value={approvalResult.completeSignupUrl}
+                InputProps={{ readOnly: true }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                Share the organization code and signup link with {approvalResult.adminEmail}. An approval email was also sent when email delivery is configured.
+              </Typography>
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setApprovalResult(null)} variant="contained">
+            Close
           </Button>
         </DialogActions>
       </Dialog>

@@ -26,6 +26,7 @@ import { AUTH_ERROR_CODES, REFRESH_COOKIE_NAME } from './constants/auth.constant
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { CompleteSignupDto } from './dto/complete-signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { MeResponseDto } from './dto/me-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -141,9 +142,7 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Complete signup for approved registration (set password)' })
-  async completeSignup(
-    @Body() body: { registrationRequestId: string; password: string },
-  ) {
+  async completeSignup(@Body() body: CompleteSignupDto) {
     return this.authService.completeSignup(body.registrationRequestId, body.password);
   }
 

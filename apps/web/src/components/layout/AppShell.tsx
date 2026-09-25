@@ -36,6 +36,8 @@ interface NavGroup {
   items: NavItem[];
 }
 
+const PLATFORM_ORGANIZATION_CODE = 'campusops-platform';
+
 const NAV_GROUPS: NavGroup[] = [
   {
     title: 'People',
@@ -73,6 +75,11 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+const PLATFORM_NAV_GROUP: NavGroup = {
+  title: 'Platform',
+  items: [{ href: '/admin/registrations', label: 'Registration requests' }],
+};
+
 function MenuIcon(): React.ReactNode {
   return (
     <SvgIcon>
@@ -99,6 +106,10 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const { isReady, isAuthenticated, user, signOut } = useAuthSession();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navGroups =
+    user?.organization?.code === PLATFORM_ORGANIZATION_CODE
+      ? [PLATFORM_NAV_GROUP, ...NAV_GROUPS]
+      : NAV_GROUPS;
 
   function handleNavClick(): void {
     setMobileOpen(false);
@@ -140,7 +151,7 @@ export function AppShell({ children }: AppShellProps) {
             <ListItemText primary="Dashboard" primaryTypographyProps={{ fontWeight: 600 }} />
           </ListItemButton>
         </List>
-        {NAV_GROUPS.map((group) => (
+        {navGroups.map((group) => (
           <Box key={group.title} sx={{ mt: 1.5 }}>
             <Typography
               variant="overline"

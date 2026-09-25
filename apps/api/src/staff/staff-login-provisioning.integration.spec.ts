@@ -148,6 +148,7 @@ describeIfDatabase('Staff login provisioning integration', () => {
       passwordService,
       tokenService,
       refreshSessionService,
+      auditService,
     );
   });
 

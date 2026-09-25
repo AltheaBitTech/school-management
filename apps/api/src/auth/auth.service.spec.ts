@@ -5,6 +5,7 @@ import { AUTH_ERROR_CODES, RefreshRevokeReason } from './constants/auth.constant
 import { PasswordService } from './services/password.service';
 import { RefreshSessionService } from './services/refresh-session.service';
 import { TokenService } from './services/token.service';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('AuthService', () => {
@@ -77,6 +78,7 @@ describe('AuthService', () => {
       passwordService as unknown as PasswordService,
       tokenService as unknown as TokenService,
       refreshSessionService as unknown as RefreshSessionService,
+      { record: jest.fn() } as unknown as AuditService,
     );
   });
 

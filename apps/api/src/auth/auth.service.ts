@@ -1,9 +1,12 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { OrganizationStatus, User, UserStatus } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { AUTH_ERROR_CODES, RefreshRevokeReason } from './constants/auth.constants';
 import { LoginDto } from './dto/login.dto';
@@ -27,6 +30,7 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly refreshSessionService: RefreshSessionService,
+    private readonly auditService: AuditService,
   ) {}
 
   async login(dto: LoginDto, metadata: RefreshSessionMetadata): Promise<AuthResult> {
@@ -212,18 +216,31 @@ export class AuthService {
   async completeSignup(registrationRequestId: string, password: string) {
     const registration = await this.prisma.organizationRegistrationRequest.findUnique({
       where: { id: registrationRequestId },
+      include: {
+        organization: true,
+      },
     });
 
-    if (!registration || registration.status !== 'APPROVED') {
+    if (!registration || registration.status !== 'APPROVED' || !registration.organizationId) {
       throw new UnauthorizedException('Invalid or unapproved registration request');
     }
 
     const user = await this.prisma.user.findFirst({
-      where: { email: registration.contactEmail },
+      where: {
+        email: registration.contactEmail,
+        organizationId: registration.organizationId,
+      },
     });
 
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    if (user.passwordHash) {
+      throw new ConflictException({
+        code: 'SIGNUP_ALREADY_COMPLETED',
+        message: 'Signup has already been completed for this registration',
+      });
     }
 
     const passwordHash = await this.passwordService.hash(password);
@@ -235,6 +252,21 @@ export class AuthService {
       },
     });
 
-    return { message: 'Signup completed. You can now log in.' };
+    await this.auditService.record({
+      organizationId: registration.organizationId,
+      actorUserId: user.id,
+      action: AUDIT_ACTIONS.ORGANIZATION_SIGNUP_COMPLETED,
+      entityType: AUDIT_ENTITY_TYPES.ORGANIZATION_REGISTRATION_REQUEST,
+      entityId: registrationRequestId,
+      metadata: {
+        email: user.email,
+        organizationCode: registration.organization?.code,
+      },
+    });
+
+    return {
+      message: 'Signup completed. You can now log in.',
+      organizationCode: registration.organization?.code ?? null,
+    };
   }
 }

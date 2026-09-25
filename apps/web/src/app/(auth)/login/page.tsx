@@ -3,19 +3,21 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useState } from 'react';
 import { login } from '@/lib/auth/auth-client';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const [organizationCode, setOrganizationCode] = useState('');
-  const [email, setEmail] = useState('');
+  const searchParams = useSearchParams();
+  const [organizationCode, setOrganizationCode] = useState(searchParams.get('orgCode') ?? '');
+  const [email, setEmail] = useState(searchParams.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,5 +109,19 @@ export default function LoginPage() {
         </Stack>
       </Paper>
     </Box>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CircularProgress aria-label="Loading login page" />
+        </Box>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
