@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 import { login } from '@/lib/auth/auth-client';
+import { getOnboardingState, shouldRedirectToOnboarding } from '@/lib/onboarding/onboarding-client';
 
 function LoginForm() {
   const router = useRouter();
@@ -33,7 +34,13 @@ function LoginForm() {
         email,
         password,
       });
-      router.push('/');
+
+      try {
+        const onboardingState = await getOnboardingState();
+        router.push(shouldRedirectToOnboarding(onboardingState) ? '/onboarding' : '/');
+      } catch {
+        router.push('/');
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Login failed');
     } finally {

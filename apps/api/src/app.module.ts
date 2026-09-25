@@ -27,6 +27,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { FeesModule } from './fees/fees.module';
 import { RbacModule } from './rbac/rbac.module';
 import { OrganizationRegistrationsModule } from './organization-registrations/organization-registrations.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { OrganizationRegistrationsModule } from './organization-registrations/or
     HealthModule,
     AuthModule,
     OrganizationRegistrationsModule,
+    OnboardingModule,
     OrganizationsModule,
     DepartmentsModule,
     StaffModule,

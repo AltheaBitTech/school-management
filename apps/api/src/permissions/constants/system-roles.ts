@@ -36,6 +36,7 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       'role.view',
       'role.assign',
       'user.create',
+      'organization.settings.update',
       'student.view',
       'student.create',
       'student.update',

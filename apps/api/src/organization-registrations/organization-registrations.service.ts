@@ -184,7 +184,10 @@ export class OrganizationRegistrationsService {
       });
 
       await tx.organizationSettings.create({
-        data: { organizationId: organization.id },
+        data: {
+          organizationId: organization.id,
+          onboardingCompleted: false,
+        },
       });
 
       const adminUser = await tx.user.create({
