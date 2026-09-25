@@ -11,6 +11,7 @@ export class ConsoleEmailProvider implements EmailProvider {
         action: 'email.send',
         to: input.to,
         subject: input.subject,
+        text: input.text,
       }),
     );
   }

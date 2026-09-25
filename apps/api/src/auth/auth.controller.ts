@@ -27,10 +27,14 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { CompleteSignupDto } from './dto/complete-signup.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { PasswordResetMessageResponseDto } from './dto/password-reset-message-response.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { MeResponseDto } from './dto/me-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OrganizationsService } from '../organizations/organizations.service';
+import { PasswordResetService } from './services/password-reset.service';
 import { RefreshSessionMetadata } from './services/refresh-session.service';
 import { TokenService } from './services/token.service';
 import { AuthenticatedUser } from './types/authenticated-user.types';
@@ -41,6 +45,7 @@ import { clearRefreshTokenCookie, setRefreshTokenCookie } from './utils/cookie.u
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly passwordResetService: PasswordResetService,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
     private readonly organizationsService: OrganizationsService,
@@ -144,6 +149,26 @@ export class AuthController {
   @ApiOperation({ summary: 'Complete signup for approved registration (set password)' })
   async completeSignup(@Body() body: CompleteSignupDto) {
     return this.authService.completeSignup(body.registrationRequestId, body.password);
+  }
+
+  @Post('forgot-password')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Request a password reset link' })
+  @ApiOkResponse({ type: PasswordResetMessageResponseDto })
+  async forgotPassword(@Body() body: ForgotPasswordDto): Promise<PasswordResetMessageResponseDto> {
+    return this.passwordResetService.requestPasswordReset(body);
+  }
+
+  @Post('reset-password')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Reset password using a valid reset token' })
+  @ApiOkResponse({ type: PasswordResetMessageResponseDto })
+  async resetPassword(@Body() body: ResetPasswordDto): Promise<PasswordResetMessageResponseDto> {
+    return this.passwordResetService.resetPassword(body);
   }
 
   @Get('me')

@@ -263,6 +263,7 @@ model Organization {
   studentFees StudentFee[]
   feePayments FeePayment[]
   registrationRequests OrganizationRegistrationRequest[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([status])
 }
@@ -410,6 +411,7 @@ model User {
   notifications Notification[] @relation("NotificationRecipient")
   recordedFeePayments FeePayment[] @relation("FeePaymentCreatedBy")
   approvedRegistrations OrganizationRegistrationRequest[] @relation("ApprovedBy")
+  passwordResetTokens PasswordResetToken[]
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -489,6 +491,24 @@ model RefreshSession {
   @@index([userId])
   @@index([expiresAt])
   @@index([userId, revokedAt])
+}
+
+model PasswordResetToken {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  organizationId String    @db.Uuid
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, usedAt])
+  @@index([organizationId])
 }
 
 model Department {

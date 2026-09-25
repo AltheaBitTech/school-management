@@ -108,6 +108,9 @@ function LoginForm() {
               <Button type="submit" variant="contained" disabled={isSubmitting} fullWidth>
                 {isSubmitting ? 'Signing in…' : 'Sign in'}
               </Button>
+              <Button component={Link} href="/forgot-password" variant="text">
+                Forgot password?
+              </Button>
               <Button component={Link} href="/" variant="text">
                 Back to home
               </Button>

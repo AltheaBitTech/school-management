@@ -94,6 +94,26 @@ export function isForbiddenError(error: unknown): boolean {
   return error instanceof ApiError && error.statusCode === 403;
 }
 
+export async function requestPasswordReset(input: {
+  organizationCode: string;
+  email: string;
+}): Promise<{ message: string }> {
+  return authRequest<{ message: string }>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function resetPassword(input: {
+  token: string;
+  newPassword: string;
+}): Promise<{ message: string }> {
+  return authRequest<{ message: string }>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export async function getCurrentUser(accessToken?: string): Promise<AuthUser> {
   const token = accessToken ?? getAccessToken();
 

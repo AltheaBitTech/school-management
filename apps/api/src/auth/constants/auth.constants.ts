@@ -8,6 +8,7 @@ export enum RefreshRevokeReason {
   Rotated = 'ROTATED',
   ReuseDetected = 'REUSE_DETECTED',
   Expired = 'EXPIRED',
+  PasswordReset = 'PASSWORD_RESET',
 }
 
 export const AUTH_ERROR_CODES = {
@@ -15,4 +16,10 @@ export const AUTH_ERROR_CODES = {
   ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
   INVALID_REFRESH_TOKEN: 'INVALID_REFRESH_TOKEN',
   REFRESH_TOKEN_REUSED: 'REFRESH_TOKEN_REUSED',
+  INVALID_RESET_TOKEN: 'INVALID_RESET_TOKEN',
 } as const;
+
+export const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+export const PASSWORD_RESET_GENERIC_MESSAGE =
+  'If an account exists, a password reset link has been sent.';

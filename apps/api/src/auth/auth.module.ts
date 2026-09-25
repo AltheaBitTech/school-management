@@ -4,10 +4,12 @@ import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AUTH_CONFIG_KEY, AuthConfig } from '../config/auth.configuration';
 import { AuditModule } from '../audit/audit.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { PasswordResetService } from './services/password-reset.service';
 import { PasswordService } from './services/password.service';
 import { RefreshSessionService } from './services/refresh-session.service';
 import { TokenService } from './services/token.service';
@@ -16,6 +18,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 @Module({
   imports: [
     AuditModule,
+    NotificationsModule,
     forwardRef(() => OrganizationsModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -39,6 +42,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   controllers: [AuthController],
   providers: [
     AuthService,
+    PasswordResetService,
     PasswordService,
     TokenService,
     RefreshSessionService,
