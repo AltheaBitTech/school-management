@@ -13,6 +13,7 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'role.assign', description: 'Assign organization-scoped roles to users' },
   { code: 'user.create', description: 'Create user accounts within an organization' },
   { code: 'organization.settings.update', description: 'Update organization settings' },
+  { code: 'dashboard.view', description: 'View the operational dashboard' },
   { code: 'platform.organization.view', description: 'View organizations at platform level' },
   { code: 'platform.organization.create', description: 'Create organizations at platform level' },
   { code: 'platform.role.assign', description: 'Assign platform-scoped roles to users' },

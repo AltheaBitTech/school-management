@@ -13,61 +13,20 @@ vi.mock('@/components/providers/AuthSessionProvider', () => ({
   useAuthSession: vi.fn(),
 }));
 
-vi.mock('@/lib/staff/staff-client', () => ({
-  listStaff: vi.fn(),
-}));
-vi.mock('@/lib/students/students-client', () => ({
-  listStudents: vi.fn(),
-}));
-vi.mock('@/lib/complaints/complaints-client', () => ({
-  listComplaints: vi.fn(),
-}));
-vi.mock('@/lib/visitors/visitors-client', () => ({
-  listVisitors: vi.fn(),
-}));
-vi.mock('@/lib/events/events-client', () => ({
-  listEvents: vi.fn(),
-}));
-vi.mock('@/lib/fees/fees-client', () => ({
-  listStudentFees: vi.fn(),
-  formatCurrency: (value: number) => `₹${value.toFixed(2)}`,
-}));
-vi.mock('@/lib/leave/leave-client', () => ({
-  listLeaveRequests: vi.fn(),
-}));
-vi.mock('@/lib/approvals/approvals-client', () => ({
-  listApprovalRequests: vi.fn(),
-}));
-vi.mock('@/lib/notifications/notifications-client', () => ({
-  listNotifications: vi.fn(),
-  countUnreadNotifications: () => 0,
+vi.mock('@/lib/dashboard/dashboard-client', () => ({
+  getDashboardSummary: vi.fn(),
+  getGreetingLabel: (period: string) =>
+    period === 'morning' ? 'Good morning' : period === 'afternoon' ? 'Good afternoon' : 'Good evening',
+  formatDashboardDate: () => 'Thursday, September 25, 2026',
 }));
 
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
-import { listStaff } from '@/lib/staff/staff-client';
-import { listStudents } from '@/lib/students/students-client';
-import { listComplaints } from '@/lib/complaints/complaints-client';
-import { listVisitors } from '@/lib/visitors/visitors-client';
-import { listEvents } from '@/lib/events/events-client';
-import { listStudentFees } from '@/lib/fees/fees-client';
-import { listLeaveRequests } from '@/lib/leave/leave-client';
-import { listApprovalRequests } from '@/lib/approvals/approvals-client';
-import { listNotifications } from '@/lib/notifications/notifications-client';
-
-const emptyPage = { data: [], meta: { page: 1, pageSize: 1, total: 0, totalPages: 0 } };
+import { getDashboardSummary } from '@/lib/dashboard/dashboard-client';
 
 describe('HomePage', () => {
   beforeEach(() => {
     vi.mocked(useAuthSession).mockReset();
-    vi.mocked(listStaff).mockReset();
-    vi.mocked(listStudents).mockReset();
-    vi.mocked(listComplaints).mockReset();
-    vi.mocked(listVisitors).mockReset();
-    vi.mocked(listEvents).mockReset();
-    vi.mocked(listStudentFees).mockReset();
-    vi.mocked(listLeaveRequests).mockReset();
-    vi.mocked(listApprovalRequests).mockReset();
-    vi.mocked(listNotifications).mockReset();
+    vi.mocked(getDashboardSummary).mockReset();
   });
 
   it('shows a landing page when the user is not authenticated', async () => {
@@ -84,10 +43,10 @@ describe('HomePage', () => {
       expect(screen.getByRole('link', { name: 'Register School' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Sign In' })).toBeInTheDocument();
     });
-    expect(listStaff).not.toHaveBeenCalled();
+    expect(getDashboardSummary).not.toHaveBeenCalled();
   });
 
-  it('renders real module counts for an authenticated user', async () => {
+  it('renders dashboard summary metrics for an authenticated user', async () => {
     vi.mocked(useAuthSession).mockReturnValue({
       isReady: true,
       isAuthenticated: true,
@@ -99,47 +58,75 @@ describe('HomePage', () => {
       },
       signOut: vi.fn(),
     });
-    vi.mocked(listStaff).mockResolvedValue({
-      data: [],
-      meta: { page: 1, pageSize: 1, total: 12, totalPages: 12 },
-    });
-    vi.mocked(listStudents).mockResolvedValue({
-      data: [],
-      meta: { page: 1, pageSize: 1, total: 40, totalPages: 40 },
-    });
-    vi.mocked(listComplaints).mockResolvedValue(emptyPage);
-    vi.mocked(listVisitors).mockResolvedValue(emptyPage);
-    vi.mocked(listEvents).mockResolvedValue(emptyPage);
-    vi.mocked(listStudentFees).mockResolvedValue({
-      data: [
-        {
-          id: 'fee-1',
-          studentId: 'student-1',
-          feeStructureId: 'structure-1',
-          assignedAmount: 100,
-          paidAmount: 40,
-          outstandingAmount: 60,
-          status: 'PARTIALLY_PAID',
-          createdAt: '2026-09-01T00:00:00.000Z',
-          updatedAt: '2026-09-01T00:00:00.000Z',
+    vi.mocked(getDashboardSummary).mockResolvedValue({
+      organization: {
+        id: 'org-1',
+        name: 'Demo School',
+        code: 'demo',
+        timezone: 'UTC',
+      },
+      generatedAt: '2026-09-25T12:00:00.000Z',
+      localDate: '2026-09-25',
+      greetingPeriod: 'afternoon',
+      metrics: {
+        students: 40,
+        activeStaff: 12,
+        todayAttendance: {
+          date: '2026-09-25',
+          activeStaff: 12,
+          marked: 10,
+          present: 8,
+          absent: 2,
+          unmarked: 2,
         },
-      ],
-      meta: { page: 1, pageSize: 25, total: 1, totalPages: 1 },
+        outstandingFees: {
+          totalOutstanding: 60,
+          feeCount: 1,
+        },
+        pendingLeave: 3,
+        pendingApprovals: 1,
+        openComplaints: 2,
+        visitorsToday: {
+          checkedInToday: 4,
+          activeOnCampus: 2,
+        },
+        upcomingEvents: [],
+        recentNotices: [],
+        unreadNotifications: 0,
+      },
     });
-    vi.mocked(listLeaveRequests).mockResolvedValue({
-      data: [],
-      meta: { page: 1, pageSize: 1, total: 3, totalPages: 3 },
-    });
-    vi.mocked(listApprovalRequests).mockResolvedValue(emptyPage);
-    vi.mocked(listNotifications).mockResolvedValue(emptyPage);
 
     render(<HomePage />);
 
     await waitFor(() => {
-      expect(screen.getByText('12')).toBeInTheDocument();
+      expect(screen.getByText('Good afternoon')).toBeInTheDocument();
+      expect(screen.getByText('Demo School')).toBeInTheDocument();
       expect(screen.getByText('40')).toBeInTheDocument();
+      expect(screen.getByText('12')).toBeInTheDocument();
       expect(screen.getByText('₹60.00')).toBeInTheDocument();
-      expect(screen.getByText('3 pending approval')).toBeInTheDocument();
+      expect(screen.getByText('Pending leave')).toBeInTheDocument();
+      expect(screen.getByText('3 requiring attention')).toBeInTheDocument();
+    });
+  });
+
+  it('shows an error state when dashboard summary fails', async () => {
+    vi.mocked(useAuthSession).mockReturnValue({
+      isReady: true,
+      isAuthenticated: true,
+      user: {
+        id: 'user-1',
+        email: 'admin@school.edu',
+        organizationId: 'org-1',
+        organization: { id: 'org-1', name: 'Demo School', code: 'demo', status: 'ACTIVE' },
+      },
+      signOut: vi.fn(),
+    });
+    vi.mocked(getDashboardSummary).mockRejectedValue(new Error('Dashboard unavailable'));
+
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Dashboard unavailable')).toBeInTheDocument();
     });
   });
 });

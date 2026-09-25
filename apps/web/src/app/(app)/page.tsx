@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -12,46 +13,72 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Link from 'next/link';
-import { PageHeader } from '@/components/ui/PageHeader';
 import { LoadingState } from '@/components/ui/AppTable';
-import { listApprovalRequests } from '@/lib/approvals/approvals-client';
-import { listComplaints } from '@/lib/complaints/complaints-client';
-import { listEvents } from '@/lib/events/events-client';
-import { listLeaveRequests } from '@/lib/leave/leave-client';
-import { listStaff } from '@/lib/staff/staff-client';
-import { listStudents } from '@/lib/students/students-client';
-import { listVisitors } from '@/lib/visitors/visitors-client';
+import {
+  formatDashboardDate,
+  getDashboardSummary,
+  getGreetingLabel,
+  type DashboardSummary,
+} from '@/lib/dashboard/dashboard-client';
+import { formatCurrency } from '@/lib/fees/fees-client';
+import { formatEventDateTime } from '@/lib/events/events-client';
 
-interface DashboardMetric {
+interface SummaryCardProps {
   label: string;
-  href: string;
   value: string;
-}
-
-interface AttentionItem {
-  label: string;
   href: string;
-  detail: string;
 }
 
-async function loadTotal(
-  loader: () => Promise<{ meta: { total: number } }>,
-): Promise<number | null> {
-  try {
-    const response = await loader();
-    return response.meta.total;
-  } catch {
-    return null;
-  }
+function SummaryCard({ label, value, href }: SummaryCardProps) {
+  return (
+    <Card variant="outlined">
+      <CardActionArea component={Link} href={href} sx={{ height: '100%' }}>
+        <CardContent>
+          <Typography color="text.secondary" variant="body2">
+            {label}
+          </Typography>
+          <Typography variant="h5" sx={{ mt: 0.75 }}>
+            {value}
+          </Typography>
+        </CardContent>
+      </CardActionArea>
+    </Card>
+  );
+}
+
+function SectionPaper({
+  title,
+  children,
+  emptyMessage,
+  isEmpty,
+}: {
+  title: string;
+  children: React.ReactNode;
+  emptyMessage?: string;
+  isEmpty?: boolean;
+}) {
+  return (
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+      <Typography variant="h6" sx={{ mb: 1.5 }}>
+        {title}
+      </Typography>
+      {isEmpty ? (
+        <Typography color="text.secondary" variant="body2">
+          {emptyMessage ?? 'Nothing to show yet.'}
+        </Typography>
+      ) : (
+        children
+      )}
+    </Paper>
+  );
 }
 
 export default function HomePage() {
   const { isReady, isAuthenticated, user } = useAuthSession();
   const [isLoading, setIsLoading] = useState(true);
-  const [metrics, setMetrics] = useState<DashboardMetric[]>([]);
-  const [attention, setAttention] = useState<AttentionItem[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
 
-  // Initialize useEffect before conditional returns
   useEffect(() => {
     let cancelled = false;
 
@@ -61,93 +88,39 @@ export default function HomePage() {
       }
 
       if (!isAuthenticated) {
-        setMetrics([]);
-        setAttention([]);
+        setSummary(null);
+        setErrorMessage(null);
         setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
+      setErrorMessage(null);
 
       try {
-        const [
-          staffTotal,
-          studentsTotal,
-          complaintsTotal,
-          visitorsTotal,
-          eventsTotal,
-          pendingLeave,
-          pendingApprovals,
-        ] = await Promise.all([
-          loadTotal(() => listStaff({ page: 1, pageSize: 1 })),
-          loadTotal(() => listStudents({ page: 1, pageSize: 1 })),
-          loadTotal(() => listComplaints({ page: 1, pageSize: 1 })),
-          loadTotal(() => listVisitors({ page: 1, pageSize: 1 })),
-          loadTotal(() => listEvents({ page: 1, pageSize: 1 })),
-          loadTotal(() => listLeaveRequests({ page: 1, pageSize: 1, status: 'PENDING_APPROVAL' })),
-          loadTotal(() => listApprovalRequests({ page: 1, pageSize: 1, status: 'PENDING' })),
-        ]);
-
-        if (cancelled) {
-          return;
+        const response = await getDashboardSummary();
+        if (!cancelled) {
+          setSummary(response);
         }
-
-        const nextMetrics: DashboardMetric[] = [];
-        if (staffTotal !== null) {
-          nextMetrics.push({ label: 'Staff', href: '/staff', value: String(staffTotal) });
+      } catch (error) {
+        if (!cancelled) {
+          setSummary(null);
+          setErrorMessage(error instanceof Error ? error.message : 'Failed to load dashboard');
         }
-        if (studentsTotal !== null) {
-          nextMetrics.push({ label: 'Students', href: '/students', value: String(studentsTotal) });
-        }
-        if (visitorsTotal !== null) {
-          nextMetrics.push({
-            label: 'Visitors',
-            href: '/visitors',
-            value: String(visitorsTotal),
-          });
-        }
-        if (eventsTotal !== null) {
-          nextMetrics.push({ label: 'Events', href: '/events', value: String(eventsTotal) });
-        }
-
-        const nextAttention: AttentionItem[] = [];
-        if (complaintsTotal !== null && complaintsTotal > 0) {
-          nextAttention.push({
-            label: `${complaintsTotal} Complaint${complaintsTotal > 1 ? 's' : ''}`,
-            href: '/complaints',
-            detail: 'Pending Review',
-          });
-        }
-        if (pendingLeave !== null && pendingLeave > 0) {
-          nextAttention.push({
-            label: 'Leave requests',
-            href: '/leave',
-            detail: `${pendingLeave} pending approval`,
-          });
-        }
-        if (pendingApprovals !== null && pendingApprovals > 0) {
-          nextAttention.push({
-            label: 'Approvals',
-            href: '/approvals',
-            detail: `${pendingApprovals} pending`,
-          });
-        }
-
-        setMetrics(nextMetrics);
-        setAttention(nextAttention);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     }
 
-    loadDashboard();
+    void loadDashboard();
 
     return () => {
       cancelled = true;
     };
   }, [isReady, isAuthenticated]);
 
-  // Show public landing page for unauthenticated users
   if (isReady && !isAuthenticated) {
     return (
       <Box
@@ -159,7 +132,6 @@ export default function HomePage() {
           bgcolor: 'background.default',
         }}
       >
-        {/* Header */}
         <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 3 }}>
           <Container maxWidth="md">
             <Stack direction="row" spacing={1} alignItems="center">
@@ -171,7 +143,6 @@ export default function HomePage() {
           </Container>
         </Box>
 
-        {/* Main Content */}
         <Container maxWidth="md" sx={{ flex: 1, py: { xs: 6, md: 10 } }}>
           <Box sx={{ textAlign: 'center', mb: 8 }}>
             <Typography variant="h3" component="h1" sx={{ fontWeight: 700, mb: 2 }}>
@@ -182,119 +153,34 @@ export default function HomePage() {
             </Typography>
           </Box>
 
-          {/* Action Cards */}
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={4}
-            sx={{ mb: 8 }}
-          >
-            {/* New School */}
-            <Paper
-              sx={{
-                flex: 1,
-                p: 4,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                textAlign: 'center',
-                '&:hover': { boxShadow: 6 },
-                transition: 'box-shadow 0.3s',
-              }}
-            >
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} sx={{ mb: 8 }}>
+            <Paper sx={{ flex: 1, p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
                 New School?
               </Typography>
               <Typography color="text.secondary" sx={{ mb: 4 }}>
-                Register your school to get started with CampusOps. Our team will review your application and contact you within 1–2 business days.
+                Register your school to get started with CampusOps.
               </Typography>
-              <Button
-                component={Link}
-                href="/register-organization"
-                variant="contained"
-                size="large"
-                sx={{ mt: 'auto' }}
-              >
+              <Button component={Link} href="/register-organization" variant="contained" size="large" sx={{ mt: 'auto' }}>
                 Register School
               </Button>
             </Paper>
-
-            {/* Existing School */}
-            <Paper
-              sx={{
-                flex: 1,
-                p: 4,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                textAlign: 'center',
-                '&:hover': { boxShadow: 6 },
-                transition: 'box-shadow 0.3s',
-              }}
-            >
+            <Paper sx={{ flex: 1, p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
                 Already a Member?
               </Typography>
               <Typography color="text.secondary" sx={{ mb: 4 }}>
-                Sign in with your school&apos;s organization code, email, and password to access the CampusOps dashboard.
+                Sign in with your organization code, email, and password.
               </Typography>
-              <Button
-                component={Link}
-                href="/login"
-                variant="outlined"
-                size="large"
-                sx={{ mt: 'auto' }}
-              >
+              <Button component={Link} href="/login" variant="outlined" size="large" sx={{ mt: 'auto' }}>
                 Sign In
               </Button>
             </Paper>
           </Stack>
-
-          {/* Features */}
-          <Box sx={{ bgcolor: 'grey.50', p: 4, borderRadius: 2 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, textAlign: 'center' }}>
-              Key Features
-            </Typography>
-            <Box
-              component="ul"
-              sx={{
-                listStyle: 'none',
-                p: 0,
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-                gap: 2,
-              }}
-            >
-              {[
-                'Student Information Management',
-                'Attendance Tracking',
-                'Fee Management',
-                'Event Management',
-                'Staff Directory',
-                'Leave Management',
-                'Document Generation',
-                'Visitor Management',
-              ].map((feature) => (
-                <Box component="li" key={feature} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ width: 24, height: 24, bgcolor: 'primary.main', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700 }}>
-                    ✓
-                  </Box>
-                  <Typography>{feature}</Typography>
-                </Box>
-              ))}
-            </Box>
-          </Box>
         </Container>
-
-        {/* Footer */}
-        <Box sx={{ bgcolor: 'grey.100', py: 3, mt: 8, textAlign: 'center' }}>
-          <Typography color="text.secondary" variant="body2">
-            © 2024 CampusOps. All rights reserved.
-          </Typography>
-        </Box>
       </Box>
     );
   }
-
 
   if (!isReady || isLoading) {
     return <LoadingState label="Loading dashboard" />;
@@ -303,14 +189,8 @@ export default function HomePage() {
   if (!user) {
     return (
       <Stack spacing={3} sx={{ maxWidth: 640 }}>
-        <PageHeader
-          title="CampusOps"
-          description="School operations management for staff, students, leave, fees, and campus workflows."
-        />
         <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
-          <Typography sx={{ mb: 2 }}>
-            Sign in to open the operational dashboard for your school.
-          </Typography>
+          <Typography sx={{ mb: 2 }}>Sign in to open the operational dashboard for your school.</Typography>
           <Button component={Link} href="/login" variant="contained">
             Sign in
           </Button>
@@ -319,57 +199,107 @@ export default function HomePage() {
     );
   }
 
+  if (errorMessage) {
+    return (
+      <Stack spacing={3}>
+        <Alert severity="error">{errorMessage}</Alert>
+        <Button component={Link} href="/staff" variant="contained">
+          Open staff
+        </Button>
+      </Stack>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <Stack spacing={3}>
+        <Alert severity="info">Dashboard data is unavailable for this account.</Alert>
+      </Stack>
+    );
+  }
+
+  const metrics = summary.metrics;
+  const summaryCards: SummaryCardProps[] = [];
+
+  if (metrics.students !== null) {
+    summaryCards.push({ label: 'Students', value: String(metrics.students), href: '/students' });
+  }
+  if (metrics.activeStaff !== null) {
+    summaryCards.push({ label: 'Active staff', value: String(metrics.activeStaff), href: '/staff' });
+  }
+  if (metrics.todayAttendance !== null) {
+    summaryCards.push({
+      label: "Today's attendance",
+      value: `${metrics.todayAttendance.present} present`,
+      href: '/attendance',
+    });
+  }
+  if (metrics.outstandingFees !== null) {
+    summaryCards.push({
+      label: 'Outstanding fees',
+      value: formatCurrency(metrics.outstandingFees.totalOutstanding),
+      href: '/fees/student-fees',
+    });
+  }
+
+  const operationsItems = [
+    metrics.pendingLeave !== null
+      ? { label: 'Pending leave', value: metrics.pendingLeave, href: '/leave' }
+      : null,
+    metrics.pendingApprovals !== null
+      ? { label: 'Pending approvals', value: metrics.pendingApprovals, href: '/approvals' }
+      : null,
+    metrics.openComplaints !== null
+      ? { label: 'Open complaints', value: metrics.openComplaints, href: '/complaints' }
+      : null,
+    metrics.visitorsToday !== null
+      ? {
+          label: 'Visitors today',
+          value: metrics.visitorsToday.checkedInToday,
+          href: '/visitors',
+          detail: `${metrics.visitorsToday.activeOnCampus} currently on campus`,
+        }
+      : null,
+  ].filter((item): item is NonNullable<typeof item> => item !== null);
+
   return (
     <Stack spacing={3}>
-      <PageHeader
-        title="Dashboard"
-        description={`Operational overview for ${user.organization?.name ?? 'your school'}. Counts come from records you can already access.`}
-        actions={
-          <Button component={Link} href="/staff" variant="contained">
-            Open staff
-          </Button>
-        }
-      />
+      <Stack spacing={0.75}>
+        <Typography variant="h4" component="h1">
+          {getGreetingLabel(summary.greetingPeriod)}
+        </Typography>
+        <Typography variant="h6" color="text.secondary">
+          {summary.organization.name}
+        </Typography>
+        <Typography color="text.secondary">
+          {formatDashboardDate(summary.localDate, summary.organization.timezone)}
+        </Typography>
+      </Stack>
 
-      {metrics.length > 0 ? (
+      {summaryCards.length > 0 ? (
         <Box
           sx={{
             display: 'grid',
             gap: 2,
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
           }}
         >
-          {metrics.map((metric) => (
-            <Card key={metric.href + metric.label} variant="outlined">
-              <CardActionArea component={Link} href={metric.href} sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography color="text.secondary" variant="body2">
-                    {metric.label}
-                  </Typography>
-                  <Typography variant="h5" sx={{ mt: 0.75 }}>
-                    {metric.value}
-                  </Typography>
-                </CardContent>
-              </CardActionArea>
-            </Card>
+          {summaryCards.map((card) => (
+            <SummaryCard key={card.label} {...card} />
           ))}
         </Box>
       ) : (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography color="text.secondary">
-            No module counts are available for this account yet. Use the navigation to open the
-            areas you have permission to manage.
+            No summary metrics are available for this account yet.
           </Typography>
         </Paper>
       )}
 
-      {attention.length > 0 ? (
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-          <Typography variant="h6" sx={{ mb: 1.5 }}>
-            Needs attention
-          </Typography>
+      {operationsItems.length > 0 ? (
+        <SectionPaper title="Operations">
           <Stack spacing={1.25}>
-            {attention.map((item) => (
+            {operationsItems.map((item) => (
               <Stack
                 key={item.label}
                 direction={{ xs: 'column', sm: 'row' }}
@@ -379,7 +309,7 @@ export default function HomePage() {
                 <Box>
                   <Typography sx={{ fontWeight: 600 }}>{item.label}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {item.detail}
+                    {item.detail ?? `${item.value} requiring attention`}
                   </Typography>
                 </Box>
                 <Button component={Link} href={item.href} size="small">
@@ -388,7 +318,71 @@ export default function HomePage() {
               </Stack>
             ))}
           </Stack>
-        </Paper>
+        </SectionPaper>
+      ) : null}
+
+      {(metrics.upcomingEvents !== null || metrics.recentNotices !== null) && (
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+          }}
+        >
+          {metrics.upcomingEvents !== null ? (
+            <SectionPaper
+              title="Upcoming events"
+              isEmpty={metrics.upcomingEvents.length === 0}
+              emptyMessage="No upcoming scheduled events."
+            >
+              <Stack spacing={1.25}>
+                {metrics.upcomingEvents.map((event) => (
+                  <Box key={event.id}>
+                    <Typography sx={{ fontWeight: 600 }}>{event.title}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatEventDateTime(event.startAt, summary.organization.timezone)}
+                      {event.venueName ? ` · ${event.venueName}` : ''}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </SectionPaper>
+          ) : null}
+
+          {metrics.recentNotices !== null ? (
+            <SectionPaper
+              title="Recent notices"
+              isEmpty={metrics.recentNotices.length === 0}
+              emptyMessage="No published notices yet."
+            >
+              <Stack spacing={1.25}>
+                {metrics.recentNotices.map((notice) => (
+                  <Box key={notice.id}>
+                    <Typography sx={{ fontWeight: 600 }}>{notice.title}</Typography>
+                    {notice.publishedAt ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Published {formatEventDateTime(notice.publishedAt, summary.organization.timezone)}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                ))}
+              </Stack>
+            </SectionPaper>
+          ) : null}
+        </Box>
+      )}
+
+      {metrics.unreadNotifications !== null ? (
+        <SectionPaper
+          title="Activity"
+          isEmpty={metrics.unreadNotifications === 0}
+          emptyMessage="No unread notifications."
+        >
+          <Typography>
+            {metrics.unreadNotifications} unread notification
+            {metrics.unreadNotifications === 1 ? '' : 's'}
+          </Typography>
+        </SectionPaper>
       ) : null}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
