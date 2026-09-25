@@ -30,6 +30,6 @@ import { ResendEmailProvider } from './providers/resend-email.provider';
     },
     NotificationsService,
   ],
-  exports: [NotificationsService],
+  exports: [NotificationsService, EMAIL_PROVIDER],
 })
 export class NotificationsModule {}

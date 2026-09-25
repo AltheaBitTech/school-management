@@ -2,7 +2,7 @@ import { PrismaClient, UserStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PLATFORM_ORGANIZATION_CODE } from '../src/organizations/constants/organization.constants';
 import { normalizeEmail } from '../src/auth/utils/email.util';
-import { PLATFORM_ROLE_CODES } from '../src/permissions/constants/system-roles';
+import { PLATFORM_ROLE_DEFINITIONS } from '../src/permissions/constants/system-roles';
 import { SYSTEM_PERMISSIONS } from '../src/permissions/constants/system-permissions';
 
 const prisma = new PrismaClient();
@@ -18,16 +18,7 @@ async function ensurePermissions(): Promise<void> {
 }
 
 async function ensurePlatformRole(): Promise<string> {
-  const roleDefinition = {
-    code: PLATFORM_ROLE_CODES.SAAS_SUPER_ADMIN,
-    name: 'SaaS Super Admin',
-    permissions: [
-      'platform.organization.view',
-      'platform.organization.create',
-      'platform.role.assign',
-      'audit.view',
-    ],
-  };
+  const roleDefinition = PLATFORM_ROLE_DEFINITIONS[0];
 
   const existingRole = await prisma.role.findFirst({
     where: { code: roleDefinition.code, organizationId: null },
