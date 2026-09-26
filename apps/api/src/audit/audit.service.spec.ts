@@ -18,6 +18,18 @@ describe('sanitizeAuditValue', () => {
     });
   });
 
+  it('redacts password reset token fields', () => {
+    expect(
+      sanitizeAuditValue({
+        resetToken: 'raw-token',
+        tokenHash: 'hashed-token',
+      }),
+    ).toEqual({
+      resetToken: '[REDACTED]',
+      tokenHash: '[REDACTED]',
+    });
+  });
+
   it('redacts nested sensitive fields', () => {
     expect(
       sanitizeAuditValue({

@@ -30,6 +30,7 @@ describeIfDatabase('Organizations integration', () => {
   let permissionsGuard: PermissionsGuard;
 
   beforeAll(async () => {
+    jest.setTimeout(120_000);
     prisma = new PrismaClient();
     await prisma.$connect();
 

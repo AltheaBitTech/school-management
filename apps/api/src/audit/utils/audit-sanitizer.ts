@@ -4,10 +4,13 @@ const SENSITIVE_KEYS = new Set([
   'token',
   'accesstoken',
   'refreshtoken',
+  'resettoken',
+  'tokenhash',
   'authorization',
   'secret',
   'apikey',
   'clientsecret',
+  'servicerolekey',
 ]);
 
 const REDACTED = '[REDACTED]';
