@@ -76,6 +76,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/reports/leave', label: 'Leave reports' },
       { href: '/reports/fees', label: 'Fees reports' },
       { href: '/reports/complaints', label: 'Complaints reports' },
+      { href: '/reports/visitors', label: 'Visitor reports' },
     ],
   },
 ];

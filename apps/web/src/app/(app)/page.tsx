@@ -264,7 +264,7 @@ export default function HomePage() {
       ? {
           label: 'Visitors today',
           value: metrics.visitorsToday.checkedInToday,
-          href: '/visitors',
+          href: `/reports/visitors?date=${summary.localDate}`,
           detail: `${metrics.visitorsToday.activeOnCampus} currently on campus`,
         }
       : null,

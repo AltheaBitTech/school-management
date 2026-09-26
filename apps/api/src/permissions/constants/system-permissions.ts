@@ -87,6 +87,7 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'report.leave.view', description: 'View leave operations reports' },
   { code: 'report.fees.view', description: 'View fee operations reports' },
   { code: 'report.complaints.view', description: 'View complaint operations reports' },
+  { code: 'report.visitors.view', description: 'View visitor operations reports' },
   { code: 'fee.view', description: 'View fee structures and student fees' },
   { code: 'fee.create', description: 'Create fee structures' },
   { code: 'fee.assign', description: 'Assign fees to students' },
