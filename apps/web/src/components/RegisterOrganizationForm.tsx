@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { Box, Button, TextField, Alert, Grid, Typography } from '@mui/material';
+import { Box, Button, TextField, Alert, Grid, Typography, CircularProgress } from '@mui/material';
 import { registrationApi } from '@/lib/api/registration.api';
 
 interface FormData {
@@ -65,8 +65,11 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
       newErrors.contactLastName = 'At least 2 characters';
     }
 
-    if (formData.contactPhone && !formData.contactPhone.match(/^[0-9]{10}$/)) {
-      newErrors.contactPhone = 'Must be exactly 10 digits';
+    const phoneDigits = formData.contactPhone?.replace(/\D/g, '') ?? '';
+    if (!phoneDigits) {
+      newErrors.contactPhone = 'Phone number is required';
+    } else if (!/^[0-9]{10}$/.test(phoneDigits)) {
+      newErrors.contactPhone = 'Enter a valid 10-digit mobile number';
     }
 
     setErrors(newErrors);
@@ -75,7 +78,9 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const nextValue =
+      name === 'contactPhone' ? value.replace(/\D/g, '').slice(0, 10) : value;
+    setFormData(prev => ({ ...prev, [name]: nextValue }));
     // Clear error for this field when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -93,7 +98,17 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
     setGlobalError('');
 
     try {
-      const response = await registrationApi.submitRegistrationRequest(formData);
+      const phoneDigits = formData.contactPhone?.replace(/\D/g, '') ?? '';
+      const response = await registrationApi.submitRegistrationRequest({
+        organizationName: formData.organizationName.trim(),
+        contactEmail: formData.contactEmail.trim(),
+        contactFirstName: formData.contactFirstName.trim(),
+        contactLastName: formData.contactLastName.trim(),
+        contactPhone: phoneDigits,
+        address: formData.address?.trim() || undefined,
+        city: formData.city?.trim() || undefined,
+        state: formData.state?.trim() || undefined,
+      });
       onSuccess(response.id);
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };
@@ -179,12 +194,14 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
       <TextField
         fullWidth
         name="contactPhone"
-        label="Phone Number (Optional)"
+        label="Phone Number"
         placeholder="9876543210"
         value={formData.contactPhone}
         onChange={handleChange}
         error={!!errors.contactPhone}
-        helperText={errors.contactPhone}
+        helperText={errors.contactPhone || '10-digit mobile number (India)'}
+        inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 10 }}
+        required
       />
 
       {/* Address */}
@@ -230,9 +247,10 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
         variant="contained"
         size="large"
         disabled={isSubmitting}
+        startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : undefined}
         sx={{ mt: 2 }}
       >
-        {isSubmitting ? 'Submitting...' : 'Submit Registration'}
+        {isSubmitting ? 'Submitting…' : 'Submit Registration'}
       </Button>
 
       <Typography variant="caption" sx={{ textAlign: 'center', color: 'text.secondary' }}>

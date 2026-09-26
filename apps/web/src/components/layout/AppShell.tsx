@@ -253,6 +253,7 @@ export function AppShell({ children }: AppShellProps) {
                 </Typography>
                 <Typography variant="caption" color="text.secondary" noWrap>
                   {user.organization?.name ?? 'CampusOps'}
+                  {user.organization?.code ? ` · code: ${user.organization.code}` : ''}
                 </Typography>
               </Box>
               <Button onClick={() => void handleSignOut()} size="small">

@@ -83,6 +83,7 @@ describe('OrganizationRegistrationsController', () => {
         contactEmail: 'principal@test.edu',
         contactFirstName: 'John',
         contactLastName: 'Doe',
+        contactPhone: '9876543210',
         address: 'Test Address',
         city: 'Test City',
         state: 'Test State',

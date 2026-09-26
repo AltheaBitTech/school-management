@@ -5,7 +5,7 @@ export interface SubmitRegistrationRequest {
   contactEmail: string;
   contactFirstName: string;
   contactLastName: string;
-  contactPhone?: string;
+  contactPhone: string;
   address?: string;
   city?: string;
   state?: string;
