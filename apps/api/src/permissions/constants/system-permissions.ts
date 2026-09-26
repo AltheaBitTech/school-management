@@ -80,6 +80,7 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'event.manage_venues', description: 'Manage event venues' },
   { code: 'report.event.view', description: 'View Event operations reports' },
   { code: 'report.attendance.view', description: 'View staff attendance reports' },
+  { code: 'report.leave.view', description: 'View leave operations reports' },
   { code: 'fee.view', description: 'View fee structures and student fees' },
   { code: 'fee.create', description: 'Create fee structures' },
   { code: 'fee.assign', description: 'Assign fees to students' },

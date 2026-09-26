@@ -244,7 +244,11 @@ export default function HomePage() {
 
   const operationsItems = [
     metrics.pendingLeave !== null
-      ? { label: 'Pending leave', value: metrics.pendingLeave, href: '/leave' }
+      ? {
+          label: 'Pending leave',
+          value: metrics.pendingLeave,
+          href: '/reports/leave?status=PENDING_APPROVAL',
+        }
       : null,
     metrics.pendingApprovals !== null
       ? { label: 'Pending approvals', value: metrics.pendingApprovals, href: '/approvals' }

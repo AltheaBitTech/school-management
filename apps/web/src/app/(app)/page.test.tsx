@@ -110,6 +110,11 @@ describe('HomePage', () => {
         'href',
         '/reports/attendance?date=2026-09-25',
       );
+      expect(
+        screen
+          .getAllByRole('link', { name: 'Review' })
+          .some((link) => link.getAttribute('href') === '/reports/leave?status=PENDING_APPROVAL'),
+      ).toBe(true);
     });
   });
 
