@@ -106,6 +106,10 @@ describe('HomePage', () => {
       expect(screen.getByText('₹60.00')).toBeInTheDocument();
       expect(screen.getByText('Pending leave')).toBeInTheDocument();
       expect(screen.getByText('3 requiring attention')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Today's attendance/i })).toHaveAttribute(
+        'href',
+        '/reports/attendance?date=2026-09-25',
+      );
     });
   });
 

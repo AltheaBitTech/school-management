@@ -231,7 +231,7 @@ export default function HomePage() {
     summaryCards.push({
       label: "Today's attendance",
       value: `${metrics.todayAttendance.present} present`,
-      href: '/attendance',
+      href: `/reports/attendance?date=${metrics.todayAttendance.date}`,
     });
   }
   if (metrics.outstandingFees !== null) {

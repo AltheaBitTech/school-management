@@ -21,6 +21,7 @@ import { StudentsModule } from './students/students.module';
 import { DocumentsModule } from './documents/documents.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { EventsModule } from './events/events.module';
+import { AttendanceReportsModule } from './reports/attendance/attendance-reports.module';
 import { EventReportsModule } from './reports/events/event-reports.module';
 import { AuditModule } from './audit/audit.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -61,6 +62,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ApprovalsModule,
     EventsModule,
     EventReportsModule,
+    AttendanceReportsModule,
     AuditModule,
     NotificationsModule,
     FeesModule,
