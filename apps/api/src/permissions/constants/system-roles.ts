@@ -104,6 +104,7 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       'report.attendance.view',
       'report.leave.view',
       'report.fees.view',
+      'report.complaints.view',
       'audit.view',
       'fee.view',
       'fee.create',

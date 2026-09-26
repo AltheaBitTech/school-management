@@ -254,7 +254,11 @@ export default function HomePage() {
       ? { label: 'Pending approvals', value: metrics.pendingApprovals, href: '/approvals' }
       : null,
     metrics.openComplaints !== null
-      ? { label: 'Open complaints', value: metrics.openComplaints, href: '/complaints' }
+      ? {
+          label: 'Open complaints',
+          value: metrics.openComplaints,
+          href: '/reports/complaints?openOnly=true',
+        }
       : null,
     metrics.visitorsToday !== null
       ? {
