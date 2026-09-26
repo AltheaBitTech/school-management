@@ -74,3 +74,18 @@ export async function ensureSchoolAdminRole(
 
   return ensureOrganizationRole(client, organizationId, schoolAdminDefinition);
 }
+
+export async function ensureStaffRole(
+  client: PrismaClientLike,
+  organizationId: string,
+): Promise<{ id: string; code: string }> {
+  const staffDefinition = ORGANIZATION_ROLE_DEFINITIONS.find(
+    (role: SystemRoleDefinition) => role.code === ORGANIZATION_ROLE_CODES.STAFF,
+  );
+
+  if (!staffDefinition) {
+    throw new Error('STAFF role definition is unavailable');
+  }
+
+  return ensureOrganizationRole(client, organizationId, staffDefinition);
+}

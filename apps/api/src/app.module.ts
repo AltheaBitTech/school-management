@@ -31,6 +31,7 @@ import { RbacModule } from './rbac/rbac.module';
 import { OrganizationRegistrationsModule } from './organization-registrations/organization-registrations.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { StaffSelfModule } from './staff-self/staff-self.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     OrganizationRegistrationsModule,
     OnboardingModule,
     DashboardModule,
+    StaffSelfModule,
     OrganizationsModule,
     DepartmentsModule,
     StaffModule,

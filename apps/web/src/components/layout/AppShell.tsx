@@ -22,6 +22,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { NotificationMenu } from '@/components/notifications/NotificationMenu';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
+import { isStaffSelfServiceUser } from '@/lib/auth/routing';
 
 const DRAWER_WIDTH = 268;
 
@@ -82,6 +83,15 @@ const PLATFORM_NAV_GROUP: NavGroup = {
   items: [{ href: '/admin/registrations', label: 'Registration requests' }],
 };
 
+const STAFF_SELF_NAV_GROUP: NavGroup = {
+  title: 'My workspace',
+  items: [
+    { href: '/staff/dashboard', label: 'My dashboard', match: 'exact' },
+    { href: '/staff/attendance', label: 'My attendance' },
+    { href: '/staff/leave', label: 'My leave' },
+  ],
+};
+
 function MenuIcon(): React.ReactNode {
   return (
     <SvgIcon>
@@ -108,10 +118,15 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const { isReady, isAuthenticated, user, signOut } = useAuthSession();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const navGroups =
-    user?.organization?.code === PLATFORM_ORGANIZATION_CODE
+  const isStaffNav = isStaffSelfServiceUser(user?.permissions);
+  const navGroups = isStaffNav
+    ? [STAFF_SELF_NAV_GROUP]
+    : user?.organization?.code === PLATFORM_ORGANIZATION_CODE
       ? [PLATFORM_NAV_GROUP, ...NAV_GROUPS]
       : NAV_GROUPS;
+  const homeHref = isStaffNav ? '/staff/dashboard' : '/';
+  const homeLabel = isStaffNav ? 'My dashboard' : 'Dashboard';
+  const appBarTitle = isStaffNav ? 'Staff self-service' : 'School operations';
 
   function handleNavClick(): void {
     setMobileOpen(false);
@@ -128,7 +143,7 @@ export function AppShell({ children }: AppShellProps) {
         <Typography
           variant="h6"
           component={Link}
-          href="/"
+          href={homeHref}
           onClick={handleNavClick}
           sx={{ color: 'primary.main', textDecoration: 'none', fontWeight: 700 }}
         >
@@ -137,22 +152,24 @@ export function AppShell({ children }: AppShellProps) {
       </Toolbar>
       <Divider />
       <Box sx={{ overflowY: 'auto', py: 1.5, flex: 1 }}>
-        <List disablePadding>
-          <ListItemButton
-            component={Link}
-            href="/"
-            selected={pathname === '/'}
-            onClick={handleNavClick}
-            sx={{ mx: 1, borderRadius: 1 }}
-          >
-            <ListItemIcon sx={{ minWidth: 36 }}>
-              <SvgIcon fontSize="small">
-                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-              </SvgIcon>
-            </ListItemIcon>
-            <ListItemText primary="Dashboard" primaryTypographyProps={{ fontWeight: 600 }} />
-          </ListItemButton>
-        </List>
+        {!isStaffNav ? (
+          <List disablePadding>
+            <ListItemButton
+              component={Link}
+              href={homeHref}
+              selected={pathname === homeHref}
+              onClick={handleNavClick}
+              sx={{ mx: 1, borderRadius: 1 }}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <SvgIcon fontSize="small">
+                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+                </SvgIcon>
+              </ListItemIcon>
+              <ListItemText primary={homeLabel} primaryTypographyProps={{ fontWeight: 600 }} />
+            </ListItemButton>
+          </List>
+        ) : null}
         {navGroups.map((group) => (
           <Box key={group.title} sx={{ mt: 1.5 }}>
             <Typography
@@ -206,7 +223,7 @@ export function AppShell({ children }: AppShellProps) {
             </IconButton>
           ) : null}
           <Typography variant="subtitle1" noWrap sx={{ flexGrow: 1 }}>
-            School operations
+            {appBarTitle}
           </Typography>
           <NotificationMenu />
           {isReady && isAuthenticated && user ? (

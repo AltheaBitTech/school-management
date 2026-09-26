@@ -4,6 +4,7 @@ export const PLATFORM_ROLE_CODES = {
 
 export const ORGANIZATION_ROLE_CODES = {
   SCHOOL_ADMIN: 'SCHOOL_ADMIN',
+  STAFF: 'STAFF',
 } as const;
 
 export interface SystemRoleDefinition {
@@ -107,6 +108,16 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       'fee.create',
       'fee.assign',
       'fee.record_payment',
+    ],
+  },
+  {
+    code: ORGANIZATION_ROLE_CODES.STAFF,
+    name: 'Staff',
+    permissions: [
+      'staff.self.view',
+      'staff.self.attendance.view',
+      'staff.self.leave.view',
+      'staff.self.leave.create',
     ],
   },
 ];

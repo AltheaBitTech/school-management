@@ -11,7 +11,8 @@ import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
-import { login } from '@/lib/auth/auth-client';
+import { getCurrentUser, login } from '@/lib/auth/auth-client';
+import { isOperationalDashboardUser, resolveHomePath } from '@/lib/auth/routing';
 import { getOnboardingState, shouldRedirectToOnboarding } from '@/lib/onboarding/onboarding-client';
 
 function LoginForm() {
@@ -35,11 +36,18 @@ function LoginForm() {
         password,
       });
 
-      try {
-        const onboardingState = await getOnboardingState();
-        router.push(shouldRedirectToOnboarding(onboardingState) ? '/onboarding' : '/');
-      } catch {
-        router.push('/');
+      const currentUser = await getCurrentUser();
+      const homePath = resolveHomePath(currentUser.permissions);
+
+      if (isOperationalDashboardUser(currentUser.permissions)) {
+        try {
+          const onboardingState = await getOnboardingState();
+          router.push(shouldRedirectToOnboarding(onboardingState) ? '/onboarding' : homePath);
+        } catch {
+          router.push(homePath);
+        }
+      } else {
+        router.push(homePath);
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Login failed');

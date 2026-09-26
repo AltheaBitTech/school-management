@@ -26,6 +26,7 @@ vi.mock('@/components/providers/AuthSessionProvider', () => ({
       id: 'user-1',
       email: 'admin@school.edu',
       organizationId: 'org-1',
+      permissions: ['dashboard.view'],
       organization: { id: 'org-1', name: 'Demo School', code: 'demo', status: 'ACTIVE' },
     },
     signOut: vi.fn(),

@@ -6,6 +6,7 @@ export interface AuthUser {
   id: string;
   email: string;
   organizationId: string;
+  permissions?: string[];
   organization?: {
     id: string;
     name: string;

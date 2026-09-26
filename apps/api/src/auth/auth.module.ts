@@ -6,6 +6,7 @@ import { AUTH_CONFIG_KEY, AuthConfig } from '../config/auth.configuration';
 import { AuditModule } from '../audit/audit.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { PermissionsModule } from '../permissions/permissions.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -20,6 +21,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     AuditModule,
     NotificationsModule,
     forwardRef(() => OrganizationsModule),
+    PermissionsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],

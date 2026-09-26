@@ -34,6 +34,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { MeResponseDto } from './dto/me-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OrganizationsService } from '../organizations/organizations.service';
+import { PermissionsService } from '../permissions/permissions.service';
 import { PasswordResetService } from './services/password-reset.service';
 import { RefreshSessionMetadata } from './services/refresh-session.service';
 import { TokenService } from './services/token.service';
@@ -49,6 +50,7 @@ export class AuthController {
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
     private readonly organizationsService: OrganizationsService,
+    private readonly permissionsService: PermissionsService,
   ) {}
 
   @Post('login')
@@ -182,12 +184,18 @@ export class AuthController {
       user.organizationId,
     );
 
+    const permissions = await this.permissionsService.getEffectivePermissions(
+      user.userId,
+      user.organizationId,
+    );
+
     return {
       data: {
         id: authenticatedUser.userId,
         email: authenticatedUser.email,
         organizationId: authenticatedUser.organizationId,
         organization: this.organizationsService.toOrganizationSummary(organization),
+        permissions,
       },
     };
   }

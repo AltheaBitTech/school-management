@@ -26,6 +26,9 @@ export class MeUserDto {
 
   @ApiProperty({ type: MeOrganizationDto })
   organization!: MeOrganizationDto;
+
+  @ApiProperty({ type: [String], description: 'Effective permission codes for the current user' })
+  permissions!: string[];
 }
 
 export class MeResponseDto {
