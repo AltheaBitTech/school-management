@@ -18,8 +18,8 @@ describe('validateEnvironment', () => {
     ).toMatchObject({ NODE_ENV: 'development' });
   });
 
-  it('rejects console email provider in production', () => {
-    expect(() =>
+  it('allows console email provider in production (interim until Resend is configured)', () => {
+    expect(
       validateEnvironment({
         ...baseConfig,
         NODE_ENV: 'production',
@@ -28,10 +28,8 @@ describe('validateEnvironment', () => {
         SUPABASE_URL: 'https://example.supabase.co',
         SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
         SUPABASE_STORAGE_BUCKET: 'private-files',
-        RESEND_API_KEY: 're_test',
-        RESEND_FROM_EMAIL: 'noreply@example.com',
       }),
-    ).toThrow(/EMAIL_PROVIDER must be "resend"/);
+    ).toMatchObject({ NODE_ENV: 'production', EMAIL_PROVIDER: 'console' });
   });
 
   it('rejects local storage provider in production', () => {

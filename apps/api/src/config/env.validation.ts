@@ -72,12 +72,6 @@ function assertProductionProviderConfiguration(normalized: Record<string, unknow
     return;
   }
 
-  if (normalized.EMAIL_PROVIDER === 'console') {
-    throw new Error(
-      'Environment validation failed: EMAIL_PROVIDER must be "resend" when NODE_ENV is production',
-    );
-  }
-
   if (normalized.STORAGE_PROVIDER === 'local') {
     throw new Error(
       'Environment validation failed: STORAGE_PROVIDER must be "supabase" when NODE_ENV is production',
