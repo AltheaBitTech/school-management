@@ -26,7 +26,7 @@ vi.mock('@/components/providers/AuthSessionProvider', () => ({
       id: 'user-1',
       email: 'admin@school.edu',
       organizationId: 'org-1',
-      permissions: ['dashboard.view'],
+      permissions: ['dashboard.view', 'report.attendance.view'],
       organization: { id: 'org-1', name: 'Demo School', code: 'demo', status: 'ACTIVE' },
     },
     signOut: vi.fn(),
@@ -48,5 +48,7 @@ describe('AppShell', () => {
     expect(screen.getByText('admin@school.edu')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/reports');
+    expect(screen.queryByRole('link', { name: 'Attendance reports' })).not.toBeInTheDocument();
   });
 });

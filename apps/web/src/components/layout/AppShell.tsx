@@ -19,10 +19,11 @@ import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { NotificationMenu } from '@/components/notifications/NotificationMenu';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
 import { isStaffSelfServiceUser } from '@/lib/auth/routing';
+import { hasAnyReportPermission } from '@/lib/reports/reports-catalog';
 
 const DRAWER_WIDTH = 268;
 
@@ -71,15 +72,11 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/fees', label: 'Fees' },
       { href: '/documents', label: 'Documents' },
-      { href: '/reports/events', label: 'Event reports' },
-      { href: '/reports/attendance', label: 'Attendance reports' },
-      { href: '/reports/leave', label: 'Leave reports' },
-      { href: '/reports/fees', label: 'Fees reports' },
-      { href: '/reports/complaints', label: 'Complaints reports' },
-      { href: '/reports/visitors', label: 'Visitor reports' },
     ],
   },
 ];
+
+const REPORTS_NAV_ITEM: NavItem = { href: '/reports', label: 'Reports', match: 'prefix' };
 
 const PLATFORM_NAV_GROUP: NavGroup = {
   title: 'Platform',
@@ -122,11 +119,27 @@ export function AppShell({ children }: AppShellProps) {
   const { isReady, isAuthenticated, user, signOut } = useAuthSession();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isStaffNav = isStaffSelfServiceUser(user?.permissions);
-  const navGroups = isStaffNav
-    ? [STAFF_SELF_NAV_GROUP]
-    : user?.organization?.code === PLATFORM_ORGANIZATION_CODE
-      ? [PLATFORM_NAV_GROUP, ...NAV_GROUPS]
-      : NAV_GROUPS;
+  const navGroups = useMemo(() => {
+    if (isStaffNav) {
+      return [STAFF_SELF_NAV_GROUP];
+    }
+
+    const groups = NAV_GROUPS.map((group) => {
+      if (group.title !== 'Finance & records') {
+        return group;
+      }
+
+      const items = [...group.items];
+      if (hasAnyReportPermission(user?.permissions)) {
+        items.push(REPORTS_NAV_ITEM);
+      }
+      return { ...group, items };
+    });
+
+    return user?.organization?.code === PLATFORM_ORGANIZATION_CODE
+      ? [PLATFORM_NAV_GROUP, ...groups]
+      : groups;
+  }, [isStaffNav, user?.organization?.code, user?.permissions]);
   const homeHref = isStaffNav ? '/staff/dashboard' : '/';
   const homeLabel = isStaffNav ? 'My dashboard' : 'Dashboard';
   const appBarTitle = isStaffNav ? 'Staff self-service' : 'School operations';
