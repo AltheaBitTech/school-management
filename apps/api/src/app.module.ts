@@ -23,6 +23,7 @@ import { ApprovalsModule } from './approvals/approvals.module';
 import { EventsModule } from './events/events.module';
 import { AttendanceReportsModule } from './reports/attendance/attendance-reports.module';
 import { LeaveReportsModule } from './reports/leave/leave-reports.module';
+import { FeesReportsModule } from './reports/fees/fees-reports.module';
 import { EventReportsModule } from './reports/events/event-reports.module';
 import { AuditModule } from './audit/audit.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -67,6 +68,7 @@ import { StaffSelfModule } from './staff-self/staff-self.module';
     EventReportsModule,
     AttendanceReportsModule,
     LeaveReportsModule,
+    FeesReportsModule,
     AuditModule,
     NotificationsModule,
     FeesModule,

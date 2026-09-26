@@ -238,7 +238,7 @@ export default function HomePage() {
     summaryCards.push({
       label: 'Outstanding fees',
       value: formatCurrency(metrics.outstandingFees.totalOutstanding),
-      href: '/fees/student-fees',
+      href: '/reports/fees',
     });
   }
 
