@@ -13,13 +13,17 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Link from 'next/link';
+import { HomeWelcomeHero } from '@/components/home/HomeWelcomeHero';
+import { PlatformHomeContent } from '@/components/home/PlatformHomeContent';
 import { LoadingState } from '@/components/ui/AppTable';
+import { isOperationalDashboardUser } from '@/lib/auth/routing';
 import {
   formatDashboardDate,
   getDashboardSummary,
   getGreetingLabel,
   type DashboardSummary,
 } from '@/lib/dashboard/dashboard-client';
+import { isPlatformOrganization } from '@/lib/navigation/platform';
 import { formatCurrency } from '@/lib/fees/fees-client';
 import { formatEventDateTime } from '@/lib/events/events-client';
 
@@ -94,6 +98,13 @@ export default function HomePage() {
         return;
       }
 
+      if (isPlatformOrganization(user?.organization?.code) || !isOperationalDashboardUser(user?.permissions)) {
+        setSummary(null);
+        setErrorMessage(null);
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setErrorMessage(null);
 
@@ -119,61 +130,61 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [isReady, isAuthenticated]);
+  }, [isReady, isAuthenticated, user?.organization?.code, user?.permissions]);
 
   if (isReady && !isAuthenticated) {
     return (
-      <Box
-        component="main"
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          bgcolor: 'background.default',
-        }}
-      >
-        <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 3 }}>
+      <Box component="main">
+        <Box
+          sx={{
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+            py: { xs: 6, md: 9 },
+          }}
+        >
           <Container maxWidth="md">
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Box sx={{ fontSize: 32, fontWeight: 700 }}>📚</Box>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                CampusOps
+            <Stack spacing={2} sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
+                School operations, simplified
+              </Typography>
+              <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 400 }}>
+                CampusOps helps schools run attendance, leave, fees, visitors, notices, and workflows in one place.
               </Typography>
             </Stack>
           </Container>
         </Box>
 
-        <Container maxWidth="md" sx={{ flex: 1, py: { xs: 6, md: 10 } }}>
-          <Box sx={{ textAlign: 'center', mb: 8 }}>
-            <Typography variant="h3" component="h1" sx={{ fontWeight: 700, mb: 2 }}>
-              Comprehensive School Management System
-            </Typography>
-            <Typography variant="h6" color="text.secondary" sx={{ mb: 6 }}>
-              Streamline operations, enhance communication, and elevate your school&apos;s efficiency.
-            </Typography>
-          </Box>
-
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} sx={{ mb: 8 }}>
-            <Paper sx={{ flex: 1, p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
-                New School?
+        <Container maxWidth="md" sx={{ py: { xs: 5, md: 8 } }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
+            <Paper
+              elevation={0}
+              variant="outlined"
+              sx={{ flex: 1, p: 4, display: 'flex', flexDirection: 'column', textAlign: 'center' }}
+            >
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>
+                New school?
               </Typography>
-              <Typography color="text.secondary" sx={{ mb: 4 }}>
-                Register your school to get started with CampusOps.
+              <Typography color="text.secondary" sx={{ mb: 3, flex: 1 }}>
+                Submit a registration request. After platform approval, your administrator completes signup with an
+                organization code.
               </Typography>
-              <Button component={Link} href="/register-organization" variant="contained" size="large" sx={{ mt: 'auto' }}>
-                Register School
+              <Button component={Link} href="/register-organization" variant="contained" size="large">
+                Register school
               </Button>
             </Paper>
-            <Paper sx={{ flex: 1, p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
-                Already a Member?
+            <Paper
+              elevation={0}
+              variant="outlined"
+              sx={{ flex: 1, p: 4, display: 'flex', flexDirection: 'column', textAlign: 'center' }}
+            >
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>
+                Already onboarded?
               </Typography>
-              <Typography color="text.secondary" sx={{ mb: 4 }}>
-                Sign in with your organization code, email, and password.
+              <Typography color="text.secondary" sx={{ mb: 3, flex: 1 }}>
+                Sign in with your organization code, work email, and password.
               </Typography>
-              <Button component={Link} href="/login" variant="outlined" size="large" sx={{ mt: 'auto' }}>
-                Sign In
+              <Button component={Link} href="/login" variant="outlined" size="large">
+                Sign in
               </Button>
             </Paper>
           </Stack>
@@ -190,10 +201,32 @@ export default function HomePage() {
     return (
       <Stack spacing={3} sx={{ maxWidth: 640 }}>
         <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
-          <Typography sx={{ mb: 2 }}>Sign in to open the operational dashboard for your school.</Typography>
+          <Typography sx={{ mb: 2 }}>Sign in to open your CampusOps workspace.</Typography>
           <Button component={Link} href="/login" variant="contained">
             Sign in
           </Button>
+        </Paper>
+      </Stack>
+    );
+  }
+
+  if (isPlatformOrganization(user.organization?.code)) {
+    return <PlatformHomeContent userEmail={user.email} />;
+  }
+
+  if (!isOperationalDashboardUser(user.permissions)) {
+    return (
+      <Stack spacing={3} sx={{ maxWidth: 720 }}>
+        <HomeWelcomeHero
+          title="Welcome back"
+          subtitle={user.organization?.name ?? 'CampusOps'}
+          meta="Use the sidebar to open the modules available to your account."
+        />
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography color="text.secondary">
+            This account does not include the school operations dashboard. Open a module from the navigation menu to
+            continue.
+          </Typography>
         </Paper>
       </Stack>
     );
@@ -272,17 +305,11 @@ export default function HomePage() {
 
   return (
     <Stack spacing={3}>
-      <Stack spacing={0.75}>
-        <Typography variant="h4" component="h1">
-          {getGreetingLabel(summary.greetingPeriod)}
-        </Typography>
-        <Typography variant="h6" color="text.secondary">
-          {summary.organization.name}
-        </Typography>
-        <Typography color="text.secondary">
-          {formatDashboardDate(summary.localDate, summary.organization.timezone)}
-        </Typography>
-      </Stack>
+      <HomeWelcomeHero
+        title={getGreetingLabel(summary.greetingPeriod)}
+        subtitle={summary.organization.name}
+        meta={formatDashboardDate(summary.localDate, summary.organization.timezone)}
+      />
 
       {summaryCards.length > 0 ? (
         <Box
@@ -392,35 +419,6 @@ export default function HomePage() {
           </Typography>
         </SectionPaper>
       ) : null}
-
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Typography variant="h6" sx={{ mb: 1.5 }}>
-          Common actions
-        </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button component={Link} href="/students" variant="outlined" size="small">
-            Students
-          </Button>
-          <Button component={Link} href="/leave/new" variant="outlined" size="small">
-            Submit leave
-          </Button>
-          <Button component={Link} href="/approvals" variant="outlined" size="small">
-            Approvals
-          </Button>
-          <Button component={Link} href="/fees/student-fees" variant="outlined" size="small">
-            Student fees
-          </Button>
-          <Button component={Link} href="/complaints" variant="outlined" size="small">
-            Complaints
-          </Button>
-          <Button component={Link} href="/visitors" variant="outlined" size="small">
-            Visitors
-          </Button>
-          <Button component={Link} href="/events" variant="outlined" size="small">
-            Events
-          </Button>
-        </Stack>
-      </Paper>
     </Stack>
   );
 }

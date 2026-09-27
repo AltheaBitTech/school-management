@@ -23,6 +23,7 @@ import { useMemo, useState } from 'react';
 import { NotificationMenu } from '@/components/notifications/NotificationMenu';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
 import { isStaffSelfServiceUser } from '@/lib/auth/routing';
+import { isPlatformOrganization } from '@/lib/navigation/platform';
 import { hasAnyReportPermission } from '@/lib/reports/reports-catalog';
 
 const DRAWER_WIDTH = 268;
@@ -37,8 +38,6 @@ interface NavGroup {
   title: string;
   items: NavItem[];
 }
-
-const PLATFORM_ORGANIZATION_CODE = 'campusops-platform';
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -119,9 +118,15 @@ export function AppShell({ children }: AppShellProps) {
   const { isReady, isAuthenticated, user, signOut } = useAuthSession();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isStaffNav = isStaffSelfServiceUser(user?.permissions);
+  const isPlatformOrg = isPlatformOrganization(user?.organization?.code);
+  const isPublicMarketingHome = pathname === '/' && isReady && !isAuthenticated;
   const navGroups = useMemo(() => {
     if (isStaffNav) {
       return [STAFF_SELF_NAV_GROUP];
+    }
+
+    if (isPlatformOrg) {
+      return [PLATFORM_NAV_GROUP];
     }
 
     const groups = NAV_GROUPS.map((group) => {
@@ -136,13 +141,15 @@ export function AppShell({ children }: AppShellProps) {
       return { ...group, items };
     });
 
-    return user?.organization?.code === PLATFORM_ORGANIZATION_CODE
-      ? [PLATFORM_NAV_GROUP, ...groups]
-      : groups;
-  }, [isStaffNav, user?.organization?.code, user?.permissions]);
+    return groups;
+  }, [isStaffNav, isPlatformOrg, user?.permissions]);
   const homeHref = isStaffNav ? '/staff/dashboard' : '/';
-  const homeLabel = isStaffNav ? 'My dashboard' : 'Dashboard';
-  const appBarTitle = isStaffNav ? 'Staff self-service' : 'School operations';
+  const homeLabel = isStaffNav ? 'My dashboard' : 'Home';
+  const appBarTitle = isPlatformOrg
+    ? 'CampusOps platform'
+    : isStaffNav
+      ? 'Staff self-service'
+      : 'School operations';
 
   function handleNavClick(): void {
     setMobileOpen(false);
@@ -213,6 +220,32 @@ export function AppShell({ children }: AppShellProps) {
       </Box>
     </Box>
   );
+
+  if (isPublicMarketingHome) {
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+        <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Toolbar sx={{ gap: 1, maxWidth: 1280, mx: 'auto', width: '100%' }}>
+            <Typography
+              variant="h6"
+              component={Link}
+              href="/"
+              sx={{ color: 'primary.main', textDecoration: 'none', fontWeight: 700, flexGrow: 1 }}
+            >
+              CampusOps
+            </Typography>
+            <Button component={Link} href="/register-organization" size="small">
+              Register school
+            </Button>
+            <Button component={Link} href="/login" variant="contained" size="small">
+              Sign in
+            </Button>
+          </Toolbar>
+        </AppBar>
+        {children}
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>

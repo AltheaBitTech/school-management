@@ -40,8 +40,8 @@ describe('HomePage', () => {
     render(<HomePage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Register School' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Sign In' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Register school' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
     });
     expect(getDashboardSummary).not.toHaveBeenCalled();
   });
@@ -54,6 +54,7 @@ describe('HomePage', () => {
         id: 'user-1',
         email: 'admin@school.edu',
         organizationId: 'org-1',
+        permissions: ['dashboard.view'],
         organization: { id: 'org-1', name: 'Demo School', code: 'demo', status: 'ACTIVE' },
       },
       signOut: vi.fn(),
@@ -118,6 +119,37 @@ describe('HomePage', () => {
     });
   });
 
+  it('renders platform home for platform organization users', async () => {
+    vi.mocked(useAuthSession).mockReturnValue({
+      isReady: true,
+      isAuthenticated: true,
+      user: {
+        id: 'platform-admin',
+        email: 'platform-admin@example.com',
+        organizationId: 'platform-org',
+        permissions: ['platform.organization.registration.approve'],
+        organization: {
+          id: 'platform-org',
+          name: 'CampusOps Platform',
+          code: 'campusops-platform',
+          status: 'ACTIVE',
+        },
+      },
+      signOut: vi.fn(),
+    });
+
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome to CampusOps')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Open registration requests' })).toHaveAttribute(
+        'href',
+        '/admin/registrations',
+      );
+    });
+    expect(getDashboardSummary).not.toHaveBeenCalled();
+  });
+
   it('shows an error state when dashboard summary fails', async () => {
     vi.mocked(useAuthSession).mockReturnValue({
       isReady: true,
@@ -126,6 +158,7 @@ describe('HomePage', () => {
         id: 'user-1',
         email: 'admin@school.edu',
         organizationId: 'org-1',
+        permissions: ['dashboard.view'],
         organization: { id: 'org-1', name: 'Demo School', code: 'demo', status: 'ACTIVE' },
       },
       signOut: vi.fn(),
