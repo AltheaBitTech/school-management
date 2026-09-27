@@ -35,4 +35,16 @@ describe('cors.util', () => {
       false,
     );
   });
+
+  it('allows web previews when project name is school-management (no -ui- suffix)', () => {
+    const config =
+      'https://school-management-ui-ivory.vercel.app,https://school-management-*.vercel.app';
+
+    expect(
+      isCorsOriginAllowed('https://school-management-8nj1x7pr7-altheabit1.vercel.app', config),
+    ).toBe(true);
+    expect(isCorsOriginAllowed('https://school-management-ui-ivory.vercel.app', config)).toBe(
+      true,
+    );
+  });
 });
