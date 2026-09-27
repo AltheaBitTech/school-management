@@ -35,6 +35,7 @@ describeIfDatabase('Organization registrations integration', () => {
   let schoolOrganizationId: string;
 
   const registrationPermission = 'platform.organization.registration.approve';
+  const testContactPhone = '+919876543210';
 
   beforeAll(async () => {
     prisma = new PrismaClient();
@@ -250,6 +251,7 @@ describeIfDatabase('Organization registrations integration', () => {
     const registration = await registrationsService.submitRegistrationRequest({
       organizationName: 'Onboarding Test School',
       contactEmail,
+      contactPhone: testContactPhone,
       contactFirstName: 'Priya',
       contactLastName: 'Sharma',
     });
@@ -310,6 +312,7 @@ describeIfDatabase('Organization registrations integration', () => {
     const registration = await registrationsService.submitRegistrationRequest({
       organizationName: 'Duplicate School',
       contactEmail,
+      contactPhone: testContactPhone,
       contactFirstName: 'A',
       contactLastName: 'B',
     });
@@ -318,6 +321,7 @@ describeIfDatabase('Organization registrations integration', () => {
       registrationsService.submitRegistrationRequest({
         organizationName: 'Duplicate School 2',
         contactEmail,
+        contactPhone: testContactPhone,
         contactFirstName: 'C',
         contactLastName: 'D',
       }),
@@ -333,6 +337,7 @@ describeIfDatabase('Organization registrations integration', () => {
       registrationsService.submitRegistrationRequest({
         organizationName: 'Blocked School',
         contactEmail: schoolAdmin.email,
+        contactPhone: testContactPhone,
         contactFirstName: 'A',
         contactLastName: 'B',
       }),
@@ -374,6 +379,7 @@ describeIfDatabase('Organization registrations integration', () => {
     const registration = await registrationsService.submitRegistrationRequest({
       organizationName: 'Rejected School',
       contactEmail: `rejected-${suffix}@example.com`,
+      contactPhone: testContactPhone,
       contactFirstName: 'R',
       contactLastName: 'J',
     });
@@ -400,6 +406,7 @@ describeIfDatabase('Organization registrations integration', () => {
     const registration = await registrationsService.submitRegistrationRequest({
       organizationName: 'Replay School',
       contactEmail,
+      contactPhone: testContactPhone,
       contactFirstName: 'Replay',
       contactLastName: 'Test',
     });
@@ -423,6 +430,7 @@ describeIfDatabase('Organization registrations integration', () => {
     const registration = await registrationsService.submitRegistrationRequest({
       organizationName: 'Scope School',
       contactEmail,
+      contactPhone: testContactPhone,
       contactFirstName: 'Scope',
       contactLastName: 'Test',
     });

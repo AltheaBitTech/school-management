@@ -33,29 +33,24 @@ export async function ensureOrganizationRole(
     },
   });
 
-  for (const permissionCode of roleDefinition.permissions) {
-    const permission = await client.permission.findUnique({
-      where: { code: permissionCode },
-    });
+  const permissions = await client.permission.findMany({
+    where: { code: { in: roleDefinition.permissions } },
+    select: { id: true, code: true },
+  });
 
-    if (!permission) {
-      throw new Error(`Missing permission definition for ${permissionCode}`);
-    }
-
-    await client.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: role.id,
-          permissionId: permission.id,
-        },
-      },
-      update: {},
-      create: {
-        roleId: role.id,
-        permissionId: permission.id,
-      },
-    });
+  if (permissions.length !== roleDefinition.permissions.length) {
+    const foundCodes = new Set(permissions.map((permission) => permission.code));
+    const missingCode = roleDefinition.permissions.find((code) => !foundCodes.has(code));
+    throw new Error(`Missing permission definition for ${missingCode ?? 'unknown'}`);
   }
+
+  await client.rolePermission.createMany({
+    data: permissions.map((permission) => ({
+      roleId: role.id,
+      permissionId: permission.id,
+    })),
+    skipDuplicates: true,
+  });
 
   return role;
 }

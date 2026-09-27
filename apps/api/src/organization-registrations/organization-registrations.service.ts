@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -26,8 +27,16 @@ import { ApproveOrganizationRegistrationResponseDto } from './dto/approve-organi
 import { RegistrationSignupContextDto } from './dto/registration-signup-context.dto';
 import { renderRegistrationApprovedEmail } from './utils/registration-email.util';
 
+/** School-admin role seed runs many permission upserts; serverless + pooler needs a longer interactive transaction window. */
+const REGISTRATION_APPROVAL_TRANSACTION_OPTIONS = {
+  maxWait: 15_000,
+  timeout: 60_000,
+} as const;
+
 @Injectable()
 export class OrganizationRegistrationsService {
+  private readonly logger = new Logger(OrganizationRegistrationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
@@ -167,7 +176,10 @@ export class OrganizationRegistrationsService {
       throw new ConflictException('Can only approve pending requests');
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    let result: { organization: { id: string; name: string; code: string }; adminUser: { id: string; email: string } };
+
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
       const code = await generateUniqueOrganizationCode(async (candidate) => {
         const existing = await tx.organization.findUnique({
           where: { code: candidate },
@@ -240,7 +252,19 @@ export class OrganizationRegistrationsService {
       );
 
       return { organization, adminUser };
-    });
+      }, REGISTRATION_APPROVAL_TRANSACTION_OPTIONS);
+    } catch (error: unknown) {
+      this.logger.error(
+        {
+          registrationId,
+          approvedByUserId,
+          message: error instanceof Error ? error.message : String(error),
+          name: error instanceof Error ? error.name : undefined,
+        },
+        'Organization registration approval transaction failed',
+      );
+      throw error;
+    }
 
     const completeSignupUrl = this.buildCompleteSignupUrl(
       registrationId,
