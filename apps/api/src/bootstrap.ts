@@ -29,7 +29,10 @@ export async function createApp(): Promise<INestApplication> {
   app.setGlobalPrefix('api/v1');
 
   app.enableCors({
-    origin: (requestOrigin, callback) => {
+    origin: (
+      requestOrigin: string | undefined,
+      callback: (err: Error | null, allow?: boolean | string) => void,
+    ) => {
       if (!requestOrigin) {
         callback(null, true);
         return;
