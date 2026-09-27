@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { isCorsOriginAllowed } from './config/cors.util';
 import { AppConfig, CONFIGURATION_KEY } from './config/configuration';
 
 /**
@@ -28,7 +29,17 @@ export async function createApp(): Promise<INestApplication> {
   app.setGlobalPrefix('api/v1');
 
   app.enableCors({
-    origin: appConfig.corsOrigin,
+    origin: (requestOrigin, callback) => {
+      if (!requestOrigin) {
+        callback(null, true);
+        return;
+      }
+      if (isCorsOriginAllowed(requestOrigin, appConfig.corsOrigin)) {
+        callback(null, requestOrigin);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
   });
 

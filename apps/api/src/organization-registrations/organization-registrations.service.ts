@@ -11,6 +11,7 @@ import { OrganizationStatus, UserStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
 import { AppConfig, CONFIGURATION_KEY } from '../config/configuration';
+import { primaryFrontendOrigin } from '../config/cors.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { ensureSchoolAdminRole } from '../roles/organization-role-seed.util';
 import { ensureDefaultAssetCategories } from '../assets/utils/asset-category-seed.util';
@@ -328,7 +329,7 @@ export class OrganizationRegistrationsService {
     organizationCode: string,
   ): string {
     const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
-    const frontendBaseUrl = (appConfig?.corsOrigin ?? 'http://localhost:3000').replace(/\/$/, '');
+    const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
     const params = new URLSearchParams({
       requestId: registrationRequestId,
       email: contactEmail,

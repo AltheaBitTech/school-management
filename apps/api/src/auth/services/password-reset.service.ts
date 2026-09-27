@@ -4,6 +4,7 @@ import { OrganizationStatus, User, UserStatus } from '@prisma/client';
 import { AuditService } from '../../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../../audit/constants/audit.constants';
 import { AppConfig, CONFIGURATION_KEY } from '../../config/configuration';
+import { primaryFrontendOrigin } from '../../config/cors.util';
 import {
   EMAIL_PROVIDER,
   EmailProvider,
@@ -75,7 +76,10 @@ export class PasswordResetService {
     });
 
     const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
-    const resetUrl = buildPasswordResetUrl(appConfig?.corsOrigin ?? 'http://localhost:3000', rawToken);
+    const resetUrl = buildPasswordResetUrl(
+      primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000'),
+      rawToken,
+    );
     const emailContent = renderPasswordResetEmail({
       organizationName: organization?.name ?? 'your school',
       resetUrl,
