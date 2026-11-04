@@ -15,6 +15,8 @@ export const STAFF_ERROR_CODES = {
 
 export const EMPLOYEE_CODE_PATTERN = /^[a-z0-9-]{2,32}$/;
 
+export const DEFAULT_EMPLOYEE_CODE_PREFIX = 'emp-';
+
 export const STAFF_SORT_FIELDS = ['firstName', 'lastName', 'employeeCode', 'joiningDate'] as const;
 
 export type StaffSortField = (typeof STAFF_SORT_FIELDS)[number];

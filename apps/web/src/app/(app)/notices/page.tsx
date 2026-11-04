@@ -9,13 +9,16 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   formatNoticeStatus,
   listNotices,
@@ -25,6 +28,7 @@ import {
 } from '@/lib/notices/notices-client';
 
 export default function NoticesPage() {
+  const canCreate = useCan('notice.create');
   const [notices, setNotices] = useState<Notice[]>([]);
   const [statusFilter, setStatusFilter] = useState<NoticeStatus | ''>('');
   const [search, setSearch] = useState('');
@@ -78,18 +82,19 @@ export default function NoticesPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Notices"
-        description="Publish school notices and circulars to targeted audiences."
-        actions={
-          <Button component={Link} href="/notices/new" variant="contained">
+    <ListPageShell
+      title="Notices"
+      description="Publish school notices and circulars to targeted audiences."
+      icon={AnnouncementOutlined}
+      actions={
+        canCreate ? (
+          <Button component={Link} href="/notices/new" variant="contained" startIcon={<AddOutlined />}>
             New notice
           </Button>
-        }
-      />
-
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+        ) : undefined
+      }
+      filters={
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap" useFlexGap>
         <TextField
           select
           label="Status"
@@ -111,13 +116,28 @@ export default function NoticesPage() {
           sx={{ minWidth: 240 }}
         />
       </Stack>
-
-      {isLoading ? <LoadingState label="Loading notices" /> : null}
+      }
+    >
+      {isLoading ? <LoadingState label="Loading notices" columnCount={5} /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && notices.length === 0 ? (
-        <EmptyState message="No notices found for the selected filters." />
+        <EmptyState
+          icon={AnnouncementOutlined}
+          message={
+            canCreate
+              ? 'No notices found for the selected filters.'
+              : 'No notices found for the selected filters. Publishing a notice is not part of this role.'
+          }
+          action={
+            canCreate ? (
+              <Button component={Link} href="/notices/new" variant="contained" startIcon={<AddOutlined />}>
+                New notice
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
 
       {!isLoading && notices.length > 0 ? (
@@ -154,6 +174,6 @@ export default function NoticesPage() {
           </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

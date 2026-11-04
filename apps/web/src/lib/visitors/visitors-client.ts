@@ -39,6 +39,7 @@ export interface Visitor {
   checkOutAt?: string | null;
   status: VisitorStatus;
   remarks?: string | null;
+  photoFileId?: string | null;
   createdByUserId: string;
   createdAt: string;
   updatedAt: string;
@@ -58,6 +59,25 @@ interface VisitorResponse {
 
 interface VisitorHistoryResponse {
   data: VisitorHistoryEntry[];
+}
+
+interface VisitorHostStaffResponse {
+  data: VisitorStaffSummary[];
+}
+
+export function getVisitorHostStaffDisplayName(staff: VisitorStaffSummary): string {
+  const display = staff.displayName?.trim();
+  if (display) {
+    return display;
+  }
+  return `${staff.firstName} ${staff.lastName}`.trim();
+}
+
+export async function listVisitorHostStaff(): Promise<VisitorStaffSummary[]> {
+  const response = await apiClient.get<VisitorHostStaffResponse>('/visitors/host-staff', {
+    auth: true,
+  });
+  return response.data;
 }
 
 export async function listVisitors(params?: {
@@ -98,6 +118,25 @@ export async function getVisitorHistory(id: string): Promise<VisitorHistoryEntry
   return response.data;
 }
 
+export interface VisitorRepeatProfile {
+  name: string;
+  mobile: string;
+  organizationName?: string | null;
+  vehicleNumber?: string | null;
+  photoFileId?: string | null;
+  hostStaffId: string;
+  lastVisitAt: string | null;
+}
+
+export async function lookupVisitorByMobile(mobile: string): Promise<VisitorRepeatProfile | null> {
+  const params = new URLSearchParams({ mobile });
+  const response = await apiClient.get<{ data: VisitorRepeatProfile | null }>(
+    `/visitors/lookup?${params.toString()}`,
+    { auth: true },
+  );
+  return response.data;
+}
+
 export async function createVisitor(payload: {
   name: string;
   mobile: string;
@@ -106,9 +145,41 @@ export async function createVisitor(payload: {
   purpose: string;
   hostStaffId: string;
   remarks?: string;
+  photoFileId?: string;
 }): Promise<Visitor> {
   const response = await apiClient.post<VisitorResponse>('/visitors', payload, { auth: true });
   return response.data;
+}
+
+export async function getVisitorPass(id: string): Promise<VisitorPass> {
+  const response = await apiClient.get<VisitorPassResponse>(`/visitors/${id}/pass`, { auth: true });
+  return response.data;
+}
+
+export interface VisitorPassOrganization {
+  name: string;
+  city?: string;
+}
+
+export interface VisitorPass {
+  visitor: {
+    visitorCode: string;
+    name: string;
+    mobile: string;
+    organization?: string | null;
+    purpose: string;
+    host: string;
+    checkInTime: string;
+    vehicleNumber?: string | null;
+    photoFileId?: string | null;
+  };
+  organization: VisitorPassOrganization;
+  qrCodeDataUrl: string;
+  passGeneratedAt: string;
+}
+
+interface VisitorPassResponse {
+  data: VisitorPass;
 }
 
 export async function checkOutVisitor(id: string): Promise<Visitor> {

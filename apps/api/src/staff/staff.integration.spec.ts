@@ -106,6 +106,7 @@ describeIfDatabase('Staff integration', () => {
       firstName: 'Searchable',
       lastName: 'Person',
       departmentId: deptBId,
+      email: 'searchable.person@example.com',
     });
 
     const filtered = await staffService.list(orgBId, {
@@ -126,6 +127,7 @@ describeIfDatabase('Staff integration', () => {
       employeeCode: 'dup-code',
       firstName: 'First',
       lastName: 'Staff',
+      email: 'first.staff@example.com',
     });
 
     await expect(
@@ -133,6 +135,7 @@ describeIfDatabase('Staff integration', () => {
         employeeCode: 'dup-code',
         firstName: 'Second',
         lastName: 'Staff',
+        email: 'second.staff@example.com',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
@@ -142,6 +145,7 @@ describeIfDatabase('Staff integration', () => {
       employeeCode: 'cross-read',
       firstName: 'Cross',
       lastName: 'Read',
+      email: 'cross.read@example.com',
     });
 
     await expect(staffService.findById(orgBId, staffA.id)).rejects.toBeInstanceOf(
@@ -160,6 +164,7 @@ describeIfDatabase('Staff integration', () => {
         firstName: 'Bad',
         lastName: 'Department',
         departmentId: deptBId,
+        email: 'bad.dept@example.com',
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
@@ -171,6 +176,7 @@ describeIfDatabase('Staff integration', () => {
         firstName: 'Bad',
         lastName: 'User',
         userId: userBId,
+        email: 'bad.user@example.com',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -180,6 +186,7 @@ describeIfDatabase('Staff integration', () => {
       employeeCode: 'deactivate-me',
       firstName: 'Offboard',
       lastName: 'Candidate',
+      email: 'offboard.candidate@example.com',
     });
 
     const deactivated = await staffService.deactivate(orgAId, staff.id);

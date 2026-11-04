@@ -3,11 +3,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import GenerateDocumentPage from '@/app/(app)/documents/generate/page';
 import { ApiError } from '@/lib/api/client';
-
-const push = vi.fn();
+import { renderWithAppProviders } from '@/test/render-app';
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -23,18 +22,36 @@ vi.mock('@/lib/students/students-client', () => ({
     `${student.firstName} ${student.lastName}`,
 }));
 
-vi.mock('@/lib/documents/documents-client', () => ({
-  generateBonafideCertificate: vi.fn(),
+vi.mock('@/lib/staff/staff-client', () => ({
+  listStaff: vi.fn(),
+  getStaffDisplayName: (staff: { firstName: string; lastName: string }) =>
+    `${staff.firstName} ${staff.lastName}`,
 }));
 
-import { generateBonafideCertificate } from '@/lib/documents/documents-client';
+vi.mock('@/lib/visitors/visitors-client', () => ({
+  listVisitors: vi.fn(),
+}));
+
+vi.mock('@/lib/documents/documents-client', () => ({
+  DOCUMENT_TEMPLATE_OPTIONS: [
+    {
+      type: 'BONAFIDE_CERTIFICATE',
+      name: 'Bonafide Certificate',
+      description: 'Certifies student enrollment for official use.',
+      ownerType: 'STUDENT',
+    },
+  ],
+  generateDocument: vi.fn(),
+  downloadGeneratedDocument: vi.fn(),
+}));
+
+import { generateDocument } from '@/lib/documents/documents-client';
 import { listStudents } from '@/lib/students/students-client';
 
 describe('GenerateDocumentPage', () => {
   beforeEach(() => {
     vi.mocked(listStudents).mockReset();
-    vi.mocked(generateBonafideCertificate).mockReset();
-    push.mockReset();
+    vi.mocked(generateDocument).mockReset();
   });
 
   it('loads students and generates a bonafide certificate', async () => {
@@ -53,7 +70,7 @@ describe('GenerateDocumentPage', () => {
       ],
       meta: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
     });
-    vi.mocked(generateBonafideCertificate).mockResolvedValue({
+    vi.mocked(generateDocument).mockResolvedValue({
       id: 'doc-1',
       documentType: 'BONAFIDE_CERTIFICATE',
       ownerType: 'STUDENT',
@@ -65,17 +82,26 @@ describe('GenerateDocumentPage', () => {
       createdAt: '2026-09-17T10:00:00.000Z',
     });
 
-    render(<GenerateDocumentPage />);
+    renderWithAppProviders(<GenerateDocumentPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/Bonafide Student \(adm-001\)/)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /generate bonafide certificate/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate PDF' }));
 
     await waitFor(() => {
-      expect(generateBonafideCertificate).toHaveBeenCalledWith('student-1');
-      expect(push).toHaveBeenCalledWith('/documents/doc-1');
+      expect(generateDocument).toHaveBeenCalledWith({
+        documentType: 'BONAFIDE_CERTIFICATE',
+        ownerId: 'student-1',
+        purpose: undefined,
+        conduct: undefined,
+        salaryAmount: undefined,
+        salaryMonth: undefined,
+        relievingReason: undefined,
+        leavingDate: undefined,
+      });
+      expect(screen.getByText(/Document generated successfully/i)).toBeInTheDocument();
     });
   });
 
@@ -94,15 +120,15 @@ describe('GenerateDocumentPage', () => {
       ],
       meta: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
     });
-    vi.mocked(generateBonafideCertificate).mockRejectedValue(new ApiError('Forbidden', 403));
+    vi.mocked(generateDocument).mockRejectedValue(new ApiError('Forbidden', 403));
 
-    render(<GenerateDocumentPage />);
+    renderWithAppProviders(<GenerateDocumentPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/Bonafide Student \(adm-001\)/)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /generate bonafide certificate/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate PDF' }));
 
     await waitFor(() => {
       expect(screen.getByText(/do not have permission/i)).toBeInTheDocument();

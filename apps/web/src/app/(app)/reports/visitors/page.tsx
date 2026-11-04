@@ -1,5 +1,6 @@
 'use client';
 
+import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -20,6 +21,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { ReportExportCsvButton } from '@/components/ui/ReportExportCsvButton';
+import { ReportFilterPanel } from '@/components/ui/ReportFilterPanel';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { isVisitorReportForbiddenError } from '@/lib/reports/visitor-report-errors';
@@ -139,11 +142,21 @@ export default function VisitorsReportPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
+        icon={BadgeOutlined}
         title="Visitor report"
         description="Date filters apply to visitor checkInAt in the organization timezone (same as the dashboard Visitors today metric). Visitor status uses VisitorStatus: CHECKED_IN means still on campus; CHECKED_OUT means checked out. Active on campus in the summary matches the dashboard count (organization-wide CHECKED_IN)."
+        actions={
+          <ReportExportCsvButton
+            exportPath="/reports/visitors/export.csv"
+            queryParams={queryParams}
+            filename="visitors-report.csv"
+            rowCount={report?.data.length ?? 0}
+            onError={setErrorMessage}
+          />
+        }
       />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} flexWrap="wrap">
+      <ReportFilterPanel>
         <TextField
           label="Date (single day)"
           type="date"
@@ -220,7 +233,7 @@ export default function VisitorsReportPage() {
           onChange={updateFilter(setPurpose)}
           sx={{ minWidth: 200 }}
         />
-      </Stack>
+      </ReportFilterPanel>
 
       {filterError && <Alert severity="warning">{filterError}</Alert>}
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}

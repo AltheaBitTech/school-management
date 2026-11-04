@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { VISITOR_MOBILE_PATTERN } from '../../visitors/constants/visitor-mobile.constants';
+import { ROLL_NUMBER_PATTERN } from '../utils/student-profile.util';
 
 export class CreateStudentDto {
   @ApiProperty({ example: 'adm-2026-001' })
@@ -36,4 +38,49 @@ export class CreateStudentDto {
   @IsString()
   @MaxLength(100)
   className?: string;
+
+  @ApiProperty({ example: 'Grade 8' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  studentClass!: string;
+
+  @ApiProperty({ example: 'A' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(10)
+  section!: string;
+
+  @ApiProperty({ example: '12' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(10)
+  @Matches(ROLL_NUMBER_PATTERN, {
+    message: 'Roll number must be 1–10 letters, numbers, or hyphens',
+  })
+  rollNumber!: string;
+
+  @ApiProperty({ example: 'Rajesh Sharma' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  guardianName!: string;
+
+  @ApiProperty({ example: '9876543210' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  @Matches(VISITOR_MOBILE_PATTERN, {
+    message: 'Guardian phone must be a 10-digit Indian mobile number (optional +91 prefix)',
+  })
+  guardianPhone!: string;
+
+  @ApiProperty({ example: '2025-2026' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(9)
+  @Matches(/^\d{4}-\d{4}$/, {
+    message: 'Academic year must look like 2025-2026',
+  })
+  academicYear!: string;
 }

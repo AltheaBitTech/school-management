@@ -13,6 +13,8 @@ import { STAFF_ERROR_CODES } from './constants/staff.constants';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { ListStaffQueryDto } from './dto/list-staff-query.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
+import { suggestNextPrefixedCode } from '../common/utils/sequential-code.util';
+import { DEFAULT_EMPLOYEE_CODE_PREFIX } from './constants/staff.constants';
 import { isValidEmployeeCode, normalizeEmployeeCode } from './utils/employee-code.util';
 
 type StaffWithDepartment = Staff & {
@@ -135,6 +137,71 @@ export class StaffService {
     }
 
     return staff;
+  }
+
+  async resolveLoginRole(
+    organizationId: string,
+    userId: string | null | undefined,
+  ): Promise<{ id: string; code: string; name: string } | null> {
+    if (!userId) {
+      return null;
+    }
+
+    const assignment = await this.prisma.userRole.findFirst({
+      where: {
+        userId,
+        role: { organizationId },
+      },
+      include: {
+        role: {
+          select: { id: true, code: true, name: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return assignment?.role ?? null;
+  }
+
+  async resolveLoginRoles(
+    organizationId: string,
+    userId: string | null | undefined,
+  ): Promise<Array<{ id: string; code: string; name: string }>> {
+    if (!userId) {
+      return [];
+    }
+
+    const assignments = await this.prisma.userRole.findMany({
+      where: {
+        userId,
+        role: { organizationId },
+      },
+      include: {
+        role: {
+          select: { id: true, code: true, name: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return assignments.map((assignment) => assignment.role);
+  }
+
+  async toDtoWithLoginRole(
+    staff: StaffWithDepartment,
+    organizationId: string,
+  ): Promise<
+    ReturnType<StaffService['toDto']> & {
+      loginRole: { id: string; code: string; name: string } | null;
+      loginRoles: Array<{ id: string; code: string; name: string }>;
+    }
+  > {
+    const loginRoles = await this.resolveLoginRoles(organizationId, staff.userId);
+    return {
+      ...this.toDto(staff),
+      loginRole: loginRoles[0] ?? null,
+      loginRoles,
+    };
   }
 
   async update(
@@ -293,6 +360,18 @@ export class StaffService {
         message: 'Reporting manager does not belong to this organization',
       });
     }
+  }
+
+  async suggestNextEmployeeCode(organizationId: string): Promise<string> {
+    const rows = await this.prisma.staff.findMany({
+      where: { organizationId },
+      select: { employeeCode: true },
+    });
+
+    return suggestNextPrefixedCode(
+      rows.map((row) => row.employeeCode),
+      { prefix: DEFAULT_EMPLOYEE_CODE_PREFIX },
+    );
   }
 
   private handleUniqueViolation(error: unknown): void {

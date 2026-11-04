@@ -26,4 +26,21 @@ export class CreateFeeStructureDto {
   @ApiProperty({ example: '2027-03-31' })
   @IsDateString()
   periodEnd!: string;
+
+  @ApiPropertyOptional({ example: 'Term 1' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  installmentLabel?: string;
+
+  @ApiPropertyOptional({ example: '2026-06-15' })
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+
+  @ApiPropertyOptional({ example: '2025-2026' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  academicYear?: string;
 }

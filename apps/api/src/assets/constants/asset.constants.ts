@@ -5,6 +5,7 @@ export const ASSET_ERROR_CODES = {
   ASSET_DEPARTMENT_INVALID: 'ASSET_DEPARTMENT_INVALID',
   ASSET_STAFF_INVALID: 'ASSET_STAFF_INVALID',
   ASSET_STAFF_INACTIVE: 'ASSET_STAFF_INACTIVE',
+  ASSET_STUDENT_INVALID: 'ASSET_STUDENT_INVALID',
   ASSET_ALREADY_RETIRED: 'ASSET_ALREADY_RETIRED',
   ASSET_INVALID_STATE: 'ASSET_INVALID_STATE',
   ASSET_NOT_ASSIGNED: 'ASSET_NOT_ASSIGNED',
@@ -42,6 +43,8 @@ export const ASSET_TRANSFER_REASON_MAX_LENGTH = 1000;
 export const DEFAULT_ASSET_CATEGORY_DEFINITIONS = [
   { code: 'COMPUTERS', name: 'Computers' },
   { code: 'LAPTOPS', name: 'Laptops' },
+  { code: 'MOBILES', name: 'Mobiles' },
+  { code: 'TABLETS', name: 'Tablets' },
   { code: 'PROJECTORS', name: 'Projectors' },
   { code: 'FURNITURE', name: 'Furniture' },
   { code: 'SCIENCE_EQUIPMENT', name: 'Science Equipment' },

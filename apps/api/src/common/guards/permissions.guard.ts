@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthenticatedUser } from '../../auth/types/authenticated-user.types';
+import { AUTH_ERROR_CODES } from '../../auth/constants/auth.constants';
 import { REQUIRE_PERMISSIONS_KEY, RBAC_ERROR_CODES } from '../constants/rbac.constants';
 import { AuthenticatedRequest } from '../types/authenticated-request.types';
 import { PermissionsService } from '../../permissions/permissions.service';
@@ -38,11 +39,28 @@ export class PermissionsGuard implements CanActivate {
       });
     }
 
+    if (!user.activeRoleId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.ROLE_REVOKED,
+        message: 'Unauthorized',
+      });
+    }
+
     if (!request.effectivePermissions) {
-      request.effectivePermissions = await this.permissionsService.getEffectivePermissions(
+      const permissions = await this.permissionsService.getEffectivePermissions(
         user.userId,
         user.organizationId,
+        user.activeRoleId,
       );
+
+      if (!permissions) {
+        throw new UnauthorizedException({
+          code: AUTH_ERROR_CODES.ROLE_REVOKED,
+          message: 'Unauthorized',
+        });
+      }
+
+      request.effectivePermissions = permissions;
     }
 
     const hasAllPermissions = requiredPermissions.every((permission) =>

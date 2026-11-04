@@ -1,12 +1,19 @@
 import { NoticeAudienceType } from '@prisma/client';
 import { userMatchesAudiences } from './notice-audience.util';
 
+const noProfiles = {
+  hasStaffProfile: false,
+  hasStudentProfile: false,
+  hasParentLink: false,
+  departmentId: null,
+};
+
 describe('notice-audience.util', () => {
   it('matches entire school audience for any user', () => {
     expect(
       userMatchesAudiences(
         [{ audienceType: NoticeAudienceType.ENTIRE_SCHOOL, departmentId: null }],
-        { hasStaffProfile: false, departmentId: null },
+        noProfiles,
       ),
     ).toBe(true);
   });
@@ -15,14 +22,46 @@ describe('notice-audience.util', () => {
     expect(
       userMatchesAudiences(
         [{ audienceType: NoticeAudienceType.STAFF, departmentId: null }],
-        { hasStaffProfile: true, departmentId: null },
+        { hasStaffProfile: true, hasStudentProfile: false, hasParentLink: false, departmentId: null },
       ),
     ).toBe(true);
 
     expect(
       userMatchesAudiences(
         [{ audienceType: NoticeAudienceType.STAFF, departmentId: null }],
-        { hasStaffProfile: false, departmentId: null },
+        noProfiles,
+      ),
+    ).toBe(false);
+  });
+
+  it('matches student audience only for active student profiles', () => {
+    expect(
+      userMatchesAudiences(
+        [{ audienceType: NoticeAudienceType.STUDENT, departmentId: null }],
+        { hasStaffProfile: false, hasStudentProfile: true, hasParentLink: false, departmentId: null },
+      ),
+    ).toBe(true);
+
+    expect(
+      userMatchesAudiences(
+        [{ audienceType: NoticeAudienceType.STUDENT, departmentId: null }],
+        noProfiles,
+      ),
+    ).toBe(false);
+  });
+
+  it('matches parent audience only for linked parent users', () => {
+    expect(
+      userMatchesAudiences(
+        [{ audienceType: NoticeAudienceType.PARENT, departmentId: null }],
+        { hasStaffProfile: false, hasStudentProfile: false, hasParentLink: true, departmentId: null },
+      ),
+    ).toBe(true);
+
+    expect(
+      userMatchesAudiences(
+        [{ audienceType: NoticeAudienceType.PARENT, departmentId: null }],
+        { hasStaffProfile: false, hasStudentProfile: true, hasParentLink: false, departmentId: null },
       ),
     ).toBe(false);
   });
@@ -31,14 +70,14 @@ describe('notice-audience.util', () => {
     expect(
       userMatchesAudiences(
         [{ audienceType: NoticeAudienceType.DEPARTMENT, departmentId: 'dept-1' }],
-        { hasStaffProfile: true, departmentId: 'dept-1' },
+        { hasStaffProfile: true, hasStudentProfile: false, hasParentLink: false, departmentId: 'dept-1' },
       ),
     ).toBe(true);
 
     expect(
       userMatchesAudiences(
         [{ audienceType: NoticeAudienceType.DEPARTMENT, departmentId: 'dept-1' }],
-        { hasStaffProfile: true, departmentId: 'dept-2' },
+        { hasStaffProfile: true, hasStudentProfile: false, hasParentLink: false, departmentId: 'dept-2' },
       ),
     ).toBe(false);
   });
@@ -50,7 +89,7 @@ describe('notice-audience.util', () => {
           { audienceType: NoticeAudienceType.DEPARTMENT, departmentId: 'math' },
           { audienceType: NoticeAudienceType.DEPARTMENT, departmentId: 'science' },
         ],
-        { hasStaffProfile: true, departmentId: 'science' },
+        { hasStaffProfile: true, hasStudentProfile: false, hasParentLink: false, departmentId: 'science' },
       ),
     ).toBe(true);
   });

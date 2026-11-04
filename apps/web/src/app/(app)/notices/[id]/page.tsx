@@ -1,5 +1,6 @@
 'use client';
 
+import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -12,8 +13,10 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   acknowledgeNotice,
   archiveNotice,
@@ -27,6 +30,9 @@ import {
 } from '@/lib/notices/notices-client';
 
 export default function NoticeDetailPage() {
+  const canEditNotice = useCan('notice.update');
+  const canPublishNotice = useCan('notice.publish');
+  const canArchiveNotice = useCan('notice.archive');
   const params = useParams<{ id: string }>();
   const noticeId = params.id;
 
@@ -95,9 +101,12 @@ export default function NoticeDetailPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-        <CircularProgress aria-label="Loading notice" />
-      </Box>
+      <Stack spacing={3}>
+        <PageHeader title="Notice" description="Loading this announcement." icon={AnnouncementOutlined} />
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress aria-label="Loading notice" />
+        </Box>
+      </Stack>
     );
   }
 
@@ -105,38 +114,32 @@ export default function NoticeDetailPage() {
     return <Alert severity="error">{errorMessage ?? 'Notice not found.'}</Alert>;
   }
 
-  const canEdit = isEditableNoticeStatus(notice.status);
-  const canPublish = notice.status === 'DRAFT' || notice.status === 'SCHEDULED';
-  const canArchive = notice.status === 'PUBLISHED';
+  const canEdit = canEditNotice && isEditableNoticeStatus(notice.status);
+  const canPublish = canPublishNotice && (notice.status === 'DRAFT' || notice.status === 'SCHEDULED');
+  const canArchive = canArchiveNotice && notice.status === 'PUBLISHED';
   const canRead = notice.status === 'PUBLISHED';
   const isRead = Boolean(notice.readState?.readAt);
   const isAcknowledged = Boolean(notice.readState?.acknowledgedAt);
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            {notice.title}
-          </Typography>
-          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-            <StatusChip
-              status={notice.status}
-              label={formatNoticeStatus(notice.status)}
-            />
-          </Stack>
-        </Box>
-        <Stack direction="row" spacing={1}>
-          {canEdit ? (
-            <Button component={Link} href={`/notices/${notice.id}/edit`} variant="outlined">
-              Edit
+      <PageHeader
+        title={notice.title}
+        icon={AnnouncementOutlined}
+        actions={
+          <>
+            {canEdit ? (
+              <Button component={Link} href={`/notices/${notice.id}/edit`} variant="outlined">
+                Edit
+              </Button>
+            ) : null}
+            <Button component={Link} href="/notices">
+              Back to list
             </Button>
-          ) : null}
-          <Button component={Link} href="/notices">
-            Back to list
-          </Button>
-        </Stack>
-      </Stack>
+          </>
+        }
+      />
+      <StatusChip status={notice.status} label={formatNoticeStatus(notice.status)} />
 
       <Paper sx={{ p: 3 }}>
         <Stack spacing={2}>

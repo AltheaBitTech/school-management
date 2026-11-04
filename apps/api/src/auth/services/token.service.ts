@@ -14,10 +14,29 @@ export class TokenService {
   createAccessToken(payload: AccessTokenPayload): string {
     const authConfig = this.getAuthConfig();
 
-    return this.jwtService.sign(payload, {
-      secret: authConfig.accessSecret,
-      expiresIn: authConfig.accessExpiresIn as JwtSignOptions['expiresIn'],
-    });
+    return this.jwtService.sign(
+      { ...payload, purpose: payload.purpose ?? 'access' },
+      {
+        secret: authConfig.accessSecret,
+        expiresIn: authConfig.accessExpiresIn as JwtSignOptions['expiresIn'],
+      },
+    );
+  }
+
+  createContextSelectionToken(payload: { sub: string; organizationId: string }): string {
+    const authConfig = this.getAuthConfig();
+
+    return this.jwtService.sign(
+      {
+        sub: payload.sub,
+        organizationId: payload.organizationId,
+        purpose: 'context-selection',
+      },
+      {
+        secret: authConfig.accessSecret,
+        expiresIn: '5m',
+      },
+    );
   }
 
   verifyAccessToken(token: string): AccessTokenPayload {

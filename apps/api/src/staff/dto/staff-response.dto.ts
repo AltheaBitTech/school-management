@@ -13,6 +13,17 @@ export class StaffDepartmentSummaryDto {
   code!: string;
 }
 
+export class StaffRoleSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  code!: string;
+
+  @ApiProperty()
+  name!: string;
+}
+
 export class StaffDto {
   @ApiProperty()
   id!: string;
@@ -61,6 +72,12 @@ export class StaffDto {
 
   @ApiPropertyOptional({ type: StaffDepartmentSummaryDto })
   department?: StaffDepartmentSummaryDto | null;
+
+  @ApiPropertyOptional({ type: StaffRoleSummaryDto })
+  loginRole?: StaffRoleSummaryDto | null;
+
+  @ApiPropertyOptional({ type: [StaffRoleSummaryDto] })
+  loginRoles?: StaffRoleSummaryDto[];
 
   @ApiProperty()
   createdAt!: string;

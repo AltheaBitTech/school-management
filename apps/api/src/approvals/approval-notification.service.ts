@@ -76,6 +76,7 @@ export class ApprovalNotificationService {
       eventKey,
       requestId,
       templateContext: {
+        kind: 'leave',
         staffName,
         leaveTypeName: leaveRequest.leaveType.name,
         startDate: formatLeaveDate(leaveRequest.startDate),

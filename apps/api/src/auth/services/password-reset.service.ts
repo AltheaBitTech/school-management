@@ -23,7 +23,7 @@ import {
   buildPasswordResetUrl,
   renderPasswordResetEmail,
 } from '../utils/password-reset-email.util';
-import { generateRefreshToken, hashRefreshToken } from '../utils/token-hash.util';
+import { generateRefreshToken, hashRefreshToken, normalizeResetToken } from '../utils/token-hash.util';
 import { PasswordService } from './password.service';
 import { RefreshSessionService } from './refresh-session.service';
 
@@ -41,7 +41,7 @@ export class PasswordResetService {
   ) {}
 
   async requestPasswordReset(dto: ForgotPasswordDto): Promise<{ message: string }> {
-    const user = await this.findEligibleUser(dto.organizationCode, dto.email);
+    const user = await this.findEligibleUser(dto.email);
 
     if (!user) {
       return { message: PASSWORD_RESET_GENERIC_MESSAGE };
@@ -110,7 +110,8 @@ export class PasswordResetService {
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
-    const tokenHash = hashRefreshToken(dto.token);
+    const token = normalizeResetToken(dto.token);
+    const tokenHash = hashRefreshToken(token);
     const passwordHash = await this.passwordService.hash(dto.newPassword);
 
     const resetResult = await this.prisma.$transaction(async (tx) => {
@@ -128,7 +129,6 @@ export class PasswordResetService {
 
       if (
         resetToken.user.status !== UserStatus.ACTIVE ||
-        !resetToken.user.passwordHash ||
         resetToken.user.organizationId !== resetToken.organizationId
       ) {
         throw new BadRequestException({
@@ -180,22 +180,17 @@ export class PasswordResetService {
     return { message: 'Password has been reset successfully. You can now sign in.' };
   }
 
-  private async findEligibleUser(organizationCode: string, email: string): Promise<User | null> {
+  private async findEligibleUser(email: string): Promise<User | null> {
     const normalizedEmail = normalizeEmail(email);
-    const normalizedOrganizationCode = organizationCode.trim().toLowerCase();
 
-    const user = await this.prisma.user.findFirst({
+    return this.prisma.user.findFirst({
       where: {
         email: normalizedEmail,
-        passwordHash: { not: null },
         status: UserStatus.ACTIVE,
         organization: {
-          code: normalizedOrganizationCode,
           status: OrganizationStatus.ACTIVE,
         },
       },
     });
-
-    return user;
   }
 }

@@ -7,6 +7,12 @@ export class ProvisionStaffLoginDataDto {
 
   @ApiProperty({ example: 'rajesh.kumar@sunrise-school.test' })
   loginEmail!: string;
+
+  @ApiProperty()
+  inviteUrl!: string;
+
+  @ApiProperty()
+  inviteExpiresAt!: string;
 }
 
 export class ProvisionStaffLoginResponseDto {

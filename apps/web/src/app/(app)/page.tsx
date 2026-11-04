@@ -1,7 +1,17 @@
 'use client';
 
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
+import BuildOutlined from '@mui/icons-material/BuildOutlined';
+import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
+import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined';
+import PersonOutlined from '@mui/icons-material/PersonOutlined';
+import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
+import TaskAltOutlined from '@mui/icons-material/TaskAltOutlined';
+import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
 import { useEffect, useState } from 'react';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
+import { apiClient } from '@/lib/api/client';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -11,12 +21,22 @@ import CardContent from '@mui/material/CardContent';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import Container from '@mui/material/Container';
 import Link from 'next/link';
+import type { ElementType } from 'react';
+import {
+  DashboardMetricGrid,
+  DashboardQuickActions,
+  DashboardSkeleton,
+  STAT_TONES,
+  type DashboardMetricCardProps,
+  type QuickActionItem,
+} from '@/components/home/DashboardWidgets';
+import { PublicLandingPage } from '@/components/home/PublicLandingPage';
 import { HomeWelcomeHero } from '@/components/home/HomeWelcomeHero';
+import { StatTile } from '@/components/ui/StatTile';
 import { PlatformHomeContent } from '@/components/home/PlatformHomeContent';
-import { LoadingState } from '@/components/ui/AppTable';
-import { isOperationalDashboardUser } from '@/lib/auth/routing';
+import { hasPermission, isOperationalDashboardUser } from '@/lib/auth/routing';
+import { isAttendanceEnabled } from '@/lib/features/feature-flags';
 import {
   formatDashboardDate,
   getDashboardSummary,
@@ -31,23 +51,7 @@ interface SummaryCardProps {
   label: string;
   value: string;
   href: string;
-}
-
-function SummaryCard({ label, value, href }: SummaryCardProps) {
-  return (
-    <Card variant="outlined">
-      <CardActionArea component={Link} href={href} sx={{ height: '100%' }}>
-        <CardContent>
-          <Typography color="text.secondary" variant="body2">
-            {label}
-          </Typography>
-          <Typography variant="h5" sx={{ mt: 0.75 }}>
-            {value}
-          </Typography>
-        </CardContent>
-      </CardActionArea>
-    </Card>
-  );
+  icon: ElementType;
 }
 
 function SectionPaper({
@@ -74,6 +78,184 @@ function SectionPaper({
         children
       )}
     </Paper>
+  );
+}
+
+function buildQuickActions(permissions: string[] | undefined): QuickActionItem[] {
+  const actions: QuickActionItem[] = [];
+  if (hasPermission(permissions, 'staff.create')) {
+    actions.push({ label: 'Add staff', href: '/staff/new', icon: AddOutlined });
+  }
+  if (hasPermission(permissions, 'visitor.create')) {
+    actions.push({ label: 'Register visitor', href: '/visitors/new', icon: BadgeOutlined });
+  }
+  if (hasPermission(permissions, 'complaint.create')) {
+    actions.push({ label: 'Log complaint', href: '/complaints/new', icon: BuildOutlined });
+  }
+  if (hasPermission(permissions, 'approval.view')) {
+    actions.push({ label: 'Review approvals', href: '/approvals', icon: TaskAltOutlined });
+  }
+  if (hasPermission(permissions, 'notice.create')) {
+    actions.push({ label: 'Publish notice', href: '/notices/new', icon: AnnouncementOutlined });
+  }
+  return actions;
+}
+
+function LimitedRoleHome({ permissions }: { permissions: string[] | undefined }) {
+  const links: { label: string; href: string; icon: ElementType; description: string }[] = [];
+
+  if (hasPermission(permissions, 'student.self.view')) {
+    links.push({
+      label: 'My profile',
+      href: '/student/profile',
+      icon: PersonOutlined,
+      description: 'View your student details',
+    });
+  }
+  if (hasPermission(permissions, 'student.self.fee.view')) {
+    links.push({
+      label: 'My fees',
+      href: '/student/fees',
+      icon: ReceiptLongOutlined,
+      description: 'Dues, payments, and receipts',
+    });
+  }
+  if (hasPermission(permissions, 'notice.view')) {
+    links.push({
+      label: 'Notices',
+      href: '/notices',
+      icon: AnnouncementOutlined,
+      description: 'School announcements',
+    });
+  }
+  if (hasPermission(permissions, 'visitor.create')) {
+    links.push({
+      label: 'Register visitor',
+      href: '/visitors/new',
+      icon: BadgeOutlined,
+      description: 'Check in a visitor and print a badge',
+    });
+  }
+  if (hasPermission(permissions, 'visitor.view') && !hasPermission(permissions, 'visitor.create')) {
+    links.push({
+      label: 'Visitors',
+      href: '/visitors',
+      icon: BadgeOutlined,
+      description: 'People currently on campus',
+    });
+  }
+  if (hasPermission(permissions, 'parent.portal.view')) {
+    links.push({
+      label: 'My children',
+      href: '/parent',
+      icon: PersonOutlined,
+      description: 'Students linked to your account',
+    });
+  }
+  if (hasPermission(permissions, 'event.view') && !hasPermission(permissions, 'student.self.view')) {
+    links.push({
+      label: 'Events',
+      href: '/events',
+      icon: CheckCircleOutlined,
+      description: 'School calendar events',
+    });
+  }
+  if (hasPermission(permissions, 'complaint.view')) {
+    links.push({
+      label: 'Complaints',
+      href: '/complaints',
+      icon: BuildOutlined,
+      description: 'Maintenance requests you can open',
+    });
+  }
+  if (hasPermission(permissions, 'fee.view')) {
+    links.push({
+      label: 'Fees',
+      href: '/fees',
+      icon: ReceiptLongOutlined,
+      description: 'Structures, assignments, and payments',
+    });
+  }
+  if (hasPermission(permissions, 'asset.view')) {
+    links.push({
+      label: 'Assets',
+      href: '/assets',
+      icon: BuildOutlined,
+      description: 'School property and assignments',
+    });
+  }
+  if (hasPermission(permissions, 'document.view')) {
+    links.push({
+      label: 'Documents',
+      href: '/documents',
+      icon: ReceiptLongOutlined,
+      description: 'Certificates and passes already generated',
+    });
+  }
+  if (hasPermission(permissions, 'approval.view')) {
+    links.push({
+      label: 'Approvals',
+      href: '/approvals',
+      icon: TaskAltOutlined,
+      description: 'Requests waiting for a decision',
+    });
+  }
+
+  return (
+    <Stack spacing={3} sx={{ maxWidth: 720 }}>
+      <HomeWelcomeHero
+        title="Welcome back"
+        subtitle="Your CampusOps portal"
+        meta="Open a module below or use the sidebar navigation."
+      />
+      {links.length > 0 ? (
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+          }}
+        >
+          {links.map((item) => (
+            <Card key={item.href} variant="outlined">
+              <CardActionArea component={Link} href={item.href}>
+                <CardContent>
+                  <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 1.5,
+                        bgcolor: 'primary.light',
+                        color: 'primary.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <item.icon fontSize="small" />
+                    </Box>
+                    <Stack spacing={0.5}>
+                      <Typography fontWeight={600}>{item.label}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {item.description}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </CardContent>
+              </CardActionArea>
+            </Card>
+          ))}
+        </Box>
+      ) : (
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography color="text.secondary">
+            This account does not include the school operations dashboard. Open a module from the navigation menu to
+            continue.
+          </Typography>
+        </Paper>
+      )}
+    </Stack>
   );
 }
 
@@ -133,68 +315,11 @@ export default function HomePage() {
   }, [isReady, isAuthenticated, user?.organization?.code, user?.permissions]);
 
   if (isReady && !isAuthenticated) {
-    return (
-      <Box component="main">
-        <Box
-          sx={{
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText',
-            py: { xs: 6, md: 9 },
-          }}
-        >
-          <Container maxWidth="md">
-            <Stack spacing={2} sx={{ textAlign: 'center' }}>
-              <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
-                School operations, simplified
-              </Typography>
-              <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 400 }}>
-                CampusOps helps schools run attendance, leave, fees, visitors, notices, and workflows in one place.
-              </Typography>
-            </Stack>
-          </Container>
-        </Box>
-
-        <Container maxWidth="md" sx={{ py: { xs: 5, md: 8 } }}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
-            <Paper
-              elevation={0}
-              variant="outlined"
-              sx={{ flex: 1, p: 4, display: 'flex', flexDirection: 'column', textAlign: 'center' }}
-            >
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>
-                New school?
-              </Typography>
-              <Typography color="text.secondary" sx={{ mb: 3, flex: 1 }}>
-                Submit a registration request. After platform approval, your administrator completes signup with an
-                organization code.
-              </Typography>
-              <Button component={Link} href="/register-organization" variant="contained" size="large">
-                Register school
-              </Button>
-            </Paper>
-            <Paper
-              elevation={0}
-              variant="outlined"
-              sx={{ flex: 1, p: 4, display: 'flex', flexDirection: 'column', textAlign: 'center' }}
-            >
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>
-                Already onboarded?
-              </Typography>
-              <Typography color="text.secondary" sx={{ mb: 3, flex: 1 }}>
-                Sign in with your organization code, work email, and password.
-              </Typography>
-              <Button component={Link} href="/login" variant="outlined" size="large">
-                Sign in
-              </Button>
-            </Paper>
-          </Stack>
-        </Container>
-      </Box>
-    );
+    return <PublicLandingPage />;
   }
 
   if (!isReady || isLoading) {
-    return <LoadingState label="Loading dashboard" />;
+    return <DashboardSkeleton />;
   }
 
   if (!user) {
@@ -215,30 +340,18 @@ export default function HomePage() {
   }
 
   if (!isOperationalDashboardUser(user.permissions)) {
-    return (
-      <Stack spacing={3} sx={{ maxWidth: 720 }}>
-        <HomeWelcomeHero
-          title="Welcome back"
-          subtitle={user.organization?.name ?? 'CampusOps'}
-          meta="Use the sidebar to open the modules available to your account."
-        />
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography color="text.secondary">
-            This account does not include the school operations dashboard. Open a module from the navigation menu to
-            continue.
-          </Typography>
-        </Paper>
-      </Stack>
-    );
+    return <LimitedRoleHome permissions={user.permissions} />;
   }
 
   if (errorMessage) {
     return (
       <Stack spacing={3}>
         <Alert severity="error">{errorMessage}</Alert>
-        <Button component={Link} href="/staff" variant="contained">
-          Open staff
-        </Button>
+        {hasPermission(user.permissions, 'staff.view') ? (
+          <Button component={Link} href="/staff" variant="contained">
+            Open staff
+          </Button>
+        ) : null}
       </Stack>
     );
   }
@@ -255,16 +368,27 @@ export default function HomePage() {
   const summaryCards: SummaryCardProps[] = [];
 
   if (metrics.students !== null) {
-    summaryCards.push({ label: 'Students', value: String(metrics.students), href: '/students' });
+    summaryCards.push({
+      label: 'Students',
+      value: String(metrics.students),
+      href: '/students',
+      icon: PeopleAltOutlined,
+    });
   }
   if (metrics.activeStaff !== null) {
-    summaryCards.push({ label: 'Active staff', value: String(metrics.activeStaff), href: '/staff' });
+    summaryCards.push({
+      label: 'Active staff',
+      value: String(metrics.activeStaff),
+      href: '/staff',
+      icon: PeopleAltOutlined,
+    });
   }
-  if (metrics.todayAttendance !== null) {
+  if (isAttendanceEnabled() && metrics.todayAttendance !== null) {
     summaryCards.push({
       label: "Today's attendance",
       value: `${metrics.todayAttendance.present} present`,
       href: `/reports/attendance?date=${metrics.todayAttendance.date}`,
+      icon: CheckCircleOutlined,
     });
   }
   if (metrics.outstandingFees !== null) {
@@ -272,6 +396,45 @@ export default function HomePage() {
       label: 'Outstanding fees',
       value: formatCurrency(metrics.outstandingFees.totalOutstanding),
       href: '/reports/fees',
+      icon: ReceiptLongOutlined,
+    });
+  }
+
+  const priorityMetrics: DashboardMetricCardProps[] = [];
+  if (metrics.pendingApprovals !== null) {
+    priorityMetrics.push({
+      label: 'Pending approvals',
+      value: String(metrics.pendingApprovals),
+      href: '/approvals',
+      icon: TaskAltOutlined,
+      detail: 'Requests waiting for action',
+    });
+  }
+  if (metrics.openComplaints !== null) {
+    priorityMetrics.push({
+      label: 'Open complaints',
+      value: String(metrics.openComplaints),
+      href: '/reports/complaints?openOnly=true',
+      icon: BuildOutlined,
+      detail: 'Facilities and maintenance',
+    });
+  }
+  if (metrics.visitorsToday !== null) {
+    priorityMetrics.push({
+      label: 'Visitors today',
+      value: String(metrics.visitorsToday.checkedInToday),
+      href: `/reports/visitors?date=${summary.localDate}`,
+      icon: BadgeOutlined,
+      detail: `${metrics.visitorsToday.activeOnCampus} currently on campus`,
+    });
+  }
+  if (metrics.assetAlerts !== null && metrics.assetAlerts.total > 0) {
+    priorityMetrics.push({
+      label: 'Asset warranty alerts',
+      value: String(metrics.assetAlerts.total),
+      href: '/assets?warrantyAlert=true',
+      icon: BuildOutlined,
+      detail: `${metrics.assetAlerts.expired} expired · ${metrics.assetAlerts.expiringSoon} expiring soon`,
     });
   }
 
@@ -303,6 +466,8 @@ export default function HomePage() {
       : null,
   ].filter((item): item is NonNullable<typeof item> => item !== null);
 
+  const quickActions = buildQuickActions(user.permissions);
+
   return (
     <Stack spacing={3}>
       <HomeWelcomeHero
@@ -310,19 +475,32 @@ export default function HomePage() {
         subtitle={summary.organization.name}
         meta={formatDashboardDate(summary.localDate, summary.organization.timezone)}
       />
+      <PlanLimitNotice />
+
+      <DashboardQuickActions actions={quickActions} />
+
+      {priorityMetrics.length > 0 ? (
+        <Stack spacing={1.5}>
+          <Typography variant="h6">Needs attention</Typography>
+          <DashboardMetricGrid items={priorityMetrics} />
+        </Stack>
+      ) : null}
 
       {summaryCards.length > 0 ? (
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2,
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          }}
-        >
-          {summaryCards.map((card) => (
-            <SummaryCard key={card.label} {...card} />
-          ))}
-        </Box>
+        <Stack spacing={1.5}>
+          <Typography variant="h6">Overview</Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+            }}
+          >
+            {summaryCards.map((card, index) => (
+              <StatTile key={card.label} {...card} tone={STAT_TONES[index % STAT_TONES.length]} hrefLabel="Open" />
+            ))}
+          </Box>
+        </Stack>
       ) : (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography color="text.secondary">
@@ -421,4 +599,39 @@ export default function HomePage() {
       ) : null}
     </Stack>
   );
+}
+
+function PlanLimitNotice() {
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void apiClient
+      .get<{
+        data: {
+          planName: string;
+          studentCount: number;
+          studentLimit: number;
+          staffCount: number;
+          staffLimit: number;
+          overStudentLimit: boolean;
+          overStaffLimit: boolean;
+        };
+      }>('/organizations/current/subscription', { auth: true })
+      .then((response) => {
+        const plan = response.data;
+        if (!plan.overStudentLimit && !plan.overStaffLimit) {
+          setMessage(null);
+          return;
+        }
+        const parts = [
+          plan.overStudentLimit ? `${plan.studentCount} students (limit ${plan.studentLimit})` : null,
+          plan.overStaffLimit ? `${plan.staffCount} staff (limit ${plan.staffLimit})` : null,
+        ].filter(Boolean);
+        setMessage(`${plan.planName} plan is above its recorded limit: ${parts.join(' and ')}. Existing records stay available.`);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  if (!message) return null;
+  return <Alert severity="warning">{message}</Alert>;
 }

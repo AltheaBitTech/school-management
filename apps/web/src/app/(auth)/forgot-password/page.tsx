@@ -3,17 +3,18 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
+import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
-import { FormEvent, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useState } from 'react';
+import { AuthPageCard } from '@/components/auth/AuthPageCard';
 import { requestPasswordReset } from '@/lib/auth/auth-client';
 
-export default function ForgotPasswordPage() {
-  const [organizationCode, setOrganizationCode] = useState('');
-  const [email, setEmail] = useState('');
+function ForgotPasswordForm() {
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState(searchParams.get('email') ?? '');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,7 +27,6 @@ export default function ForgotPasswordPage() {
 
     try {
       const response = await requestPasswordReset({
-        organizationCode,
         email,
       });
       setSuccessMessage(response.message);
@@ -38,68 +38,68 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <Box
-      component="main"
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        px: 2,
-        py: 6,
-        bgcolor: 'background.default',
-      }}
+    <AuthPageCard
+      title="Forgot password"
+      description="Enter your email. If an account exists, we will send a reset link."
+      footerLink={{ href: '/', label: 'Back to home' }}
     >
-      <Paper variant="outlined" sx={{ width: '100%', maxWidth: 440, mx: 'auto', p: { xs: 3, sm: 4 } }}>
-        <Stack spacing={3}>
-          <Stack spacing={0.75}>
-            <Typography variant="h5" component="p" color="primary" sx={{ fontWeight: 700 }}>
-              CampusOps
-            </Typography>
-            <Typography variant="h4" component="h1">
-              Forgot password
-            </Typography>
-            <Typography color="text.secondary">
-              Enter your organization code and email. If an account exists, we will send a reset link.
-            </Typography>
-          </Stack>
-
-          {successMessage ? (
-            <Alert severity="success">{successMessage}</Alert>
-          ) : (
-            <Box component="form" onSubmit={handleSubmit}>
-              <Stack spacing={2}>
-                <TextField
-                  label="Organization code"
-                  name="organizationCode"
-                  value={organizationCode}
-                  onChange={(event) => setOrganizationCode(event.target.value)}
-                  required
-                  fullWidth
-                />
-                <TextField
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  fullWidth
-                />
-
-                {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-
-                <Button type="submit" variant="contained" disabled={isSubmitting} fullWidth>
-                  {isSubmitting ? 'Sending…' : 'Send reset link'}
-                </Button>
-              </Stack>
-            </Box>
-          )}
-
-          <Button component={Link} href="/login" variant="text">
-            Back to sign in
-          </Button>
+      {successMessage ? (
+        <Stack spacing={2}>
+          <Alert severity="success">{successMessage}</Alert>
+          <Alert severity="info">
+            The link expires in 60 minutes. Open it promptly to set or reset your password.
+          </Alert>
         </Stack>
-      </Paper>
-    </Box>
+      ) : (
+        <Box component="form" onSubmit={handleSubmit}>
+          <Stack spacing={2}>
+            <TextField
+              label="Email"
+              name="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              helperText="The email address on your CampusOps account (same as your invite email)"
+              required
+              fullWidth
+                          />
+
+            {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              disabled={isSubmitting}
+              fullWidth
+              startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : undefined}
+            >
+              {isSubmitting ? 'Sending…' : 'Send reset link'}
+            </Button>
+            <Box sx={{ textAlign: 'center' }}>
+              <Button component={Link} href="/login" variant="text">
+                Back to sign in
+              </Button>
+            </Box>
+          </Stack>
+        </Box>
+      )}
+    </AuthPageCard>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthPageCard title="Forgot password" description="Loading…" footerLink={{ href: '/', label: 'Back to home' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+            <CircularProgress aria-label="Loading forgot password page" />
+          </Box>
+        </AuthPageCard>
+      }
+    >
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }

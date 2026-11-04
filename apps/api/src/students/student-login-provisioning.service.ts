@@ -1,0 +1,172 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Prisma, StudentStatus, UserStatus } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
+import { PASSWORD_RESET_TOKEN_TTL_MS } from '../auth/constants/auth.constants';
+import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
+import { normalizeEmail } from '../auth/utils/email.util';
+import { generateRefreshToken, hashRefreshToken } from '../auth/utils/token-hash.util';
+import { AppConfig, CONFIGURATION_KEY } from '../config/configuration';
+import { primaryFrontendOrigin } from '../config/cors.util';
+import { ORGANIZATION_ROLE_CODES } from '../permissions/constants/system-roles';
+import { PrismaService } from '../prisma/prisma.service';
+import { RolesService } from '../roles/roles.service';
+import { buildStaffInviteUrl, logStaffInviteToConsole } from '../staff/utils/staff-invite.util';
+import { STUDENT_ERROR_CODES } from './constants/student.constants';
+import { ProvisionStudentLoginDto } from './dto/provision-student-login.dto';
+
+export interface ProvisionStudentLoginResult {
+  userId: string;
+  loginEmail: string;
+  inviteUrl: string;
+  inviteExpiresAt: string;
+}
+
+@Injectable()
+export class StudentLoginProvisioningService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rolesService: RolesService,
+    private readonly auditService: AuditService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async provisionLogin(
+    actor: AuthenticatedUser,
+    studentId: string,
+    dto: ProvisionStudentLoginDto,
+    options?: { requestId?: string },
+  ): Promise<ProvisionStudentLoginResult> {
+    const organizationId = actor.organizationId;
+    const normalizedEmail = normalizeEmail(dto.email);
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, organizationId },
+      include: { organization: { select: { code: true } } },
+    });
+
+    if (!student) {
+      throw new NotFoundException({
+        code: STUDENT_ERROR_CODES.STUDENT_NOT_FOUND,
+        message: 'Student not found',
+      });
+    }
+
+    if (student.userId) {
+      throw new ConflictException({
+        code: STUDENT_ERROR_CODES.STUDENT_LOGIN_ALREADY_PROVISIONED,
+        message: 'This student already has a linked login account',
+      });
+    }
+
+    if (student.status === StudentStatus.INACTIVE) {
+      throw new BadRequestException({
+        code: STUDENT_ERROR_CODES.STUDENT_INACTIVE,
+        message: 'Login cannot be provisioned for an inactive student',
+      });
+    }
+
+    const role = await this.prisma.role.findFirst({
+      where: { organizationId, code: ORGANIZATION_ROLE_CODES.STUDENT },
+    });
+    if (!role) {
+      throw new NotFoundException({
+        code: STUDENT_ERROR_CODES.INVALID_ROLE,
+        message: 'Student role was not found for this organization',
+      });
+    }
+
+    const existingUser = await this.prisma.user.findFirst({
+      where: { email: normalizedEmail },
+    });
+    if (existingUser) {
+      throw new ConflictException({
+        code: STUDENT_ERROR_CODES.DUPLICATE_USER_EMAIL,
+        message: 'This email is already registered',
+      });
+    }
+
+    const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
+    const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
+    const rawToken = generateRefreshToken();
+    const tokenHash = hashRefreshToken(rawToken);
+    const inviteUrl = buildStaffInviteUrl(frontendBaseUrl, rawToken, student.organization.code);
+
+    try {
+      const user = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.user.create({
+          data: {
+            organizationId,
+            email: normalizedEmail,
+            passwordHash: null,
+            status: UserStatus.ACTIVE,
+          },
+        });
+
+        await this.rolesService.assertRoleAssignmentAllowed(actor, created, role);
+
+        await tx.userRole.create({
+          data: { userId: created.id, roleId: role.id },
+        });
+        await tx.passwordResetToken.create({
+          data: {
+            userId: created.id,
+            organizationId,
+            tokenHash,
+            expiresAt,
+          },
+        });
+        await tx.student.update({
+          where: { id: student.id },
+          data: { userId: created.id },
+        });
+
+        await this.auditService.record(
+          {
+            organizationId,
+            actorUserId: actor.userId,
+            action: AUDIT_ACTIONS.USER_CREATED,
+            entityType: AUDIT_ENTITY_TYPES.USER,
+            entityId: created.id,
+            requestId: options?.requestId,
+            metadata: { email: normalizedEmail, studentId: student.id, invite: true },
+          },
+          tx,
+        );
+
+        return created;
+      });
+
+      const invite = {
+        userId: user.id,
+        loginEmail: normalizedEmail,
+        inviteUrl,
+        inviteExpiresAt: expiresAt.toISOString(),
+      };
+      logStaffInviteToConsole({
+        firstName: student.firstName,
+        lastName: student.lastName,
+        email: normalizedEmail,
+        roleName: 'Student',
+        heading: 'Student Login Invite',
+        inviteUrl,
+        expiresInMinutes: PASSWORD_RESET_TOKEN_TTL_MS / 60_000,
+      });
+      return invite;
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException({
+          code: STUDENT_ERROR_CODES.DUPLICATE_USER_EMAIL,
+          message: 'This email is already registered',
+        });
+      }
+      throw error;
+    }
+  }
+}

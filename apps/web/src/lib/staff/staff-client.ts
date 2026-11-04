@@ -1,4 +1,9 @@
 import { apiClient } from '@/lib/api/client';
+import {
+  downloadAuthenticatedFile,
+  postCsvFile,
+  type ImportPreviewResult,
+} from '@/lib/imports/csv-transfer';
 import type { PaginationMeta } from '@/lib/departments/departments-client';
 
 export interface StaffDepartmentSummary {
@@ -24,6 +29,8 @@ export interface StaffMember {
   reportingManagerId?: string | null;
   employmentStatus: 'ACTIVE' | 'OFFBOARDING' | 'OFFBOARDED';
   department?: StaffDepartmentSummary | null;
+  loginRole?: { id: string; code: string; name: string } | null;
+  loginRoles?: Array<{ id: string; code: string; name: string }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,13 +73,20 @@ export async function getStaff(id: string): Promise<StaffMember> {
   return response.data;
 }
 
+export async function suggestNextEmployeeCode(): Promise<string> {
+  const response = await apiClient.get<{ data: { code: string } }>('/staff/next-code', {
+    auth: true,
+  });
+  return response.data.code;
+}
+
 export async function createStaff(input: {
   employeeCode: string;
   firstName: string;
   lastName: string;
   displayName?: string;
   mobile?: string;
-  email?: string;
+  email: string;
   departmentId?: string;
   designation?: string;
   joiningDate?: string;
@@ -105,13 +119,34 @@ export async function deactivateStaff(id: string): Promise<StaffMember> {
 
 export interface ProvisionStaffLoginInput {
   email: string;
-  password: string;
   roleId: string;
 }
 
 export interface ProvisionStaffLoginResult {
   staff: StaffMember;
   loginEmail: string;
+  inviteUrl: string;
+  inviteExpiresAt: string;
+}
+
+export interface StaffImportRowResult {
+  row: number;
+  status: 'imported' | 'error';
+  category?: 'validation' | 'duplicate';
+  column?: string;
+  name?: string;
+  email?: string;
+  inviteUrl?: string;
+  inviteExpiresAt?: string;
+  employeeCode?: string;
+  reason?: string;
+}
+
+export interface StaffImportResult {
+  imported: number;
+  skipped: number;
+  duplicateCount?: number;
+  rows: StaffImportRowResult[];
 }
 
 interface ProvisionStaffLoginResponse {
@@ -129,6 +164,28 @@ export async function provisionStaffLogin(
   return response.data;
 }
 
-export function getStaffDisplayName(staff: StaffMember): string {
+export async function previewStaffCsv(file: File): Promise<ImportPreviewResult> {
+  return postCsvFile<ImportPreviewResult>('/staff/import/preview', file);
+}
+
+export async function importStaffCsv(file: File): Promise<StaffImportResult> {
+  return postCsvFile<StaffImportResult>('/staff/import', file);
+}
+
+export async function downloadStaffImportSampleCsv(): Promise<void> {
+  await downloadAuthenticatedFile('/staff/import/sample.csv', 'campusops-staff-import-sample.csv');
+}
+
+export async function downloadStaffImportGuidePdf(): Promise<void> {
+  await downloadAuthenticatedFile('/staff/import/guide.pdf', 'campusops-staff-import-guide.pdf');
+}
+
+export function getStaffDisplayName(staff: Pick<StaffMember, 'firstName' | 'lastName' | 'displayName'>): string {
   return staff.displayName?.trim() || `${staff.firstName} ${staff.lastName}`.trim();
+}
+
+export function getStaffInitials(staff: Pick<StaffMember, 'firstName' | 'lastName' | 'displayName'>): string {
+  const parts = getStaffDisplayName(staff).split(/\s+/).filter(Boolean);
+  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
+  return initials || '?';
 }

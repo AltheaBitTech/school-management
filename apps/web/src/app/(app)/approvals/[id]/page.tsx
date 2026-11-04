@@ -1,5 +1,6 @@
 'use client';
 
+import TaskAltOutlined from '@mui/icons-material/TaskAltOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -11,8 +12,10 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useAuthSession } from '@/components/providers/AuthSessionProvider';
 import {
   approveApprovalRequest,
   formatApprovalAction,
@@ -24,8 +27,10 @@ import {
   type ApprovalAction,
   type ApprovalRequest,
 } from '@/lib/approvals/approvals-client';
+import { canActOnLeaveApprovalRequest } from '@/lib/leave/leave-approval-access';
 
 export default function ApprovalDetailPage() {
+  const { user } = useAuthSession();
   const params = useParams<{ id: string }>();
   const [request, setRequest] = useState<ApprovalRequest | null>(null);
   const [history, setHistory] = useState<ApprovalAction[]>([]);
@@ -36,6 +41,10 @@ export default function ApprovalDetailPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
+
+  const canActOnRequest =
+    request &&
+    canActOnLeaveApprovalRequest(user?.permissions, user?.role?.code, request.entityType);
 
   const reload = useCallback(async (): Promise<void> => {
     const [loadedRequest, loadedHistory] = await Promise.all([
@@ -141,19 +150,16 @@ export default function ApprovalDetailPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Approval details
-          </Typography>
-          <Typography color="text.secondary">
-            Review request information, history, and take action.
-          </Typography>
-        </Box>
-        <Button component={Link} href="/approvals" variant="outlined">
-          Back to approvals
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Approval details"
+        description="Review request information, history, and take action."
+        icon={TaskAltOutlined}
+        actions={
+          <Button component={Link} href="/approvals" variant="outlined">
+            Back to approvals
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -207,7 +213,7 @@ export default function ApprovalDetailPage() {
             )}
           </Stack>
 
-          {request.status === 'PENDING' ? (
+          {request.status === 'PENDING' && canActOnRequest ? (
             <Stack spacing={2}>
               <TextField
                 label="Comment"
@@ -230,6 +236,12 @@ export default function ApprovalDetailPage() {
                 </Button>
               </Stack>
             </Stack>
+          ) : request.status === 'PENDING' ? (
+            <Alert severity="info">
+              {request.entityType === 'LEAVE'
+                ? 'Only the Principal can approve or reject leave requests.'
+                : 'You are not authorized to act on this approval at the current level.'}
+            </Alert>
           ) : (
             <Alert severity="info">This approval request is complete.</Alert>
           )}

@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   ParseUUIDPipe,
   Post,
   Query,
@@ -26,7 +27,11 @@ import {
   PaginatedGeneratedDocumentsResponseDto,
 } from './dto/document-response.dto';
 import { GenerateBonafideDocumentDto } from './dto/generate-bonafide-document.dto';
+import { DocumentType } from '@prisma/client';
+import { GenerateDocumentDto } from './dto/generate-document.dto';
+import { UpdateDocumentTemplateDto } from './dto/update-document-template.dto';
 import { ListDocumentsQueryDto } from './dto/list-documents-query.dto';
+import { ListDocumentSubjectsQueryDto } from './dto/list-document-subjects-query.dto';
 
 @ApiTags('documents')
 @ApiBearerAuth()
@@ -41,6 +46,49 @@ export class DocumentsController {
   @ApiOkResponse({ type: PaginatedGeneratedDocumentsResponseDto })
   async list(@CurrentUser() user: AuthenticatedUser, @Query() query: ListDocumentsQueryDto) {
     return this.documentsService.list(user.organizationId, query);
+  }
+
+  @Get('templates')
+  @RequirePermissions('document.view')
+  @ApiOperation({ summary: 'List document templates for the current organization' })
+  async listTemplates(@CurrentUser() user: AuthenticatedUser) {
+    return this.documentsService.listTemplates(user.organizationId);
+  }
+
+  @Get('subjects')
+  @RequirePermissions('document.generate')
+  @ApiOperation({
+    summary: 'List names and codes that can be printed on a document, without full profile access',
+  })
+  async listSubjects(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListDocumentSubjectsQueryDto,
+  ) {
+    return this.documentsService.listGenerationSubjects(user.organizationId, query);
+  }
+
+  @Patch('templates/:documentType')
+  @RequirePermissions('document.template.update')
+  @ApiOperation({ summary: 'Update certificate title and body for the current organization' })
+  async updateTemplate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('documentType') documentType: DocumentType,
+    @Body() dto: UpdateDocumentTemplateDto,
+  ) {
+    const data = await this.documentsService.updateTemplate(user.organizationId, documentType, dto);
+    return { data };
+  }
+
+  @Post('generate')
+  @RequirePermissions('document.generate')
+  @ApiOperation({ summary: 'Generate a document from a supported template type' })
+  @ApiOkResponse({ type: GeneratedDocumentDetailResponseDto })
+  async generateDocument(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: GenerateDocumentDto,
+  ) {
+    const document = await this.documentsService.generateDocument(user.organizationId, user, dto);
+    return { data: document };
   }
 
   @Post('bonafide')

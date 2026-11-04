@@ -24,6 +24,23 @@ export class AssetStaffSummaryDto {
   displayName?: string | null;
 }
 
+export class AssetStudentSummaryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  studentCode!: string;
+
+  @ApiProperty()
+  firstName!: string;
+
+  @ApiProperty()
+  lastName!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  displayName?: string | null;
+}
+
 export class AssetUserSummaryDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -222,6 +239,9 @@ export class AssetDto {
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   assignedStaffId?: string | null;
 
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  assignedStudentId?: string | null;
+
   @ApiProperty({ enum: AssetStatus })
   status!: AssetStatus;
 
@@ -248,6 +268,9 @@ export class AssetDto {
 
   @ApiPropertyOptional({ type: AssetStaffSummaryDto, nullable: true })
   assignedStaff?: AssetStaffSummaryDto | null;
+
+  @ApiPropertyOptional({ type: AssetStudentSummaryDto, nullable: true })
+  assignedStudent?: AssetStudentSummaryDto | null;
 
   @ApiPropertyOptional({ type: AssetUserSummaryDto })
   createdBy?: AssetUserSummaryDto;

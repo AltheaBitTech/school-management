@@ -25,6 +25,15 @@ export class FeeStructureDto {
   @ApiProperty()
   periodEnd!: string;
 
+  @ApiPropertyOptional()
+  installmentLabel?: string | null;
+
+  @ApiPropertyOptional()
+  dueDate?: string | null;
+
+  @ApiPropertyOptional()
+  academicYear?: string | null;
+
   @ApiProperty({ enum: FeeStructureStatus })
   status!: FeeStructureStatus;
 

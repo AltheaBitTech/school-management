@@ -1,0 +1,3 @@
+export const FEATURE_ERROR_CODES = {
+  FEATURE_DISABLED: 'FEATURE_DISABLED',
+} as const;

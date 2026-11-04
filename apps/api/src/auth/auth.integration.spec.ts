@@ -16,6 +16,7 @@ describeIfDatabase('Auth integration', () => {
   let authService: AuthService;
   let organizationId: string;
   let userId: string;
+  let roleId: string;
   const organizationCode = `test-org-${Date.now()}`;
   const email = `auth-${Date.now()}@example.com`;
   const password = 'StrongPassword123!';
@@ -72,11 +73,25 @@ describeIfDatabase('Auth integration', () => {
       },
     });
     userId = user.id;
+
+    const role = await prisma.role.create({
+      data: {
+        organizationId,
+        code: 'SCHOOL_ADMIN',
+        name: 'School Admin',
+      },
+    });
+    roleId = role.id;
+    await prisma.userRole.create({
+      data: { userId, roleId },
+    });
   });
 
   afterAll(async () => {
     await prisma.refreshSession.deleteMany({ where: { userId } });
+    await prisma.userRole.deleteMany({ where: { userId } });
     await prisma.user.deleteMany({ where: { id: userId } });
+    await prisma.role.deleteMany({ where: { id: roleId } });
     await prisma.organization.deleteMany({ where: { id: organizationId } });
     await prisma.$disconnect();
   });
@@ -84,15 +99,18 @@ describeIfDatabase('Auth integration', () => {
   it('supports login, refresh rotation, and logout', async () => {
     const loginResult = await authService.login(
       {
-        organizationCode,
         email,
         password,
       },
       {},
     );
 
+    if (!('accessToken' in loginResult)) {
+      throw new Error('Expected a single-role login session');
+    }
     expect(loginResult.accessToken).toBeDefined();
     expect(loginResult.user.organizationId).toBe(organizationId);
+    expect(loginResult.user.activeRoleId).toBe(roleId);
     expect(loginResult.refreshToken).toBeDefined();
 
     const refreshResult = await authService.refresh(loginResult.refreshToken, {});

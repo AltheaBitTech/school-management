@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiCreatedResponse, ApiConflictResponse, ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../auth/decorators/public.decorator';
@@ -12,6 +23,7 @@ import { OrganizationRegistrationResponseDto } from './dto/organization-registra
 import { RejectOrganizationRegistrationDto } from './dto/reject-organization-registration.dto';
 import { ApproveOrganizationRegistrationResponseDto } from './dto/approve-organization-registration-response.dto';
 import { RegistrationSignupContextDto } from './dto/registration-signup-context.dto';
+import { SuggestOrganizationCodeResponseDto } from './dto/suggest-organization-code-response.dto';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 
 @ApiTags('public')
@@ -30,6 +42,18 @@ export class OrganizationRegistrationsController {
     @Body() dto: CreateOrganizationRegistrationRequestDto,
   ): Promise<OrganizationRegistrationResponseDto> {
     return this.registrationsService.submitRegistrationRequest(dto);
+  }
+
+  @Get('suggest-code')
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Suggest an available school login code from the school name' })
+  @ApiOkResponse({ type: SuggestOrganizationCodeResponseDto })
+  async suggestOrganizationCode(
+    @Query('name') name: string,
+    @Query('code') code?: string,
+  ): Promise<SuggestOrganizationCodeResponseDto> {
+    return this.registrationsService.suggestOrganizationCode(name ?? '', code);
   }
 
   @Get('register/:id/signup-context')

@@ -8,6 +8,12 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+const mockSearchParams = new URLSearchParams();
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => mockSearchParams,
+}));
+
 vi.mock('@/lib/auth/auth-client', () => ({
   requestPasswordReset: vi.fn(),
 }));
@@ -17,13 +23,14 @@ import { requestPasswordReset } from '@/lib/auth/auth-client';
 describe('ForgotPasswordPage', () => {
   beforeEach(() => {
     vi.mocked(requestPasswordReset).mockReset();
+    mockSearchParams.forEach((_, key) => mockSearchParams.delete(key));
   });
 
   it('renders forgot password form', () => {
     render(<ForgotPasswordPage />);
 
     expect(screen.getByRole('heading', { name: 'Forgot password' })).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: /organization code/i })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /organization code/i })).not.toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /email/i })).toBeInTheDocument();
   });
 
@@ -34,9 +41,6 @@ describe('ForgotPasswordPage', () => {
 
     render(<ForgotPasswordPage />);
 
-    fireEvent.change(screen.getByRole('textbox', { name: /organization code/i }), {
-      target: { value: 'school-a' },
-    });
     fireEvent.change(screen.getByRole('textbox', { name: /email/i }), {
       target: { value: 'admin@school.example' },
     });

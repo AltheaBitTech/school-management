@@ -52,6 +52,7 @@ describeIfDatabase('Dashboard integration', () => {
     dashboardService = new DashboardService(
       prisma as unknown as PrismaService,
       new PermissionsService(prisma as unknown as PrismaService),
+      { isAttendanceEnabled: () => true } as import('../common/features/feature-flags.service').FeatureFlagsService,
     );
     permissionsGuard = new PermissionsGuard(
       new Reflector(),

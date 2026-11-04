@@ -2,7 +2,16 @@ import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import StaffListPage from '@/app/(app)/staff/page';
+import { AppThemeProvider } from '@/components/providers/AppThemeProvider';
 import { ApiError } from '@/lib/api/client';
+
+function renderStaffPage() {
+  return render(
+    <AppThemeProvider>
+      <StaffListPage />
+    </AppThemeProvider>,
+  );
+}
 
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -12,8 +21,14 @@ vi.mock('next/link', () => ({
 
 vi.mock('@/lib/staff/staff-client', () => ({
   listStaff: vi.fn(),
+  downloadStaffImportSampleCsv: vi.fn(),
+  downloadStaffImportGuidePdf: vi.fn(),
+  previewStaffCsv: vi.fn(),
+  importStaffCsv: vi.fn(),
   getStaffDisplayName: (staff: { firstName: string; lastName: string }) =>
     `${staff.firstName} ${staff.lastName}`,
+  getStaffInitials: (staff: { firstName: string; lastName: string }) =>
+    `${staff.firstName[0] ?? ''}${staff.lastName[0] ?? ''}`.toUpperCase(),
 }));
 
 vi.mock('@/lib/departments/departments-client', () => ({
@@ -30,7 +45,7 @@ describe('StaffListPage', () => {
   it('shows a loading state while staff are being fetched', () => {
     vi.mocked(listStaff).mockReturnValue(new Promise(() => undefined));
 
-    render(<StaffListPage />);
+    renderStaffPage();
 
     expect(screen.getByLabelText('Loading staff')).toBeInTheDocument();
   });
@@ -52,7 +67,7 @@ describe('StaffListPage', () => {
       meta: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
     });
 
-    render(<StaffListPage />);
+    renderStaffPage();
 
     await waitFor(() => {
       expect(screen.getByText('Anita Desai')).toBeInTheDocument();
@@ -65,7 +80,7 @@ describe('StaffListPage', () => {
       meta: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
     });
 
-    render(<StaffListPage />);
+    renderStaffPage();
 
     await waitFor(() => {
       expect(screen.getByText(/No staff members found/i)).toBeInTheDocument();
@@ -75,7 +90,7 @@ describe('StaffListPage', () => {
   it('shows a forbidden state on 403 responses', async () => {
     vi.mocked(listStaff).mockRejectedValue(new ApiError('Forbidden', 403));
 
-    render(<StaffListPage />);
+    renderStaffPage();
 
     await waitFor(() => {
       expect(screen.getByText('Access denied')).toBeInTheDocument();

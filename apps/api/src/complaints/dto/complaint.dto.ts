@@ -4,7 +4,17 @@ import {
   ComplaintPriority,
   ComplaintStatus,
 } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
+import { MAX_COMPLAINT_ATTACHMENTS } from '../constants/complaint.constants';
 
 export class CreateComplaintDto {
   @ApiProperty({ example: 'Broken projector in Room 12' })
@@ -32,6 +42,13 @@ export class CreateComplaintDto {
   @IsString()
   @MaxLength(200)
   location?: string;
+
+  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsUUID('4', { each: true })
+  attachmentFileIds?: string[];
 }
 
 export class UpdateComplaintDto {
@@ -76,6 +93,19 @@ export class ChangeComplaintStatusDto {
   @ApiProperty({ enum: ComplaintStatus, example: ComplaintStatus.IN_PROGRESS })
   @IsEnum(ComplaintStatus)
   status!: ComplaintStatus;
+
+  @ApiPropertyOptional({ example: 'Replaced the classroom projector lamp.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+
+  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_COMPLAINT_ATTACHMENTS)
+  @IsUUID('4', { each: true })
+  attachmentFileIds?: string[];
 }
 
 export class AddComplaintCommentDto {

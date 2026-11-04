@@ -71,12 +71,20 @@ describe('OrganizationsService', () => {
         role: {
           upsert: jest.fn().mockResolvedValue({ id: 'role-1', code: 'SCHOOL_ADMIN' }),
           findFirst: jest.fn().mockResolvedValue({ id: 'role-1', code: 'SCHOOL_ADMIN' }),
+          findUnique: jest.fn().mockResolvedValue({ id: 'role-1', code: 'SCHOOL_ADMIN' }),
         },
         permission: {
           findUnique: jest.fn().mockResolvedValue({ id: 'perm-1' }),
+          findMany: jest.fn().mockImplementation(({ where }: { where: { code: { in: string[] } } }) =>
+            Promise.resolve(
+              where.code.in.map((code, index) => ({ id: `perm-${index}`, code })),
+            ),
+          ),
         },
         rolePermission: {
           upsert: jest.fn().mockResolvedValue({ id: 'role-perm-1' }),
+          deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+          createMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
         assetCategory: {
           upsert: jest.fn().mockResolvedValue({ id: 'category-1' }),

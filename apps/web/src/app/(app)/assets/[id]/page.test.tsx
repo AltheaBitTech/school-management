@@ -81,6 +81,15 @@ vi.mock('@/lib/staff/staff-client', () => ({
     `${staff.firstName} ${staff.lastName}`,
 }));
 
+vi.mock('@/lib/students/students-client', () => ({
+  listStudents: vi.fn().mockResolvedValue({
+    data: [],
+    meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 },
+  }),
+  getStudentDisplayName: (student: { firstName: string; lastName: string }) =>
+    `${student.firstName} ${student.lastName}`,
+}));
+
 vi.mock('@/lib/departments/departments-client', () => ({
   listDepartments: vi.fn().mockResolvedValue({
     data: [{ id: 'dept-1', name: 'IT', code: 'IT', status: 'ACTIVE' }],
@@ -181,10 +190,10 @@ describe('AssetDetailPage', () => {
     render(<AssetDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('combobox', { name: 'Assign to staff' })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: 'Staff member' })).toBeInTheDocument();
     });
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Assign to staff' }));
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Staff member' }));
     fireEvent.click(await screen.findByRole('option', { name: 'New Assignee' }));
     fireEvent.click(screen.getByRole('button', { name: /^Assign$/i }));
 
@@ -237,10 +246,10 @@ describe('AssetDetailPage', () => {
     render(<AssetDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('combobox', { name: 'Assign to staff' })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: 'Staff member' })).toBeInTheDocument();
     });
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Assign to staff' }));
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Staff member' }));
     fireEvent.click(await screen.findByRole('option', { name: 'New Assignee' }));
     fireEvent.click(screen.getByRole('button', { name: /^Assign$/i }));
 

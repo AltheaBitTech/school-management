@@ -18,7 +18,6 @@ import {
 import { callRbacTest, getCurrentOrganization } from '@/lib/organizations/organizations-client';
 
 export default function SessionPage() {
-  const [organizationCode, setOrganizationCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -32,7 +31,7 @@ export default function SessionPage() {
     setIsSubmitting(true);
 
     try {
-      await login({ organizationCode, email, password });
+      await login({ email, password });
 
       const [me, organization, rbacTest] = await Promise.all([
         getCurrentUser(),
@@ -45,7 +44,7 @@ export default function SessionPage() {
       );
     } catch (error) {
       if (isUnauthorizedError(error)) {
-        setErrorMessage('Authentication failed. Check organization code, email, and password.');
+        setErrorMessage('Authentication failed. Check the email and password.');
       } else if (isForbiddenError(error)) {
         setErrorMessage('Authenticated, but this account does not have the required permission.');
       } else {
@@ -71,13 +70,6 @@ export default function SessionPage() {
 
           <Box component="form" onSubmit={handleLogin}>
             <Stack spacing={2}>
-              <TextField
-                label="Organization code"
-                value={organizationCode}
-                onChange={(event) => setOrganizationCode(event.target.value)}
-                required
-                fullWidth
-              />
               <TextField
                 label="Email"
                 type="email"

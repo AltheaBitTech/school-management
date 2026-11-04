@@ -1,7 +1,7 @@
 'use client';
 
+import EventOutlined from '@mui/icons-material/EventOutlined';
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
@@ -13,8 +13,10 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
 import { getStudentDisplayName, listStudents, type Student } from '@/lib/students/students-client';
 import {
@@ -34,6 +36,11 @@ import {
 import { getCurrentOrganization } from '@/lib/organizations/organizations-client';
 
 export default function EventDetailPage() {
+  const canUpdate = useCan('event.update');
+  const canCancel = useCan('event.cancel');
+  const canComplete = useCan('event.complete');
+  const canArchive = useCan('event.archive');
+  const canManageParticipants = useCan('event.manage_participants');
   const params = useParams<{ id: string }>();
   const eventId = params.id;
   const [event, setEvent] = useState<CampusEvent | null>(null);
@@ -110,7 +117,14 @@ export default function EventDetailPage() {
   }
 
   if (isForbidden) return <ForbiddenState />;
-  if (isLoading) return <CircularProgress />;
+  if (isLoading) {
+    return (
+      <Stack spacing={3}>
+        <PageHeader title="Event" description="Loading this event." icon={EventOutlined} />
+        <CircularProgress aria-label="Loading event" />
+      </Stack>
+    );
+  }
   if (isNotFound) return <Alert severity="error">Event not found.</Alert>;
   if (!event) return <Alert severity="error">{errorMessage ?? 'Event could not be loaded.'}</Alert>;
 
@@ -127,16 +141,20 @@ export default function EventDetailPage() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box><Typography variant="h4" component="h1">{event.title}</Typography><Typography color="text.secondary">{formatEventType(event.type)} at {event.venue.name}</Typography></Box>
+      <PageHeader
+        title={event.title}
+        description={`${formatEventType(event.type)} at ${event.venue.name}`}
+        icon={EventOutlined}
+        actions={
         <Stack direction="row" spacing={1} flexWrap="wrap">
-          {editable && <Button component={Link} href={`/events/${event.id}/edit`}>Edit</Button>}
-          {event.status === 'DRAFT' || event.status === 'SCHEDULED' ? <Button color="error" disabled={isActing} onClick={() => void perform(() => cancelEvent(event.id), 'Event cancelled.')}>Cancel</Button> : null}
-          {event.status === 'DRAFT' && <Button variant="outlined" disabled={isActing} onClick={() => void perform(() => scheduleEvent(event.id), 'Event scheduled.')}>Schedule</Button>}
-          {event.status === 'SCHEDULED' && <Button variant="contained" disabled={isActing} onClick={() => void perform(() => completeEvent(event.id), 'Event completed.')}>Complete</Button>}
-          {event.status === 'COMPLETED' && <Button variant="contained" disabled={isActing} onClick={() => void perform(() => archiveEvent(event.id), 'Event archived.')}>Archive</Button>}
+          {canUpdate && editable && <Button component={Link} href={`/events/${event.id}/edit`}>Edit</Button>}
+          {canCancel && (event.status === 'DRAFT' || event.status === 'SCHEDULED') ? <Button color="error" disabled={isActing} onClick={() => void perform(() => cancelEvent(event.id), 'Event cancelled.')}>Cancel</Button> : null}
+          {canUpdate && event.status === 'DRAFT' && <Button variant="outlined" disabled={isActing} onClick={() => void perform(() => scheduleEvent(event.id), 'Event scheduled.')}>Schedule</Button>}
+          {canComplete && event.status === 'SCHEDULED' && <Button variant="contained" disabled={isActing} onClick={() => void perform(() => completeEvent(event.id), 'Event completed.')}>Complete</Button>}
+          {canArchive && event.status === 'COMPLETED' && <Button variant="contained" disabled={isActing} onClick={() => void perform(() => archiveEvent(event.id), 'Event archived.')}>Archive</Button>}
         </Stack>
-      </Stack>
+        }
+      />
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
       {successMessage && <Alert severity="success">{successMessage}</Alert>}
       <StatusChip status={event.status} label={formatEventStatus(event.status)} />
@@ -144,8 +162,8 @@ export default function EventDetailPage() {
       <Divider />
       <Stack spacing={2}>
         <Typography variant="h6">Participants</Typography>
-        {editable && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}><TextField select label="Type" value={participantType} onChange={(input) => { setParticipantType(input.target.value as EventParticipantType); setParticipantId(''); }} sx={{ minWidth: 140 }}><MenuItem value="STAFF">Staff</MenuItem><MenuItem value="STUDENT">Student</MenuItem></TextField><TextField select label="Participant" value={participantId} onChange={(input) => setParticipantId(input.target.value)} sx={{ minWidth: 260 }}><MenuItem value="">Select participant</MenuItem>{participantOptions.map((item) => <MenuItem key={item.id} value={item.id}>{participantType === 'STAFF' ? getStaffDisplayName(item as StaffMember) : getStudentDisplayName(item as Student)}</MenuItem>)}</TextField><Button variant="outlined" disabled={!participantId || isActing} onClick={() => void addParticipant()}>Add</Button></Stack>}
-        {event.participants.length === 0 ? <Typography color="text.secondary">No participants assigned.</Typography> : event.participants.map((participant) => <Stack key={participant.id} direction="row" justifyContent="space-between" alignItems="center"><Typography>{participant.participantType}: {participantName(participant.participantType, participant.participantId)}</Typography>{editable && <Button size="small" color="error" disabled={isActing} onClick={() => void removeParticipant(participant.id)}>Remove</Button>}</Stack>)}
+        {canManageParticipants && editable && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}><TextField select label="Type" value={participantType} onChange={(input) => { setParticipantType(input.target.value as EventParticipantType); setParticipantId(''); }} sx={{ minWidth: 140 }}><MenuItem value="STAFF">Staff</MenuItem><MenuItem value="STUDENT">Student</MenuItem></TextField><TextField select label="Participant" value={participantId} onChange={(input) => setParticipantId(input.target.value)} sx={{ minWidth: 260 }}><MenuItem value="">Select participant</MenuItem>{participantOptions.map((item) => <MenuItem key={item.id} value={item.id}>{participantType === 'STAFF' ? getStaffDisplayName(item as StaffMember) : getStudentDisplayName(item as Student)}</MenuItem>)}</TextField><Button variant="outlined" disabled={!participantId || isActing} onClick={() => void addParticipant()}>Add</Button></Stack>}
+        {event.participants.length === 0 ? <Typography color="text.secondary">No participants assigned.</Typography> : event.participants.map((participant) => <Stack key={participant.id} direction="row" justifyContent="space-between" alignItems="center"><Typography>{participant.participantType}: {participantName(participant.participantType, participant.participantId)}</Typography>{canManageParticipants && editable && <Button size="small" color="error" disabled={isActing} onClick={() => void removeParticipant(participant.id)}>Remove</Button>}</Stack>)}
       </Stack>
       <Button component={Link} href="/events" sx={{ alignSelf: 'flex-start' }}>Back to events</Button>
     </Stack>

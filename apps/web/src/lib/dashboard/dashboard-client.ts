@@ -37,6 +37,21 @@ export interface DashboardRecentNotice {
   publishedAt?: string | null;
 }
 
+export interface DashboardAssetAlertItem {
+  id: string;
+  assetCode: string;
+  name: string;
+  warrantyEndDate: string;
+  alertType: 'expired' | 'expiring_soon';
+}
+
+export interface DashboardAssetAlerts {
+  total: number;
+  expired: number;
+  expiringSoon: number;
+  items: DashboardAssetAlertItem[];
+}
+
 export interface DashboardSummary {
   organization: {
     id: string;
@@ -59,6 +74,7 @@ export interface DashboardSummary {
     upcomingEvents: DashboardUpcomingEvent[] | null;
     recentNotices: DashboardRecentNotice[] | null;
     unreadNotifications: number | null;
+    assetAlerts: DashboardAssetAlerts | null;
   };
 }
 

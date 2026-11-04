@@ -1,3 +1,4 @@
+import { StudentStatus } from '@prisma/client';
 import { parseDocumentTemplateContent, resolveTemplateText } from './template-resolver.util';
 
 describe('template-resolver.util', () => {
@@ -10,6 +11,13 @@ describe('template-resolver.util', () => {
     displayName: null,
     dateOfBirth: null,
     className: 'Grade 8-A',
+    userId: null,
+    studentClass: null,
+    section: null,
+    rollNumber: null,
+    guardianName: null,
+    guardianPhone: null,
+    academicYear: null,
     status: 'ACTIVE',
     createdAt: new Date(),
     updatedAt: new Date(),

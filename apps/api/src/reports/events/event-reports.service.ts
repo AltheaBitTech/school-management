@@ -6,6 +6,8 @@ import {
   EVENT_REPORT_DATE_PATTERN,
   EVENT_REPORT_ERROR_CODES,
 } from './constants/event-report.constants';
+import { buildCsv } from '../common/csv-export.util';
+import { MAX_REPORT_CSV_EXPORT_ROWS } from '../common/max-export-rows';
 import { EventReportQueryDto } from './dto/event-report-query.dto';
 
 const reportRowSelect = {
@@ -184,5 +186,24 @@ export class EventReportsService {
       endAt: event.endAt.toISOString(),
       venue: event.venue,
     };
+  }
+
+  async exportCsv(organizationId: string, query: EventReportQueryDto): Promise<string> {
+    const report = await this.generate(organizationId, {
+      ...query,
+      page: 1,
+      pageSize: MAX_REPORT_CSV_EXPORT_ROWS,
+    });
+    return buildCsv(
+      ['Title', 'Type', 'Status', 'Start', 'End', 'Venue'],
+      report.data.map((row) => [
+        row.title,
+        row.type,
+        row.status,
+        row.startAt,
+        row.endAt,
+        row.venue?.name ?? '',
+      ]),
+    );
   }
 }

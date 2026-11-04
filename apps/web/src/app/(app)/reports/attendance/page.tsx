@@ -1,5 +1,6 @@
 'use client';
 
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -18,8 +19,11 @@ import Typography from '@mui/material/Typography';
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { AttendanceFeatureGate } from '@/components/features/AttendanceFeatureGate';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { ReportExportCsvButton } from '@/components/ui/ReportExportCsvButton';
+import { ReportFilterPanel } from '@/components/ui/ReportFilterPanel';
 import {
   ATTENDANCE_STATUS_OPTIONS,
   formatAttendanceStatus,
@@ -36,7 +40,7 @@ function formatPercentage(value: number | null): string {
   return `${value}%`;
 }
 
-export default function AttendanceReportPage() {
+function AttendanceReportPageContent() {
   const searchParams = useSearchParams();
   const initialDate = searchParams.get('date') ?? '';
 
@@ -126,11 +130,21 @@ export default function AttendanceReportPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
+        icon={FactCheckOutlined}
         title="Attendance report"
         description="Staff attendance summary and records for your organization. Dates use your school calendar (organization timezone)."
+        actions={
+          <ReportExportCsvButton
+            exportPath="/reports/attendance/export.csv"
+            queryParams={queryParams}
+            filename="attendance-report.csv"
+            rowCount={report?.data.length ?? 0}
+            onError={setErrorMessage}
+          />
+        }
       />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} flexWrap="wrap">
+      <ReportFilterPanel>
         <TextField
           label="Date (single day)"
           type="date"
@@ -188,7 +202,7 @@ export default function AttendanceReportPage() {
             </MenuItem>
           ))}
         </TextField>
-      </Stack>
+      </ReportFilterPanel>
 
       {departmentError && <Alert severity="warning">{departmentError}</Alert>}
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
@@ -314,5 +328,13 @@ export default function AttendanceReportPage() {
         </>
       )}
     </Stack>
+  );
+}
+
+export default function AttendanceReportPage() {
+  return (
+    <AttendanceFeatureGate>
+      <AttendanceReportPageContent />
+    </AttendanceFeatureGate>
   );
 }

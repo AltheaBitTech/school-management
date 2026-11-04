@@ -139,10 +139,12 @@ export class LeaveRequestsController {
   @ApiOperation({ summary: 'Submit a leave request' })
   @ApiOkResponse({ type: LeaveRequestResponseDto })
   async create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateLeaveRequestDto) {
-    const permissions = await this.permissionsService.getEffectivePermissions(
-      user.userId,
-      user.organizationId,
-    );
+    const permissions =
+      (await this.permissionsService.getEffectivePermissions(
+        user.userId,
+        user.organizationId,
+        user.activeRoleId ?? '',
+      )) ?? [];
     const canSubmitForOthers = permissions.includes('leave.manage_balances');
     const request = await this.leaveRequestsService.create(
       user.organizationId,

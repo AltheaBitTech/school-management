@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsNotEmpty, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export enum NodeEnvironment {
   Development = 'development',
@@ -26,6 +26,10 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   FILE_STORAGE_ROOT!: string;
+
+  @IsOptional()
+  @IsString()
+  CRON_SECRET?: string;
 }
 
 export const CONFIGURATION_KEY = 'app';

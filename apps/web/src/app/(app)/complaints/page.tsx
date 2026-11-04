@@ -9,13 +9,16 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   COMPLAINT_PRIORITIES,
   COMPLAINT_STATUSES,
@@ -31,6 +34,9 @@ import {
 import { listStaff, type StaffMember } from '@/lib/staff/staff-client';
 
 export default function ComplaintsPage() {
+  const canCreate = useCan('complaint.create');
+  const canAssign = useCan('complaint.assign');
+  const canUpdate = useCan('complaint.update');
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [statusFilter, setStatusFilter] = useState<ComplaintStatus | ''>('');
@@ -41,12 +47,16 @@ export default function ComplaintsPage() {
   const [isForbidden, setIsForbidden] = useState(false);
 
   useEffect(() => {
+    if (!canAssign) {
+      return;
+    }
+
     void listStaff({ page: 1, pageSize: 100, sortBy: 'firstName', sortOrder: 'asc' })
       .then((response) => {
         setStaff(response.data.filter((member) => member.employmentStatus !== 'OFFBOARDED'));
       })
       .catch(() => undefined);
-  }, []);
+  }, [canAssign]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,18 +105,19 @@ export default function ComplaintsPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Complaints"
-        description="Track maintenance requests from submission through resolution."
-        actions={
-          <Button component={Link} href="/complaints/new" variant="contained">
+    <ListPageShell
+      title="Complaints"
+      description="Track maintenance requests from submission through resolution."
+      icon={BuildOutlined}
+      actions={
+        canCreate ? (
+          <Button component={Link} href="/complaints/new" variant="contained" startIcon={<AddOutlined />}>
             New complaint
           </Button>
-        }
-      />
-
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+        ) : undefined
+      }
+      filters={
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap" useFlexGap>
         <TextField
           select
           label="Status"
@@ -135,28 +146,47 @@ export default function ComplaintsPage() {
             </MenuItem>
           ))}
         </TextField>
-        <TextField
-          select
-          label="Assignee"
-          value={assigneeFilter}
-          onChange={(event) => setAssigneeFilter(event.target.value)}
-          sx={{ minWidth: 220 }}
-        >
-          <MenuItem value="">All assignees</MenuItem>
-          {staff.map((member) => (
-            <MenuItem key={member.id} value={member.id}>
-              {member.displayName || `${member.firstName} ${member.lastName}`}
-            </MenuItem>
-          ))}
-        </TextField>
+        {canAssign ? (
+          <TextField
+            select
+            label="Assignee"
+            value={assigneeFilter}
+            onChange={(event) => setAssigneeFilter(event.target.value)}
+            sx={{ minWidth: 220 }}
+          >
+            <MenuItem value="">All assignees</MenuItem>
+            {staff.map((member) => (
+              <MenuItem key={member.id} value={member.id}>
+                {member.displayName || `${member.firstName} ${member.lastName}`}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : null}
       </Stack>
+      }
+    >
+      {isLoading ? <LoadingState label="Loading complaints" columnCount={7} /> : null}
 
-      {isLoading ? <LoadingState label="Loading complaints" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && complaints.length === 0 ? (
-        <EmptyState message="No complaints found for the selected filters." />
+        <EmptyState
+          icon={BuildOutlined}
+          message={
+            canCreate
+              ? 'No complaints found for the selected filters.'
+              : canUpdate
+                ? 'No complaints are assigned to you.'
+                : 'No complaints found for the selected filters. Filing a new complaint is not part of this role.'
+          }
+          action={
+            canCreate ? (
+              <Button component={Link} href="/complaints/new" variant="contained" startIcon={<AddOutlined />}>
+                New complaint
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
 
       {!isLoading && complaints.length > 0 ? (
@@ -201,6 +231,6 @@ export default function ComplaintsPage() {
           </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

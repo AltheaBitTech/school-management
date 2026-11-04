@@ -21,8 +21,10 @@ import {
   Typography,
   Stack,
 } from '@mui/material';
+import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { isForbiddenError } from '@/lib/auth/auth-client';
 
 interface RegistrationRequest {
@@ -42,6 +44,14 @@ interface ApproveRegistrationResponse {
   adminUserId: string;
   adminEmail: string;
   completeSignupUrl: string;
+}
+
+function CreateSchoolLink() {
+  return (
+    <Button component={Link} href="/organizations/new" variant="contained">
+      Create school
+    </Button>
+  );
 }
 
 export default function RegistrationsPage() {
@@ -127,9 +137,16 @@ export default function RegistrationsPage() {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-        <CircularProgress aria-label="Loading registration requests" />
-      </Box>
+      <Stack spacing={3}>
+        <PageHeader
+          title="Pending registration requests"
+          description="Schools waiting for platform approval."
+          actions={<CreateSchoolLink />}
+        />
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress aria-label="Loading registration requests" />
+        </Box>
+      </Stack>
     );
   }
 
@@ -138,8 +155,12 @@ export default function RegistrationsPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ mb: 3 }}>Pending Registration Requests</Typography>
+    <Stack spacing={3}>
+      <PageHeader
+        title="Pending registration requests"
+        description="Schools waiting for platform approval."
+        actions={<CreateSchoolLink />}
+      />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Card>
@@ -231,6 +252,6 @@ export default function RegistrationsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Stack>
   );
 }

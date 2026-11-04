@@ -2,28 +2,39 @@
 
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TextField from '@mui/material/TextField';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { AppTable, EmptyState, LoadingState, TableIconLink } from '@/components/ui/AppTable';
+import { DocumentTypeChip } from '@/components/ui/DocumentTypeChip';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
+  DOCUMENT_TYPES,
   formatDocumentDateTime,
   formatDocumentType,
-  getDocumentStudentDisplayName,
+  getDocumentOwnerLabel,
   listDocuments,
+  type DocumentType,
   type GeneratedDocument,
 } from '@/lib/documents/documents-client';
 
 export default function DocumentsPage() {
+  const canGenerate = useCan('document.generate');
+  const canEditWording = useCan('document.template.update');
   const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentType | ''>('');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
@@ -37,7 +48,11 @@ export default function DocumentsPage() {
       setIsForbidden(false);
 
       try {
-        const response = await listDocuments({ page: 1, pageSize: 25 });
+        const response = await listDocuments({
+          page: 1,
+          pageSize: 25,
+          documentType: documentTypeFilter || undefined,
+        });
         if (!cancelled) {
           setDocuments(response.data);
         }
@@ -62,30 +77,68 @@ export default function DocumentsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [documentTypeFilter]);
 
   if (isForbidden) {
     return <ForbiddenState />;
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Documents"
-        description="View generated certificates and official documents for your organization."
-        actions={
-          <Button component={Link} href="/documents/generate" variant="contained">
-            Generate document
-          </Button>
-        }
-      />
+    <ListPageShell
+      title="Documents"
+      description="View generated certificates and official documents for your organization."
+      icon={DescriptionOutlined}
+      actions={
+        <>
+          {canEditWording ? (
+            <Button component={Link} href="/documents/templates" variant="outlined">
+              Certificate wording
+            </Button>
+          ) : null}
+          {canGenerate ? (
+            <Button component={Link} href="/documents/generate" variant="contained" startIcon={<AddOutlined />}>
+              Generate document
+            </Button>
+          ) : null}
+        </>
+      }
+      filters={
+      <TextField
+        select
+        label="Document type"
+        value={documentTypeFilter}
+        onChange={(event) => setDocumentTypeFilter(event.target.value as DocumentType | '')}
+        sx={{ maxWidth: 280 }}
+      >
+        <MenuItem value="">All types</MenuItem>
+        {DOCUMENT_TYPES.map((type) => (
+          <MenuItem key={type} value={type}>
+            {formatDocumentType(type)}
+          </MenuItem>
+        ))}
+      </TextField>
+      }
+    >
+      {isLoading ? <LoadingState label="Loading documents" columnCount={6} /> : null}
 
-      {isLoading ? <LoadingState label="Loading documents" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && documents.length === 0 ? (
-        <EmptyState message="No generated documents yet. Create your first bonafide certificate." />
+        <EmptyState
+          icon={DescriptionOutlined}
+          message={
+            canGenerate
+              ? 'No generated documents yet. Create your first certificate or pass.'
+              : 'No generated documents yet.'
+          }
+          action={
+            canGenerate ? (
+              <Button component={Link} href="/documents/generate" variant="contained" startIcon={<AddOutlined />}>
+                Generate document
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
 
       {!isLoading && documents.length > 0 ? (
@@ -93,7 +146,7 @@ export default function DocumentsPage() {
           <TableHead>
             <TableRow>
               <TableCell>Document type</TableCell>
-              <TableCell>Student</TableCell>
+              <TableCell>Subject</TableCell>
               <TableCell>Generated</TableCell>
               <TableCell>Generated by</TableCell>
               <TableCell>Status</TableCell>
@@ -103,27 +156,23 @@ export default function DocumentsPage() {
           <TableBody>
             {documents.map((document) => (
               <TableRow key={document.id} hover>
-                <TableCell>{formatDocumentType(document.documentType)}</TableCell>
                 <TableCell>
-                  {document.student
-                    ? `${getDocumentStudentDisplayName(document.student)} (${document.student.studentCode})`
-                    : '—'}
+                  <DocumentTypeChip documentType={document.documentType} />
                 </TableCell>
+                <TableCell>{getDocumentOwnerLabel(document)}</TableCell>
                 <TableCell>{formatDocumentDateTime(document.createdAt)}</TableCell>
                 <TableCell>{document.generatedBy?.email ?? '—'}</TableCell>
                 <TableCell>
                   <StatusChip status={document.status} />
                 </TableCell>
                 <TableCell align="right">
-                  <Button component={Link} href={`/documents/${document.id}`} size="small">
-                    View
-                  </Button>
+                  <TableIconLink href={`/documents/${document.id}`} label="View document" />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

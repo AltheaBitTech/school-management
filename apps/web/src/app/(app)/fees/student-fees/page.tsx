@@ -10,13 +10,17 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Link from 'next/link';
+import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined';
+import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
+import { AppTable, EmptyState, LoadingState, TableIconLink } from '@/components/ui/AppTable';
 import { FormActions, FormSection } from '@/components/ui/FormSection';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   assignStudentFee,
   formatCurrency,
@@ -33,6 +37,8 @@ import {
 import { getStudentDisplayName, listStudents, type Student } from '@/lib/students/students-client';
 
 export default function StudentFeesPage() {
+  const canAssign = useCan('fee.assign');
+  const { showSuccess } = useAppSnackbar();
   const [studentFees, setStudentFees] = useState<StudentFee[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [structures, setStructures] = useState<FeeStructure[]>([]);
@@ -92,6 +98,7 @@ export default function StudentFeesPage() {
       setStudentId('');
       setFeeStructureId('');
       setDueDate('');
+      showSuccess('Fee assigned to student');
       await loadData();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to assign student fee');
@@ -105,18 +112,33 @@ export default function StudentFeesPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Student fees"
-        description="Assign fee structures to students and track outstanding balances."
-        actions={
-          <Button component={Link} href="/fees" variant="outlined">
-            Back to fees
-          </Button>
-        }
-      />
-
-      <FormSection title="Assign fee to student">
+    <ListPageShell
+      title="Student fees"
+      description="Assign fee structures to students and track outstanding balances."
+      icon={PaymentsOutlined}
+      actions={
+        <Button component={Link} href="/fees" variant="outlined" startIcon={<ArrowBackOutlined />}>
+          Back to fees
+        </Button>
+      }
+      filters={
+      <TextField
+        select
+        label="Status"
+        value={statusFilter}
+        onChange={(event) => setStatusFilter(event.target.value as StudentFeeStatus | '')}
+        sx={{ maxWidth: 260 }}
+      >
+        <MenuItem value="">All statuses</MenuItem>
+        {STUDENT_FEE_STATUSES.map((status) => (
+          <MenuItem key={status} value={status}>
+            {formatStudentFeeStatus(status)}
+          </MenuItem>
+        ))}
+      </TextField>
+      }
+    >
+      {canAssign ? <FormSection title="Assign fee to student">
         <Stack spacing={2} component="form" onSubmit={handleAssign}>
           <TextField
             select
@@ -162,29 +184,14 @@ export default function StudentFeesPage() {
             </Button>
           </FormActions>
         </Stack>
-      </FormSection>
+      </FormSection> : null}
 
-      <TextField
-        select
-        label="Status"
-        value={statusFilter}
-        onChange={(event) => setStatusFilter(event.target.value as StudentFeeStatus | '')}
-        sx={{ maxWidth: 260 }}
-      >
-        <MenuItem value="">All statuses</MenuItem>
-        {STUDENT_FEE_STATUSES.map((status) => (
-          <MenuItem key={status} value={status}>
-            {formatStudentFeeStatus(status)}
-          </MenuItem>
-        ))}
-      </TextField>
+      {isLoading ? <LoadingState label="Loading student fees" columnCount={8} /> : null}
 
-      {isLoading ? <LoadingState label="Loading student fees" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && studentFees.length === 0 ? (
-        <EmptyState message="No student fees found for the selected filter." />
+        <EmptyState icon={PaymentsOutlined} message="No student fees found for the selected filter." />
       ) : null}
 
       {!isLoading && studentFees.length > 0 ? (
@@ -219,15 +226,13 @@ export default function StudentFeesPage() {
                   {studentFee.dueDate ? formatFeeDate(studentFee.dueDate) : '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <Button component={Link} href={`/fees/student-fees/${studentFee.id}`} size="small">
-                    View
-                  </Button>
+                  <TableIconLink href={`/fees/student-fees/${studentFee.id}`} label="View fee assignment" />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

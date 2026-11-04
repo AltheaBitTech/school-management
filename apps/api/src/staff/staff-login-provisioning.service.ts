@@ -5,34 +5,43 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EmploymentStatus, Prisma, Role, Staff, UserStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
-import { PasswordService } from '../auth/services/password.service';
+import { PASSWORD_RESET_TOKEN_TTL_MS } from '../auth/constants/auth.constants';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { normalizeEmail } from '../auth/utils/email.util';
+import { generateRefreshToken, hashRefreshToken } from '../auth/utils/token-hash.util';
 import { RBAC_ERROR_CODES } from '../common/constants/rbac.constants';
+import { AppConfig, CONFIGURATION_KEY } from '../config/configuration';
+import { primaryFrontendOrigin } from '../config/cors.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { RolesService } from '../roles/roles.service';
 import { STAFF_ERROR_CODES } from './constants/staff.constants';
+import { isStaffLoginAssignableRoleCode } from './utils/staff-assignable-role.util';
 import { ProvisionStaffLoginDto } from './dto/provision-staff-login.dto';
+import { buildStaffInviteUrl, logStaffInviteToConsole } from './utils/staff-invite.util';
 
 type StaffWithDepartment = Staff & {
   department: { id: string; name: string; code: string } | null;
+  organization: { code: string };
 };
 
 export interface ProvisionStaffLoginResult {
   staff: StaffWithDepartment;
   loginEmail: string;
+  inviteUrl: string;
+  inviteExpiresAt: string;
 }
 
 @Injectable()
 export class StaffLoginProvisioningService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly passwordService: PasswordService,
     private readonly rolesService: RolesService,
     private readonly auditService: AuditService,
+    private readonly configService: ConfigService,
   ) {}
 
   async provisionLogin(
@@ -49,6 +58,9 @@ export class StaffLoginProvisioningService {
       include: {
         department: {
           select: { id: true, name: true, code: true },
+        },
+        organization: {
+          select: { code: true },
         },
       },
     });
@@ -77,25 +89,102 @@ export class StaffLoginProvisioningService {
     const role = await this.resolveSelectableRole(organizationId, dto.roleId);
 
     const existingUser = await this.prisma.user.findFirst({
-      where: { organizationId, email: normalizedEmail },
+      where: { email: normalizedEmail },
     });
 
-    if (existingUser) {
+    if (existingUser && existingUser.organizationId !== organizationId) {
       throw new ConflictException({
         code: STAFF_ERROR_CODES.DUPLICATE_USER_EMAIL,
-        message: 'A user with this email already exists in the organization',
+        message: 'This email is already registered',
       });
     }
 
-    const passwordHash = await this.passwordService.hash(dto.password);
+    if (existingUser) {
+      const linkedElsewhere = await this.prisma.staff.findFirst({
+        where: {
+          organizationId,
+          userId: existingUser.id,
+          NOT: { id: staff.id },
+        },
+        select: { id: true },
+      });
+
+      if (linkedElsewhere) {
+        throw new ConflictException({
+          code: STAFF_ERROR_CODES.DUPLICATE_USER_EMAIL,
+          message: 'This email is already registered',
+        });
+      }
+
+      await this.rolesService.assignRoleToUser(actor, existingUser.id, role.id, options);
+
+      const updatedStaff = staff.userId
+        ? staff
+        : await this.prisma.staff.update({
+            where: { id: staff.id },
+            data: { userId: existingUser.id },
+            include: {
+              department: { select: { id: true, name: true, code: true } },
+              organization: { select: { code: true } },
+            },
+          });
+
+      if (existingUser.passwordHash) {
+        return {
+          staff: updatedStaff,
+          loginEmail: normalizedEmail,
+          inviteUrl: '',
+          inviteExpiresAt: new Date().toISOString(),
+        };
+      }
+
+      const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
+      const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
+      const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
+      const rawToken = generateRefreshToken();
+      const tokenHash = hashRefreshToken(rawToken);
+      const inviteUrl = buildStaffInviteUrl(frontendBaseUrl, rawToken, staff.organization.code);
+
+      await this.prisma.passwordResetToken.create({
+        data: {
+          userId: existingUser.id,
+          organizationId,
+          tokenHash,
+          expiresAt,
+        },
+      });
+
+      logStaffInviteToConsole({
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        email: normalizedEmail,
+        roleName: role.name,
+        inviteUrl,
+        expiresInMinutes: PASSWORD_RESET_TOKEN_TTL_MS / 60_000,
+      });
+
+      return {
+        staff: updatedStaff,
+        loginEmail: normalizedEmail,
+        inviteUrl,
+        inviteExpiresAt: expiresAt.toISOString(),
+      };
+    }
+
+    const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
+    const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
+    const rawToken = generateRefreshToken();
+    const tokenHash = hashRefreshToken(rawToken);
+    const inviteUrl = buildStaffInviteUrl(frontendBaseUrl, rawToken, staff.organization.code);
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
             organizationId,
             email: normalizedEmail,
-            passwordHash,
+            passwordHash: null,
             status: UserStatus.ACTIVE,
           },
         });
@@ -106,6 +195,15 @@ export class StaffLoginProvisioningService {
           data: {
             userId: user.id,
             roleId: role.id,
+          },
+        });
+
+        await tx.passwordResetToken.create({
+          data: {
+            userId: user.id,
+            organizationId,
+            tokenHash,
+            expiresAt,
           },
         });
 
@@ -120,6 +218,7 @@ export class StaffLoginProvisioningService {
             metadata: {
               email: normalizedEmail,
               staffId: staff.id,
+              invite: true,
             },
           },
           tx,
@@ -150,14 +249,36 @@ export class StaffLoginProvisioningService {
             department: {
               select: { id: true, name: true, code: true },
             },
+            organization: {
+              select: { code: true },
+            },
           },
         });
 
         return {
           staff: updatedStaff,
           loginEmail: normalizedEmail,
+          inviteUrl,
+          inviteExpiresAt: expiresAt.toISOString(),
+          roleName: role.name,
         };
       });
+
+      logStaffInviteToConsole({
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        email: normalizedEmail,
+        roleName: result.roleName,
+        inviteUrl: result.inviteUrl,
+        expiresInMinutes: PASSWORD_RESET_TOKEN_TTL_MS / 60_000,
+      });
+
+      return {
+        staff: result.staff,
+        loginEmail: result.loginEmail,
+        inviteUrl: result.inviteUrl,
+        inviteExpiresAt: result.inviteExpiresAt,
+      };
     } catch (error: unknown) {
       this.handleUniqueViolation(error);
       throw error;
@@ -190,6 +311,13 @@ export class StaffLoginProvisioningService {
       });
     }
 
+    if (!isStaffLoginAssignableRoleCode(role.code)) {
+      throw new BadRequestException({
+        code: STAFF_ERROR_CODES.INVALID_ROLE,
+        message: 'The Student role cannot be assigned to staff login accounts',
+      });
+    }
+
     return role;
   }
 
@@ -205,7 +333,7 @@ export class StaffLoginProvisioningService {
       if (target.includes('email')) {
         throw new ConflictException({
           code: STAFF_ERROR_CODES.DUPLICATE_USER_EMAIL,
-          message: 'A user with this email already exists in the organization',
+          message: 'This email is already registered',
         });
       }
 

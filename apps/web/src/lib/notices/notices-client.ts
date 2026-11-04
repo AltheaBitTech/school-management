@@ -3,7 +3,7 @@ import type { PaginationMeta } from '@/lib/departments/departments-client';
 
 export type NoticeStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
 
-export type NoticeAudienceType = 'ENTIRE_SCHOOL' | 'STAFF' | 'DEPARTMENT';
+export type NoticeAudienceType = 'ENTIRE_SCHOOL' | 'STAFF' | 'DEPARTMENT' | 'STUDENT' | 'PARENT';
 
 export interface NoticeAudienceInput {
   audienceType: NoticeAudienceType;
@@ -33,6 +33,20 @@ export interface NoticeReadState {
   acknowledgedAt?: string | null;
 }
 
+export interface NoticeFileSummary {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface NoticeAttachment {
+  id: string;
+  fileId: string;
+  file: NoticeFileSummary;
+}
+
 export interface Notice {
   id: string;
   title: string;
@@ -46,6 +60,7 @@ export interface Notice {
   updatedAt: string;
   createdBy?: NoticeUserSummary;
   audiences: NoticeAudience[];
+  attachments?: NoticeAttachment[];
   readState?: NoticeReadState | null;
 }
 
@@ -89,6 +104,7 @@ export async function createNotice(payload: {
   title: string;
   content: string;
   audiences: NoticeAudienceInput[];
+  attachmentFileIds?: string[];
 }): Promise<Notice> {
   const response = await apiClient.post<NoticeResponse>('/notices', payload, { auth: true });
   return response.data;
@@ -100,6 +116,7 @@ export async function updateNotice(
     title?: string;
     content?: string;
     audiences?: NoticeAudienceInput[];
+    attachmentFileIds?: string[];
     scheduledAt?: string | null;
   },
 ): Promise<Notice> {
@@ -143,6 +160,10 @@ export function formatAudienceType(type: NoticeAudienceType): string {
       return 'All staff';
     case 'DEPARTMENT':
       return 'Department';
+    case 'STUDENT':
+      return 'All students';
+    case 'PARENT':
+      return 'Parents (via student accounts)';
     default:
       return type;
   }
@@ -161,6 +182,8 @@ export const NOTICE_STATUSES: NoticeStatus[] = ['DRAFT', 'SCHEDULED', 'PUBLISHED
 export const NOTICE_AUDIENCE_TYPES: NoticeAudienceType[] = [
   'ENTIRE_SCHOOL',
   'STAFF',
+  'STUDENT',
+  'PARENT',
   'DEPARTMENT',
 ];
 

@@ -1,6 +1,8 @@
 'use client';
 
-import { Container, Card, CardContent, Typography, CircularProgress, Box } from '@mui/material';
+import { CircularProgress, Stack } from '@mui/material';
+import { Suspense } from 'react';
+import { AuthPageCard } from '@/components/auth/AuthPageCard';
 import { CompleteSignupForm } from './complete-signup-form';
 
 interface CompleteSignupPageContentProps {
@@ -9,23 +11,26 @@ interface CompleteSignupPageContentProps {
 
 export function CompleteSignupPageContent({ loading = false }: CompleteSignupPageContentProps) {
   return (
-    <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', minHeight: '100vh' }}>
-      <Card sx={{ width: '100%' }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h5" sx={{ mb: 3 }}>Complete Your Sign-Up</Typography>
-          <Typography sx={{ mb: 4, color: 'text.secondary' }}>
-            Set your password to activate your school administrator account.
-          </Typography>
-
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+    <AuthPageCard
+      title="Complete your sign-up"
+      description="Set your password to activate your school administrator account."
+      footerLink={{ href: '/', label: 'Back to home' }}
+    >
+      {loading ? (
+        <Stack alignItems="center" py={4}>
+          <CircularProgress aria-label="Loading signup form" />
+        </Stack>
+      ) : (
+        <Suspense
+          fallback={
+            <Stack alignItems="center" py={4}>
               <CircularProgress aria-label="Loading signup form" />
-            </Box>
-          ) : (
-            <CompleteSignupForm />
-          )}
-        </CardContent>
-      </Card>
-    </Container>
+            </Stack>
+          }
+        >
+          <CompleteSignupForm />
+        </Suspense>
+      )}
+    </AuthPageCard>
   );
 }

@@ -1,6 +1,11 @@
 'use client';
 
+import DashboardOutlined from '@mui/icons-material/DashboardOutlined';
+import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
+import HourglassEmptyOutlined from '@mui/icons-material/HourglassEmptyOutlined';
+import NotificationsNoneOutlined from '@mui/icons-material/NotificationsNoneOutlined';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -9,10 +14,12 @@ import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { LoadingState } from '@/components/ui/AppTable';
+import { DashboardSkeleton } from '@/components/home/DashboardWidgets';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { StatTile } from '@/components/ui/StatTile';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { isAttendanceEnabled } from '@/lib/features/feature-flags';
 import { formatLeaveStatus, type LeaveRequestStatus } from '@/lib/leave/leave-client';
 import {
   formatStaffDisplayName,
@@ -51,7 +58,7 @@ export default function StaffDashboardPage() {
   }
 
   if (isLoading) {
-    return <LoadingState label="Loading your dashboard…" />;
+    return <DashboardSkeleton />;
   }
 
   if (!dashboard) {
@@ -65,45 +72,49 @@ export default function StaffDashboardPage() {
       <PageHeader
         title="My dashboard"
         description={`Welcome back, ${staffName}.`}
+        icon={DashboardOutlined}
+        actions={
+          <Button component={Link} href="/staff/leave/new" variant="contained">
+            Submit leave
+          </Button>
+        }
       />
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-        <Card variant="outlined" sx={{ flex: 1 }}>
-          <CardContent>
-            <Typography color="text.secondary" variant="body2">Today&apos;s attendance</Typography>
-            <Typography variant="h6" sx={{ mt: 0.5 }}>
-              {formatTodayStatus(dashboard.todayAttendance.status)}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {dashboard.localDate}
-            </Typography>
-            <Button component={Link} href="/staff/attendance" size="small" sx={{ mt: 2 }}>
-              View attendance
-            </Button>
-          </CardContent>
-        </Card>
-        <Card variant="outlined" sx={{ flex: 1 }}>
-          <CardContent>
-            <Typography color="text.secondary" variant="body2">Pending leave requests</Typography>
-            <Typography variant="h6" sx={{ mt: 0.5 }}>
-              {dashboard.pendingLeaveRequestCount}
-            </Typography>
-            <Button component={Link} href="/staff/leave" size="small" sx={{ mt: 2 }}>
-              My leave
-            </Button>
-          </CardContent>
-        </Card>
-        <Card variant="outlined" sx={{ flex: 1 }}>
-          <CardContent>
-            <Typography color="text.secondary" variant="body2">Unread notifications</Typography>
-            <Typography variant="h6" sx={{ mt: 0.5 }}>
-              {dashboard.unreadNotificationCount}
-            </Typography>
-          </CardContent>
-        </Card>
-      </Stack>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+        }}
+      >
+        {isAttendanceEnabled() ? (
+          <StatTile
+            label="Today's attendance"
+            value={formatTodayStatus(dashboard.todayAttendance?.status ?? null)}
+            detail={dashboard.localDate}
+            href="/staff/attendance"
+            hrefLabel="View attendance"
+            icon={EventAvailableOutlined}
+            tone="success"
+          />
+        ) : null}
+        <StatTile
+          label="Pending leave requests"
+          value={String(dashboard.pendingLeaveRequestCount)}
+          href="/staff/leave"
+          hrefLabel="My leave"
+          icon={HourglassEmptyOutlined}
+          tone="warning"
+        />
+        <StatTile
+          label="Unread notifications"
+          value={String(dashboard.unreadNotificationCount)}
+          icon={NotificationsNoneOutlined}
+          tone="primary"
+        />
+      </Box>
 
       <Card variant="outlined">
         <CardContent>

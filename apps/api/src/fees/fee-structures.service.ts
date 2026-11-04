@@ -17,6 +17,7 @@ import {
   assertValidFeePeriod,
   formatFeeDate,
   parseFeeDate,
+  parseOptionalFeeDate,
 } from './utils/fee-date.util';
 
 @Injectable()
@@ -36,6 +37,7 @@ export class FeeStructuresService {
     assertValidFeePeriod(periodStart, periodEnd);
 
     const amount = toFeeDecimal(dto.amount);
+    const installmentDueDate = parseOptionalFeeDate(dto.dueDate, 'Due date');
 
     const feeStructure = await this.prisma.feeStructure.create({
       data: {
@@ -45,6 +47,9 @@ export class FeeStructuresService {
         amount,
         periodStart,
         periodEnd,
+        installmentLabel: dto.installmentLabel?.trim() || null,
+        dueDate: installmentDueDate,
+        academicYear: dto.academicYear?.trim() || null,
         status: FeeStructureStatus.ACTIVE,
       },
     });
@@ -128,6 +133,9 @@ export class FeeStructuresService {
       amount: decimalToNumber(feeStructure.amount),
       periodStart: formatFeeDate(feeStructure.periodStart),
       periodEnd: formatFeeDate(feeStructure.periodEnd),
+      installmentLabel: feeStructure.installmentLabel,
+      dueDate: feeStructure.dueDate ? formatFeeDate(feeStructure.dueDate) : null,
+      academicYear: feeStructure.academicYear,
       status: feeStructure.status,
       createdAt: feeStructure.createdAt.toISOString(),
       updatedAt: feeStructure.updatedAt.toISOString(),

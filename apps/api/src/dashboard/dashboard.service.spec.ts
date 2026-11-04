@@ -3,6 +3,7 @@ import { PermissionsService } from '../permissions/permissions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PLATFORM_ORGANIZATION_CODE } from '../organizations/constants/organization.constants';
 import { DashboardService } from './dashboard.service';
+import { FeatureFlagsService } from '../common/features/feature-flags.service';
 
 describe('DashboardService', () => {
   let service: DashboardService;
@@ -71,6 +72,7 @@ describe('DashboardService', () => {
     service = new DashboardService(
       prisma as unknown as PrismaService,
       permissionsService as unknown as PermissionsService,
+      { isAttendanceEnabled: () => true } as FeatureFlagsService,
     );
   });
 

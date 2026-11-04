@@ -173,7 +173,13 @@ describeIfDatabase('Notices integration', () => {
       },
     });
 
-    noticesService = new NoticesService(prisma as unknown as PrismaService);
+    const noticeNotificationService = {
+      notifyPublished: jest.fn().mockResolvedValue(undefined),
+    };
+    noticesService = new NoticesService(
+      prisma as unknown as PrismaService,
+      noticeNotificationService as never,
+    );
     permissionsService = new PermissionsService(prisma as unknown as PrismaService);
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
   });

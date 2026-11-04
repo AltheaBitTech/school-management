@@ -27,7 +27,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: AccessTokenPayload): Promise<AuthenticatedUser> {
-    const user = await this.authService.validateAccessSession(payload);
+    if (payload.purpose === 'context-selection' || !payload.sessionId) {
+      throw new UnauthorizedException({
+        code: 'UNAUTHORIZED',
+        message: 'Unauthorized',
+      });
+    }
+
+    const user = await this.authService.validateAccessSession({
+      ...payload,
+      sessionId: payload.sessionId,
+    });
 
     if (!user) {
       throw new UnauthorizedException({

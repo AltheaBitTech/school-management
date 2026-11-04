@@ -24,6 +24,27 @@ export class StudentResponseDto {
   @ApiPropertyOptional()
   className?: string | null;
 
+  @ApiPropertyOptional()
+  studentClass?: string | null;
+
+  @ApiPropertyOptional()
+  section?: string | null;
+
+  @ApiPropertyOptional()
+  rollNumber?: string | null;
+
+  @ApiPropertyOptional()
+  guardianName?: string | null;
+
+  @ApiPropertyOptional()
+  guardianPhone?: string | null;
+
+  @ApiPropertyOptional()
+  academicYear?: string | null;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  userId?: string | null;
+
   @ApiProperty({ enum: StudentStatus })
   status!: StudentStatus;
 

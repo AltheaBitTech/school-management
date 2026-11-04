@@ -7,6 +7,7 @@ import {
 import {
   DepartmentStatus,
   EmploymentStatus,
+  StudentStatus,
   Notice,
   NoticeAudience,
   NoticeAudienceType,
@@ -21,7 +22,7 @@ import { NOTICE_ERROR_CODES } from './constants/notice.constants';
 import { CreateNoticeDto, NoticeAudienceInputDto, UpdateNoticeDto } from './dto/notice.dto';
 import { ListNoticesQueryDto } from './dto/list-notices-query.dto';
 import {
-  StaffAudienceContext,
+  NoticeRecipientAudienceContext,
   userMatchesAudiences,
 } from './utils/notice-audience.util';
 import {
@@ -29,6 +30,7 @@ import {
   isEditableNoticeStatus,
   resolveStatusAfterScheduleChange,
 } from './utils/notice-status.util';
+import { NoticeNotificationService } from './notice-notification.service';
 
 const userSummarySelect = {
   id: true,
@@ -45,9 +47,22 @@ const audienceInclude = {
   department: { select: departmentSummarySelect },
 } as const;
 
+const fileSummarySelect = {
+  id: true,
+  originalName: true,
+  mimeType: true,
+  size: true,
+  createdAt: true,
+} as const;
+
 const noticeInclude = {
   createdBy: { select: userSummarySelect },
   audiences: { include: audienceInclude },
+  attachments: {
+    include: {
+      file: { select: fileSummarySelect },
+    },
+  },
 } as const;
 
 type NoticeWithRelations = Notice & {
@@ -57,12 +72,26 @@ type NoticeWithRelations = Notice & {
       department: { id: string; name: string; code: string } | null;
     }
   >;
+  attachments?: Array<{
+    id: string;
+    fileId: string;
+    file: {
+      id: string;
+      originalName: string;
+      mimeType: string;
+      size: number;
+      createdAt: Date;
+    };
+  }>;
   reads?: NoticeRead[];
 };
 
 @Injectable()
 export class NoticesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly noticeNotificationService: NoticeNotificationService,
+  ) {}
 
   async create(
     organizationId: string,
@@ -71,6 +100,9 @@ export class NoticesService {
   ): Promise<NoticeWithRelations> {
     return this.prisma.$transaction(async (tx) => {
       await this.validateAudiences(tx, organizationId, dto.audiences);
+      if (dto.attachmentFileIds?.length) {
+        await this.assertNoticeAttachmentFiles(tx, organizationId, dto.attachmentFileIds);
+      }
 
       const notice = await tx.notice.create({
         data: {
@@ -89,6 +121,16 @@ export class NoticesService {
                   : null,
             })),
           },
+          ...(dto.attachmentFileIds?.length
+            ? {
+                attachments: {
+                  create: dto.attachmentFileIds.map((fileId) => ({
+                    organizationId,
+                    fileId,
+                  })),
+                },
+              }
+            : {}),
         },
         include: noticeInclude,
       });
@@ -103,7 +145,7 @@ export class NoticesService {
     query: ListNoticesQueryDto,
     canPublish: boolean,
   ) {
-    const staffContext = await this.getStaffContext(organizationId, actor.userId);
+    const staffContext = await this.getAudienceContext(organizationId, actor.userId);
     const searchFilter = query.search
       ? {
           OR: [
@@ -218,6 +260,22 @@ export class NoticesService {
         });
       }
 
+      if (dto.attachmentFileIds !== undefined) {
+        await this.assertNoticeAttachmentFiles(tx, organizationId, dto.attachmentFileIds);
+        await tx.noticeAttachment.deleteMany({
+          where: { organizationId, noticeId },
+        });
+        if (dto.attachmentFileIds.length > 0) {
+          await tx.noticeAttachment.createMany({
+            data: dto.attachmentFileIds.map((fileId) => ({
+              organizationId,
+              noticeId,
+              fileId,
+            })),
+          });
+        }
+      }
+
       const nextStatus =
         dto.scheduledAt !== undefined
           ? resolveStatusAfterScheduleChange(notice.status, dto.scheduledAt)
@@ -259,6 +317,11 @@ export class NoticesService {
         },
         include: noticeInclude,
       });
+    }).then((notice) => {
+      void this.noticeNotificationService
+        .notifyPublished(organizationId, noticeId)
+        .catch(() => undefined);
+      return notice;
     });
   }
 
@@ -379,6 +442,17 @@ export class NoticesService {
         departmentId: audience.departmentId,
         department: audience.department,
       })),
+      attachments: notice.attachments?.map((attachment) => ({
+        id: attachment.id,
+        fileId: attachment.fileId,
+        file: {
+          id: attachment.file.id,
+          originalName: attachment.file.originalName,
+          mimeType: attachment.file.mimeType,
+          size: attachment.file.size,
+          createdAt: attachment.file.createdAt.toISOString(),
+        },
+      })) ?? [],
       readState: read
         ? {
             readAt: read.readAt.toISOString(),
@@ -408,8 +482,8 @@ export class NoticesService {
       include: noticeInclude,
     });
 
-    const staffContext = await this.getStaffContext(organizationId, actor.userId, tx);
-    if (!userMatchesAudiences(notice.audiences, staffContext)) {
+    const audienceContext = await this.getAudienceContext(organizationId, actor.userId, tx);
+    if (!userMatchesAudiences(notice.audiences, audienceContext)) {
       throw new NotFoundException({
         code: NOTICE_ERROR_CODES.NOT_IN_AUDIENCE,
         message: 'Notice not found',
@@ -429,8 +503,8 @@ export class NoticesService {
     }
 
     if (notice.status === NoticeStatus.PUBLISHED) {
-      const staffContext = await this.getStaffContext(notice.organizationId, actor.userId);
-      if (!userMatchesAudiences(notice.audiences, staffContext)) {
+      const audienceContext = await this.getAudienceContext(notice.organizationId, actor.userId);
+      if (!userMatchesAudiences(notice.audiences, audienceContext)) {
         throw new NotFoundException({
           code: NOTICE_ERROR_CODES.NOTICE_NOT_FOUND,
           message: 'Notice not found',
@@ -453,48 +527,114 @@ export class NoticesService {
   }
 
   private buildPublishedAudienceWhere(
-    staffContext: StaffAudienceContext,
+    audienceContext: NoticeRecipientAudienceContext,
   ): Prisma.NoticeWhereInput {
     const audienceMatch: Prisma.NoticeWhereInput[] = [
       { audiences: { some: { audienceType: NoticeAudienceType.ENTIRE_SCHOOL } } },
     ];
 
-    if (staffContext.hasStaffProfile) {
+    if (audienceContext.hasStaffProfile) {
       audienceMatch.push({ audiences: { some: { audienceType: NoticeAudienceType.STAFF } } });
 
-      if (staffContext.departmentId) {
+      if (audienceContext.departmentId) {
         audienceMatch.push({
           audiences: {
             some: {
               audienceType: NoticeAudienceType.DEPARTMENT,
-              departmentId: staffContext.departmentId,
+              departmentId: audienceContext.departmentId,
             },
           },
         });
       }
     }
 
+    if (audienceContext.hasStudentProfile) {
+      audienceMatch.push({ audiences: { some: { audienceType: NoticeAudienceType.STUDENT } } });
+    }
+
+    if (audienceContext.hasParentLink) {
+      audienceMatch.push({ audiences: { some: { audienceType: NoticeAudienceType.PARENT } } });
+    }
+
     return { OR: audienceMatch };
   }
 
-  private async getStaffContext(
+  private async getAudienceContext(
     organizationId: string,
     userId: string,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
-  ): Promise<StaffAudienceContext> {
-    const staff = await tx.staff.findFirst({
-      where: {
-        organizationId,
-        userId,
-        employmentStatus: { not: EmploymentStatus.OFFBOARDED },
-      },
-      select: { departmentId: true },
-    });
+  ): Promise<NoticeRecipientAudienceContext> {
+    const [staff, student, parentLink] = await Promise.all([
+      tx.staff.findFirst({
+        where: {
+          organizationId,
+          userId,
+          employmentStatus: { not: EmploymentStatus.OFFBOARDED },
+        },
+        select: { departmentId: true },
+      }),
+      tx.student.findFirst({
+        where: {
+          organizationId,
+          userId,
+          status: StudentStatus.ACTIVE,
+        },
+        select: { id: true },
+      }),
+      tx.parentStudentLink.findFirst({
+        where: { organizationId, parentUserId: userId },
+        select: { id: true },
+      }),
+    ]);
 
     return {
       hasStaffProfile: Boolean(staff),
+      hasStudentProfile: Boolean(student),
+      hasParentLink: Boolean(parentLink),
       departmentId: staff?.departmentId ?? null,
     };
+  }
+
+  private async assertNoticeAttachmentFiles(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    fileIds: string[],
+  ): Promise<void> {
+    if (fileIds.length > 10) {
+      throw new BadRequestException({
+        code: NOTICE_ERROR_CODES.TOO_MANY_ATTACHMENTS,
+        message: 'A notice can have at most 10 attachments',
+      });
+    }
+
+    const uniqueIds = [...new Set(fileIds)];
+    if (uniqueIds.length !== fileIds.length) {
+      throw new BadRequestException({
+        code: NOTICE_ERROR_CODES.INVALID_ATTACHMENT,
+        message: 'Duplicate attachment file ids are not allowed',
+      });
+    }
+
+    const files = await tx.file.findMany({
+      where: { organizationId, id: { in: uniqueIds } },
+      select: { id: true, mimeType: true },
+    });
+
+    if (files.length !== uniqueIds.length) {
+      throw new BadRequestException({
+        code: NOTICE_ERROR_CODES.INVALID_ATTACHMENT,
+        message: 'One or more attachment files were not found in this organization',
+      });
+    }
+
+    for (const file of files) {
+      if (!file.mimeType.startsWith('image/') && file.mimeType !== 'application/pdf') {
+        throw new BadRequestException({
+          code: NOTICE_ERROR_CODES.INVALID_ATTACHMENT,
+          message: 'Notice attachments must be images or PDF documents',
+        });
+      }
+    }
   }
 
   private async validateAudiences(
@@ -572,6 +712,30 @@ export class NoticesService {
           : {}),
       },
     });
+  }
+
+  async publishDueScheduledNotices(): Promise<{ published: number; checkedAt: string }> {
+    const now = new Date();
+    const due = await this.prisma.notice.findMany({
+      where: {
+        status: NoticeStatus.SCHEDULED,
+        scheduledAt: { lte: now },
+      },
+      select: { id: true, organizationId: true },
+      take: 100,
+    });
+
+    let published = 0;
+    for (const notice of due) {
+      try {
+        await this.publish(notice.organizationId, notice.id);
+        published += 1;
+      } catch {
+        // Skip rows that fail state checks; next cron run can retry.
+      }
+    }
+
+    return { published, checkedAt: now.toISOString() };
   }
 
   private async lockNoticeForMutation(

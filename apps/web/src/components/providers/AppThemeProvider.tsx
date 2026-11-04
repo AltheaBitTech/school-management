@@ -3,6 +3,7 @@
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
+import { AppSnackbarProvider } from '@/components/providers/AppSnackbarProvider';
 import { theme } from '@/theme/theme';
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
@@ -10,7 +11,7 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
     <AppRouterCacheProvider>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        {children}
+        <AppSnackbarProvider>{children}</AppSnackbarProvider>
       </ThemeProvider>
     </AppRouterCacheProvider>
   );

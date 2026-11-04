@@ -1,5 +1,5 @@
 import { DocumentType, Prisma } from '@prisma/client';
-import { BONAFIDE_TEMPLATE_DEFINITION } from '../constants/document.constants';
+import { DOCUMENT_TEMPLATE_DEFINITIONS } from '../constants/document.constants';
 
 type PrismaClientLike = Prisma.TransactionClient | {
   documentTemplate: Prisma.TransactionClient['documentTemplate'];
@@ -10,27 +10,30 @@ export async function ensureDefaultDocumentTemplates(
   organizationId: string,
   createdById?: string,
 ): Promise<void> {
-  await client.documentTemplate.upsert({
-    where: {
-      organizationId_documentType: {
-        organizationId,
-        documentType: DocumentType.BONAFIDE_CERTIFICATE,
+  for (const documentType of Object.values(DocumentType)) {
+    const definition = DOCUMENT_TEMPLATE_DEFINITIONS[documentType];
+    await client.documentTemplate.upsert({
+      where: {
+        organizationId_documentType: {
+          organizationId,
+          documentType,
+        },
       },
-    },
-    update: {
-      name: BONAFIDE_TEMPLATE_DEFINITION.name,
-      content: BONAFIDE_TEMPLATE_DEFINITION.content,
-      version: BONAFIDE_TEMPLATE_DEFINITION.version,
-      active: true,
-    },
-    create: {
-      organizationId,
-      name: BONAFIDE_TEMPLATE_DEFINITION.name,
-      documentType: DocumentType.BONAFIDE_CERTIFICATE,
-      content: BONAFIDE_TEMPLATE_DEFINITION.content,
-      version: BONAFIDE_TEMPLATE_DEFINITION.version,
-      active: true,
-      createdById: createdById ?? null,
-    },
-  });
+      update: {
+        name: definition.name,
+        content: definition.content,
+        version: definition.version,
+        active: true,
+      },
+      create: {
+        organizationId,
+        name: definition.name,
+        documentType,
+        content: definition.content,
+        version: definition.version,
+        active: true,
+        createdById: createdById ?? null,
+      },
+    });
+  }
 }

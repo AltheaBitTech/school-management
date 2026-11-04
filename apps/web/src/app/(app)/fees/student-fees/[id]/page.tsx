@@ -28,6 +28,7 @@ import { AppTable, EmptyState } from '@/components/ui/AppTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   FEE_PAYMENT_METHODS,
   formatCurrency,
@@ -37,11 +38,13 @@ import {
   getStudentDisplayNameFromFee,
   getStudentFee,
   recordStudentFeePayment,
+  downloadStudentFeePaymentReceipt,
   type FeePaymentMethod,
   type StudentFeeDetail,
 } from '@/lib/fees/fees-client';
 
 export default function StudentFeeDetailPage() {
+  const canRecordPayment = useCan('fee.record_payment');
   const params = useParams<{ id: string }>();
   const studentFeeId = params.id;
   const theme = useTheme();
@@ -60,6 +63,7 @@ export default function StudentFeeDetailPage() {
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [downloadingPaymentId, setDownloadingPaymentId] = useState<string | null>(null);
 
   const loadStudentFee = useCallback(async (): Promise<void> => {
     setIsLoading(true);
@@ -120,6 +124,18 @@ export default function StudentFeeDetailPage() {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to record payment');
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleDownloadReceipt(paymentId: string): Promise<void> {
+    setDownloadingPaymentId(paymentId);
+    setErrorMessage(null);
+    try {
+      await downloadStudentFeePaymentReceipt(studentFeeId, paymentId);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to download receipt');
+    } finally {
+      setDownloadingPaymentId(null);
     }
   }
 
@@ -202,7 +218,7 @@ export default function StudentFeeDetailPage() {
             Due date: {studentFee.dueDate ? formatFeeDate(studentFee.dueDate) : '—'}
           </Typography>
 
-          {studentFee.status !== 'PAID' ? (
+          {canRecordPayment && studentFee.status !== 'PAID' ? (
             <Box>
               <Button variant="contained" onClick={openPaymentDialog}>
                 Record payment
@@ -223,6 +239,7 @@ export default function StudentFeeDetailPage() {
                     <TableCell>Method</TableCell>
                     <TableCell>Reference</TableCell>
                     <TableCell>Notes</TableCell>
+                    <TableCell align="right">Receipt</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -233,6 +250,15 @@ export default function StudentFeeDetailPage() {
                       <TableCell>{formatFeePaymentMethod(payment.paymentMethod)}</TableCell>
                       <TableCell>{payment.reference ?? '—'}</TableCell>
                       <TableCell>{payment.notes ?? '—'}</TableCell>
+                      <TableCell align="right">
+                        <Button
+                          size="small"
+                          disabled={downloadingPaymentId === payment.id}
+                          onClick={() => void handleDownloadReceipt(payment.id)}
+                        >
+                          {downloadingPaymentId === payment.id ? 'Downloading…' : 'Download receipt'}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

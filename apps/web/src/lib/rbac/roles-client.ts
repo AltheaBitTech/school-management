@@ -14,3 +14,7 @@ export async function listOrganizationRoles(): Promise<OrganizationRole[]> {
   const response = await apiClient.get<RoleListResponse>('/roles', { auth: true });
   return response.data;
 }
+
+export async function assignRoleToUser(userId: string, roleId: string): Promise<void> {
+  await apiClient.post<void>(`/rbac/users/${userId}/roles`, { roleId }, { auth: true });
+}

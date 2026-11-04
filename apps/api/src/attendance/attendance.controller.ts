@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { AttendanceFeatureGuard } from '../common/features/attendance-feature.guard';
 import { AttendanceService } from './attendance.service';
 import {
   AttendanceResponseDto,
@@ -28,10 +29,11 @@ import {
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { ListAttendanceQueryDto } from './dto/list-attendance-query.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
+import { ScanAttendanceDto } from './dto/scan-attendance.dto';
 
 @ApiTags('attendance')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, AttendanceFeatureGuard)
 @Controller('attendance')
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
@@ -57,6 +59,14 @@ export class AttendanceController {
   ) {
     const attendance = await this.attendanceService.create(user.organizationId, dto);
     return { data: this.attendanceService.toDto(attendance) };
+  }
+
+  @Post('scan')
+  @RequirePermissions('attendance.mark')
+  @ApiOperation({ summary: 'Check a staff member in or out from a QR token or employee code' })
+  async scan(@CurrentUser() user: AuthenticatedUser, @Body() dto: ScanAttendanceDto) {
+    const data = await this.attendanceService.scan(user.organizationId, dto);
+    return { data };
   }
 
   @Get(':id')

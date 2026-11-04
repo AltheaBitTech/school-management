@@ -6,6 +6,8 @@ import { getLocalDateString } from '../../dashboard/utils/dashboard-date.util';
 import { PLATFORM_ORGANIZATION_CODE } from '../../organizations/constants/organization.constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ATTENDANCE_REPORT_ERROR_CODES } from './constants/attendance-report.constants';
+import { buildCsv } from '../common/csv-export.util';
+import { MAX_REPORT_CSV_EXPORT_ROWS } from '../common/max-export-rows';
 import { AttendanceReportQueryDto } from './dto/attendance-report-query.dto';
 
 const recordSelect = {
@@ -296,5 +298,24 @@ export class AttendanceReportsService {
       status: record.status,
       checkInAt: record.checkInAt?.toISOString() ?? null,
     };
+  }
+
+  async exportCsv(organizationId: string, query: AttendanceReportQueryDto): Promise<string> {
+    const report = await this.generate(organizationId, {
+      ...query,
+      page: 1,
+      pageSize: MAX_REPORT_CSV_EXPORT_ROWS,
+    });
+    return buildCsv(
+      ['Date', 'Employee code', 'Staff name', 'Department', 'Status', 'Check-in at'],
+      report.data.map((row) => [
+        row.attendanceDate,
+        row.employeeCode,
+        row.staffName,
+        row.departmentName,
+        row.status,
+        row.checkInAt,
+      ]),
+    );
   }
 }

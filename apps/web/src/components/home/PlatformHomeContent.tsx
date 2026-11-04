@@ -65,9 +65,14 @@ export function PlatformHomeContent({ userEmail }: { userEmail: string }) {
               Approve or reject new schools, then send each administrator their organization code and signup link.
             </Typography>
           </Box>
-          <Button component={Link} href="/admin/registrations" variant="contained" size="large">
-            Open registration requests
-          </Button>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Button component={Link} href="/organizations/new" variant="contained" size="large">
+              Create school
+            </Button>
+            <Button component={Link} href="/admin/registrations" variant="outlined" size="large">
+              Open registration requests
+            </Button>
+          </Stack>
         </Stack>
       </Paper>
     </Stack>

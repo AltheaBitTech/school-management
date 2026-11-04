@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   ASSIGNABLE_COMPLAINT_STATUSES,
   COMPLAINT_ERROR_CODES,
+  MAX_COMPLAINT_ATTACHMENTS,
 } from './constants/complaint.constants';
 import {
   AddComplaintCommentDto,
@@ -32,6 +33,13 @@ import {
   parseComplaintCodeSequence,
 } from './utils/complaint-code.util';
 import { isValidComplaintStatusTransition } from './utils/complaint-status.util';
+import { FilesService, FileDownloadPayload } from '../files/files.service';
+import { ComplaintNotificationService } from './complaint-notification.service';
+import {
+  ComplaintReadScope,
+  complaintMatchesScope,
+  complaintScopeWhere,
+} from './utils/complaint-access.util';
 
 const staffSummarySelect = {
   id: true,
@@ -46,9 +54,22 @@ const userSummarySelect = {
   email: true,
 } as const;
 
+const fileSummarySelect = {
+  id: true,
+  originalName: true,
+  mimeType: true,
+  size: true,
+  createdAt: true,
+} as const;
+
 const complaintInclude = {
   createdBy: { select: userSummarySelect },
   assignedToStaff: { select: staffSummarySelect },
+  attachments: {
+    include: {
+      file: { select: fileSummarySelect },
+    },
+  },
 } as const;
 
 const complaintDetailInclude = {
@@ -61,6 +82,18 @@ const complaintDetailInclude = {
   },
 } as const;
 
+type ComplaintAttachmentRow = {
+  id: string;
+  fileId: string;
+  file: {
+    id: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    createdAt: Date;
+  };
+};
+
 type ComplaintWithRelations = Complaint & {
   createdBy: { id: string; email: string };
   assignedToStaff: {
@@ -70,6 +103,7 @@ type ComplaintWithRelations = Complaint & {
     lastName: string;
     displayName: string | null;
   } | null;
+  attachments?: ComplaintAttachmentRow[];
 };
 
 type ComplaintDetail = ComplaintWithRelations & {
@@ -82,7 +116,11 @@ type ComplaintDetail = ComplaintWithRelations & {
 
 @Injectable()
 export class ComplaintsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly complaintNotificationService: ComplaintNotificationService,
+    private readonly filesService: FilesService,
+  ) {}
 
   async create(
     organizationId: string,
@@ -91,6 +129,9 @@ export class ComplaintsService {
   ): Promise<ComplaintDetail> {
     return this.prisma.$transaction(async (tx) => {
       const complaintCode = await this.generateComplaintCode(tx, organizationId);
+      if (dto.attachmentFileIds?.length) {
+        await this.assertComplaintAttachmentFiles(tx, organizationId, dto.attachmentFileIds);
+      }
 
       const complaint = await tx.complaint.create({
         data: {
@@ -103,6 +144,16 @@ export class ComplaintsService {
           status: ComplaintStatus.OPEN,
           createdByUserId: actor.userId,
           location: dto.location?.trim() || null,
+          ...(dto.attachmentFileIds?.length
+            ? {
+                attachments: {
+                  create: dto.attachmentFileIds.map((fileId) => ({
+                    organizationId,
+                    fileId,
+                  })),
+                },
+              }
+            : {}),
         },
         include: complaintDetailInclude,
       });
@@ -122,13 +173,41 @@ export class ComplaintsService {
     });
   }
 
-  async list(organizationId: string, query: ListComplaintsQueryDto) {
+  async resolveReadScope(
+    actor: AuthenticatedUser,
+    permissions: string[],
+  ): Promise<ComplaintReadScope> {
+    if (permissions.includes('complaint.assign') || permissions.includes('complaint.close')) {
+      return { mode: 'organization' };
+    }
+
+    if (permissions.includes('complaint.update')) {
+      const staff = await this.prisma.staff.findFirst({
+        where: {
+          organizationId: actor.organizationId,
+          userId: actor.userId,
+          employmentStatus: EmploymentStatus.ACTIVE,
+        },
+        select: { id: true },
+      });
+      return { mode: 'assignee', staffId: staff?.id ?? null };
+    }
+
+    return { mode: 'creator', userId: actor.userId };
+  }
+
+  async list(
+    organizationId: string,
+    query: ListComplaintsQueryDto,
+    scope?: ComplaintReadScope,
+  ) {
     const where: Prisma.ComplaintWhereInput = {
       organizationId,
       ...(query.status ? { status: query.status } : {}),
       ...(query.priority ? { priority: query.priority } : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.assignedToStaffId ? { assignedToStaffId: query.assignedToStaffId } : {}),
+      ...complaintScopeWhere(scope),
       ...(query.search
         ? {
             OR: [
@@ -157,13 +236,17 @@ export class ComplaintsService {
     };
   }
 
-  async findById(organizationId: string, complaintId: string): Promise<ComplaintDetail> {
+  async findById(
+    organizationId: string,
+    complaintId: string,
+    scope?: ComplaintReadScope,
+  ): Promise<ComplaintDetail> {
     const complaint = await this.prisma.complaint.findFirst({
       where: { id: complaintId, organizationId },
       include: complaintDetailInclude,
     });
 
-    if (!complaint) {
+    if (!complaint || !complaintMatchesScope(complaint, scope)) {
       throw new NotFoundException({
         code: COMPLAINT_ERROR_CODES.COMPLAINT_NOT_FOUND,
         message: 'Complaint not found',
@@ -171,6 +254,43 @@ export class ComplaintsService {
     }
 
     return complaint;
+  }
+
+  async downloadAttachment(
+    organizationId: string,
+    complaintId: string,
+    fileId: string,
+    scope?: ComplaintReadScope,
+  ): Promise<FileDownloadPayload> {
+    const complaint = await this.prisma.complaint.findFirst({
+      where: { id: complaintId, organizationId },
+      select: {
+        id: true,
+        createdByUserId: true,
+        assignedToStaffId: true,
+      },
+    });
+
+    if (!complaint || !complaintMatchesScope(complaint, scope)) {
+      throw new NotFoundException({
+        code: COMPLAINT_ERROR_CODES.COMPLAINT_NOT_FOUND,
+        message: 'Complaint not found',
+      });
+    }
+
+    const attachment = await this.prisma.complaintAttachment.findFirst({
+      where: { organizationId, complaintId, fileId },
+      select: { id: true },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException({
+        code: COMPLAINT_ERROR_CODES.INVALID_ATTACHMENT,
+        message: 'Attachment not found for this complaint',
+      });
+    }
+
+    return this.filesService.download(organizationId, fileId);
   }
 
   async update(
@@ -239,7 +359,13 @@ export class ComplaintsService {
         },
       });
 
-      return this.reloadComplaintDetail(tx, organizationId, complaintId);
+      const detail = await this.reloadComplaintDetail(tx, organizationId, complaintId);
+      return detail;
+    }).then((detail) => {
+      void this.complaintNotificationService
+        .notifyAssigned(organizationId, complaintId)
+        .catch(() => undefined);
+      return detail;
     });
   }
 
@@ -249,6 +375,7 @@ export class ComplaintsService {
     actor: AuthenticatedUser,
     dto: ChangeComplaintStatusDto,
     canClose: boolean,
+    scope?: ComplaintReadScope,
   ): Promise<ComplaintDetail> {
     if (dto.status === ComplaintStatus.CLOSED && !canClose) {
       throw new ForbiddenException({
@@ -259,6 +386,23 @@ export class ComplaintsService {
 
     return this.prisma.$transaction(async (tx) => {
       const complaint = await this.lockComplaintForMutation(tx, organizationId, complaintId);
+      if (!complaintMatchesScope(complaint, scope)) {
+        throw new NotFoundException({
+          code: COMPLAINT_ERROR_CODES.COMPLAINT_NOT_FOUND,
+          message: 'Complaint not found',
+        });
+      }
+
+      if (
+        scope?.mode === 'assignee' &&
+        dto.status === ComplaintStatus.COMPLETED &&
+        !dto.note?.trim()
+      ) {
+        throw new BadRequestException({
+          code: COMPLAINT_ERROR_CODES.INVALID_COMPLAINT_STATE,
+          message: 'A completion note is required before this complaint can be marked completed.',
+        });
+      }
 
       if (
         complaint.status === ComplaintStatus.OPEN &&
@@ -277,6 +421,24 @@ export class ComplaintsService {
         });
       }
 
+      if (dto.attachmentFileIds?.length) {
+        const existingCount = await tx.complaintAttachment.count({
+          where: { organizationId, complaintId },
+        });
+        if (existingCount + dto.attachmentFileIds.length > MAX_COMPLAINT_ATTACHMENTS) {
+          throw new BadRequestException({
+            code: COMPLAINT_ERROR_CODES.TOO_MANY_ATTACHMENTS,
+            message: `A complaint can have at most ${MAX_COMPLAINT_ATTACHMENTS} images`,
+          });
+        }
+        await this.assertComplaintAttachmentFiles(
+          tx,
+          organizationId,
+          dto.attachmentFileIds,
+          complaintId,
+        );
+      }
+
       await tx.complaint.update({
         where: { id: complaintId },
         data: {
@@ -285,6 +447,17 @@ export class ComplaintsService {
         },
       });
 
+      if (dto.attachmentFileIds?.length) {
+        await tx.complaintAttachment.createMany({
+          data: dto.attachmentFileIds.map((fileId) => ({
+            organizationId,
+            complaintId,
+            fileId,
+          })),
+        });
+      }
+
+      const note = dto.note?.trim();
       await tx.complaintHistory.create({
         data: {
           organizationId,
@@ -293,11 +466,17 @@ export class ComplaintsService {
           oldStatus: complaint.status,
           newStatus: dto.status,
           comment:
-            dto.status === ComplaintStatus.CLOSED ? 'Complaint closed' : 'Status updated',
+            note || (dto.status === ComplaintStatus.CLOSED ? 'Complaint closed' : 'Status updated'),
         },
       });
 
-      return this.reloadComplaintDetail(tx, organizationId, complaintId);
+      const detail = await this.reloadComplaintDetail(tx, organizationId, complaintId);
+      return { detail, previousStatus: complaint.status, newStatus: dto.status };
+    }).then(({ detail, newStatus }) => {
+      void this.complaintNotificationService
+        .notifyStatusChanged(organizationId, complaintId, newStatus)
+        .catch(() => undefined);
+      return detail;
     });
   }
 
@@ -306,9 +485,16 @@ export class ComplaintsService {
     complaintId: string,
     actor: AuthenticatedUser,
     dto: AddComplaintCommentDto,
+    scope?: ComplaintReadScope,
   ): Promise<ComplaintDetail> {
     return this.prisma.$transaction(async (tx) => {
       const complaint = await this.lockComplaintForMutation(tx, organizationId, complaintId);
+      if (!complaintMatchesScope(complaint, scope)) {
+        throw new NotFoundException({
+          code: COMPLAINT_ERROR_CODES.COMPLAINT_NOT_FOUND,
+          message: 'Complaint not found',
+        });
+      }
       this.assertNotClosed(complaint.status);
 
       await tx.complaintHistory.create({
@@ -344,6 +530,20 @@ export class ComplaintsService {
       closedAt: complaint.closedAt?.toISOString() ?? null,
       createdBy: complaint.createdBy,
       assignedToStaff: complaint.assignedToStaff,
+      attachments:
+        'attachments' in complaint && complaint.attachments
+          ? complaint.attachments.map((attachment) => ({
+              id: attachment.id,
+              fileId: attachment.fileId,
+              file: {
+                id: attachment.file.id,
+                originalName: attachment.file.originalName,
+                mimeType: attachment.file.mimeType,
+                size: attachment.file.size,
+                createdAt: attachment.file.createdAt.toISOString(),
+              },
+            }))
+          : [],
       ...('history' in complaint
         ? {
             history: complaint.history.map((entry) => ({
@@ -358,6 +558,65 @@ export class ComplaintsService {
           }
         : {}),
     };
+  }
+
+  private async assertComplaintAttachmentFiles(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    fileIds: string[],
+    excludeComplaintId?: string,
+  ): Promise<void> {
+    if (fileIds.length > MAX_COMPLAINT_ATTACHMENTS) {
+      throw new BadRequestException({
+        code: COMPLAINT_ERROR_CODES.TOO_MANY_ATTACHMENTS,
+        message: `A complaint can have at most ${MAX_COMPLAINT_ATTACHMENTS} images`,
+      });
+    }
+
+    const uniqueIds = [...new Set(fileIds)];
+    if (uniqueIds.length !== fileIds.length) {
+      throw new BadRequestException({
+        code: COMPLAINT_ERROR_CODES.INVALID_ATTACHMENT,
+        message: 'Duplicate attachment file ids are not allowed',
+      });
+    }
+
+    const files = await tx.file.findMany({
+      where: { organizationId, id: { in: uniqueIds } },
+      select: { id: true, mimeType: true },
+    });
+
+    if (files.length !== uniqueIds.length) {
+      throw new BadRequestException({
+        code: COMPLAINT_ERROR_CODES.INVALID_ATTACHMENT,
+        message: 'One or more attachment files were not found in this organization',
+      });
+    }
+
+    for (const file of files) {
+      if (!file.mimeType.startsWith('image/')) {
+        throw new BadRequestException({
+          code: COMPLAINT_ERROR_CODES.INVALID_ATTACHMENT,
+          message: 'Complaint attachments must be images',
+        });
+      }
+    }
+
+    const alreadyLinked = await tx.complaintAttachment.findFirst({
+      where: {
+        organizationId,
+        fileId: { in: uniqueIds },
+        ...(excludeComplaintId ? { complaintId: { not: excludeComplaintId } } : {}),
+      },
+      select: { id: true },
+    });
+
+    if (alreadyLinked) {
+      throw new BadRequestException({
+        code: COMPLAINT_ERROR_CODES.INVALID_ATTACHMENT,
+        message: 'One or more files are already attached to another complaint',
+      });
+    }
   }
 
   private async generateComplaintCode(

@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Button, TextField, Alert, Typography, Box, CircularProgress } from '@mui/material';
+import { Button, TextField, Alert, Box, CircularProgress, Stack } from '@mui/material';
 import { apiClient } from '@/lib/api/client';
 
 interface SignupContext {
@@ -127,31 +127,31 @@ export function CompleteSignupForm() {
 
   if (success) {
     return (
-      <Box sx={{ textAlign: 'center', py: 6 }}>
-        <Typography variant="h5" sx={{ mb: 2, color: 'green' }}>Account Created</Typography>
-        <Typography sx={{ mb: 1 }}>Your organization code is <strong>{organizationCode}</strong>.</Typography>
-        <Typography sx={{ mb: 3 }}>Redirecting to login...</Typography>
-      </Box>
+      <Stack spacing={2}>
+        <Alert severity="success">
+          Account created. Your organization code is <strong>{organizationCode}</strong>. Redirecting to sign in…
+        </Alert>
+      </Stack>
     );
   }
 
   return (
-    <>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+    <Box component="form" onSubmit={handleSubmit}>
+      <Stack spacing={2}>
+      {error ? <Alert severity="error">{error}</Alert> : null}
 
       {signupContext ? (
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert severity="info">
           Setting up administrator access for <strong>{signupContext.organizationName}</strong>.
         </Alert>
       ) : null}
 
-      <form onSubmit={handleSubmit}>
         <TextField
           fullWidth
           label="Organization code"
           value={organizationCode}
           disabled
-          sx={{ mb: 2 }}
+          helperText="Your assigned organization code"
         />
 
         <TextField
@@ -159,7 +159,7 @@ export function CompleteSignupForm() {
           label="Email"
           value={email}
           disabled
-          sx={{ mb: 2 }}
+          helperText="Administrator email for this signup"
         />
 
         <TextField
@@ -167,9 +167,9 @@ export function CompleteSignupForm() {
           type="password"
           label="Password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           disabled={loading || Boolean(signupContext?.signupCompleted)}
-          sx={{ mb: 2 }}
+          helperText="Minimum 8 characters"
         />
 
         <TextField
@@ -177,21 +177,22 @@ export function CompleteSignupForm() {
           type="password"
           label="Confirm Password"
           value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
+          onChange={(e) => setConfirmPassword(e.target.value)}
           disabled={loading || Boolean(signupContext?.signupCompleted)}
-          sx={{ mb: 3 }}
+          helperText="Re-enter your password"
         />
 
         <Button
           fullWidth
           variant="contained"
+          size="large"
           type="submit"
           disabled={loading || Boolean(signupContext?.signupCompleted) || !organizationCode}
-          sx={{ py: 1.5 }}
+          startIcon={loading ? <CircularProgress size={18} color="inherit" /> : undefined}
         >
-          {loading ? 'Creating Account...' : 'Create Account'}
+          {loading ? 'Creating account…' : 'Create account'}
         </Button>
-      </form>
-    </>
+      </Stack>
+    </Box>
   );
 }

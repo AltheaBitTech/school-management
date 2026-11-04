@@ -26,6 +26,37 @@ export class GeneratedDocumentStudentSummaryDto {
   className?: string | null;
 }
 
+export class GeneratedDocumentStaffSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  employeeCode!: string;
+
+  @ApiProperty()
+  firstName!: string;
+
+  @ApiProperty()
+  lastName!: string;
+
+  @ApiPropertyOptional()
+  displayName?: string | null;
+
+  @ApiPropertyOptional()
+  designation?: string | null;
+}
+
+export class GeneratedDocumentVisitorSummaryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  visitorCode!: string;
+
+  @ApiProperty()
+  name!: string;
+}
+
 export class GeneratedDocumentUserSummaryDto {
   @ApiProperty()
   id!: string;
@@ -78,6 +109,12 @@ export class GeneratedDocumentResponseDto {
 
   @ApiPropertyOptional({ type: GeneratedDocumentStudentSummaryDto })
   student?: GeneratedDocumentStudentSummaryDto;
+
+  @ApiPropertyOptional({ type: GeneratedDocumentStaffSummaryDto })
+  staff?: GeneratedDocumentStaffSummaryDto;
+
+  @ApiPropertyOptional({ type: GeneratedDocumentVisitorSummaryDto })
+  visitor?: GeneratedDocumentVisitorSummaryDto;
 
   @ApiPropertyOptional({ type: GeneratedDocumentUserSummaryDto })
   generatedBy?: GeneratedDocumentUserSummaryDto;

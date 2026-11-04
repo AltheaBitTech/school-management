@@ -8,11 +8,12 @@ import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
@@ -70,25 +71,24 @@ export default function FeesPage() {
   );
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Fees"
-        description="Manage fee structures and student payments."
-        actions={
-          <>
-            <Button component={Link} href="/fees/structures" variant="outlined">
-              Fee structures
-            </Button>
-            <Button component={Link} href="/fees/student-fees" variant="contained">
-              Student fees
-            </Button>
-          </>
-        }
-      />
+    <ListPageShell
+      title="Fees"
+      description="Manage fee structures and student payments."
+      icon={PaymentsOutlined}
+      actions={
+        <>
+          <Button component={Link} href="/fees/structures" variant="outlined">
+            Fee structures
+          </Button>
+          <Button component={Link} href="/fees/student-fees" variant="contained">
+            Student fees
+          </Button>
+        </>
+      }
+    >
+      {isLoading ? <LoadingState label="Loading fees overview" columnCount={3} /> : null}
 
-      {isLoading ? <LoadingState label="Loading fees overview" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && !errorMessage ? (
         <Stack spacing={3}>
@@ -113,7 +113,7 @@ export default function FeesPage() {
               Active fee structures
             </Typography>
             {structures.length === 0 ? (
-              <EmptyState message="No active fee structures yet." />
+              <EmptyState icon={PaymentsOutlined} message="No active fee structures yet." />
             ) : (
               <Stack spacing={1.25}>
                 {structures.map((structure) => (
@@ -144,7 +144,7 @@ export default function FeesPage() {
               Recent student fee assignments
             </Typography>
             {studentFees.length === 0 ? (
-              <EmptyState message="No student fees assigned yet." />
+              <EmptyState icon={PaymentsOutlined} message="No student fees assigned yet." />
             ) : (
               <Stack spacing={1.25}>
                 {studentFees.map((studentFee) => (
@@ -179,7 +179,7 @@ export default function FeesPage() {
           </Box>
         </Stack>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }
 

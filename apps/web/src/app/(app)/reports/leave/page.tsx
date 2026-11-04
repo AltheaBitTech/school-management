@@ -1,5 +1,6 @@
 'use client';
 
+import EventBusyOutlined from '@mui/icons-material/EventBusyOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -20,6 +21,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { ReportExportCsvButton } from '@/components/ui/ReportExportCsvButton';
+import { ReportFilterPanel } from '@/components/ui/ReportFilterPanel';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import {
   formatLeaveStatus,
@@ -136,11 +139,21 @@ export default function LeaveReportPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
+        icon={EventBusyOutlined}
         title="Leave report"
         description="Staff leave requests use LeaveRequest.status as the source of truth. Date filters match leave periods that overlap the selected range."
+        actions={
+          <ReportExportCsvButton
+            exportPath="/reports/leave/export.csv"
+            queryParams={queryParams}
+            filename="leave-report.csv"
+            rowCount={report?.data.length ?? 0}
+            onError={setErrorMessage}
+          />
+        }
       />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} flexWrap="wrap">
+      <ReportFilterPanel>
         <TextField
           label="Date (single day)"
           type="date"
@@ -211,7 +224,7 @@ export default function LeaveReportPage() {
             </MenuItem>
           ))}
         </TextField>
-      </Stack>
+      </ReportFilterPanel>
 
       {filterError && <Alert severity="warning">{filterError}</Alert>}
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}

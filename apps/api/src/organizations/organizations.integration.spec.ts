@@ -180,21 +180,25 @@ describeIfDatabase('Organizations integration', () => {
 
     const loginResult = await authService.login(
       {
-        organizationCode: bootstrapResult.organization.code,
         email: bootstrapResult.admin.email,
         password: 'SchoolAdmin123!',
       },
       {},
     );
 
+    if (!('accessToken' in loginResult)) {
+      throw new Error('Expected a single-role login session');
+    }
+
     expect(loginResult.user.organizationId).toBe(bootstrapResult.organization.id);
 
     const permissions = await permissionsService.getEffectivePermissions(
       bootstrapResult.admin.id,
       bootstrapResult.organization.id,
+      loginResult.user.activeRoleId ?? '',
     );
-    expect(permissions).toContain('staff.view');
-    expect(permissions).toContain('role.assign');
+    expect(permissions ?? []).toContain('staff.view');
+    expect(permissions ?? []).toContain('role.assign');
 
     jest.spyOn(Reflector.prototype, 'getAllAndOverride').mockReturnValue(['staff.view']);
     const request = {
@@ -202,6 +206,7 @@ describeIfDatabase('Organizations integration', () => {
         userId: bootstrapResult.admin.id,
         organizationId: bootstrapResult.organization.id,
         sessionId: loginResult.user.sessionId,
+        activeRoleId: loginResult.user.activeRoleId,
         email: bootstrapResult.admin.email,
       },
     };
@@ -223,7 +228,7 @@ describeIfDatabase('Organizations integration', () => {
     const code = `rollback-school-${suffix}`;
 
     jest
-      .spyOn(organizationRoleSeedUtil, 'ensureSchoolAdminRole')
+      .spyOn(organizationRoleSeedUtil, 'ensureAllOrganizationRoles')
       .mockRejectedValueOnce(new Error('seed failed'));
 
     await expect(

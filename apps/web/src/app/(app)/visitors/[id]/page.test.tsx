@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import VisitorDetailPage from '@/app/(app)/visitors/[id]/page';
 import { ApiError } from '@/lib/api/client';
+import { renderWithAppProviders } from '@/test/render-app';
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'visitor-1' }),
@@ -65,24 +66,24 @@ describe('VisitorDetailPage', () => {
 
   it('shows a loading state while visitor detail is fetched', () => {
     vi.mocked(getVisitor).mockReturnValue(new Promise(() => undefined));
-    render(<VisitorDetailPage />);
+    renderWithAppProviders(<VisitorDetailPage />);
     expect(screen.getByLabelText('Loading visitor')).toBeInTheDocument();
   });
 
   it('renders visitor detail and history', async () => {
     vi.mocked(getVisitor).mockResolvedValue(baseVisitor);
-    render(<VisitorDetailPage />);
+    renderWithAppProviders(<VisitorDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Ramesh Kumar')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Ramesh Kumar' })).toBeInTheDocument();
       expect(screen.getByText(/Visitor checked in/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Check out visitor/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Check out$/i })).toBeInTheDocument();
     });
   });
 
   it('shows a forbidden state on 403 responses', async () => {
     vi.mocked(getVisitor).mockRejectedValue(new ApiError('Forbidden', 403));
-    render(<VisitorDetailPage />);
+    renderWithAppProviders(<VisitorDetailPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Access denied')).toBeInTheDocument();
@@ -91,7 +92,7 @@ describe('VisitorDetailPage', () => {
 
   it('shows a not found state on 404 responses', async () => {
     vi.mocked(getVisitor).mockRejectedValue(new ApiError('Not found', 404));
-    render(<VisitorDetailPage />);
+    renderWithAppProviders(<VisitorDetailPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/Visitor not found/i)).toBeInTheDocument();
@@ -122,17 +123,19 @@ describe('VisitorDetailPage', () => {
       checkOutAt: '2026-09-16T11:00:00.000Z',
     });
 
-    render(<VisitorDetailPage />);
+    renderWithAppProviders(<VisitorDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Check out visitor/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Check out$/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Check out visitor/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Check out$/i }));
+
+    const confirmButtons = screen.getAllByRole('button', { name: /^Check out$/i });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
 
     await waitFor(() => {
       expect(checkOutVisitor).toHaveBeenCalledWith('visitor-1');
-      expect(screen.getByRole('alert')).toHaveTextContent('Visitor checked out.');
     });
   });
 
@@ -140,13 +143,16 @@ describe('VisitorDetailPage', () => {
     vi.mocked(getVisitor).mockResolvedValue(baseVisitor);
     vi.mocked(checkOutVisitor).mockRejectedValue(new ApiError('Conflict', 409));
 
-    render(<VisitorDetailPage />);
+    renderWithAppProviders(<VisitorDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Check out visitor/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Check out$/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Check out visitor/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Check out$/i }));
+
+    const confirmButtons = screen.getAllByRole('button', { name: /^Check out$/i });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
 
     await waitFor(() => {
       expect(

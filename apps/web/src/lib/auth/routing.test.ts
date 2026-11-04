@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   isOperationalDashboardUser,
   isStaffSelfServiceUser,
+  isParentSelfServiceUser,
+  isStudentSelfServiceUser,
   resolveHomePath,
 } from '@/lib/auth/routing';
 
@@ -17,5 +19,17 @@ describe('auth routing', () => {
     const permissions = ['staff.self.view', 'staff.self.leave.view'];
     expect(isStaffSelfServiceUser(permissions)).toBe(true);
     expect(resolveHomePath(permissions)).toBe('/staff/dashboard');
+  });
+
+  it('routes student-only users to student profile', () => {
+    const permissions = ['student.self.view', 'student.self.fee.view'];
+    expect(isStudentSelfServiceUser(permissions)).toBe(true);
+    expect(resolveHomePath(permissions)).toBe('/student/profile');
+  });
+
+  it('routes parent users to the parent portal', () => {
+    const permissions = ['parent.portal.view', 'notice.view'];
+    expect(isParentSelfServiceUser(permissions)).toBe(true);
+    expect(resolveHomePath(permissions)).toBe('/parent');
   });
 });

@@ -45,11 +45,11 @@ export class CreateStaffDto {
   @MaxLength(20)
   mobile?: string;
 
-  @ApiPropertyOptional({ example: 'priya.sharma@school.example' })
-  @IsOptional()
+  @ApiProperty({ example: 'priya.sharma@school.example' })
   @IsEmail()
+  @IsNotEmpty()
   @MaxLength(254)
-  email?: string;
+  email!: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()

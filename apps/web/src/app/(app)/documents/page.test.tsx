@@ -12,10 +12,14 @@ vi.mock('next/link', () => ({
 
 vi.mock('@/lib/documents/documents-client', () => ({
   listDocuments: vi.fn(),
+  DOCUMENT_TYPES: ['BONAFIDE_CERTIFICATE'],
   formatDocumentType: () => 'Bonafide Certificate',
   formatDocumentDateTime: () => 'Sep 17, 2026, 10:00:00 AM',
-  getDocumentStudentDisplayName: (student: { firstName: string; lastName: string }) =>
-    `${student.firstName} ${student.lastName}`,
+  getDocumentOwnerLabel: (document: { student?: { firstName: string; lastName: string; studentCode: string } }) =>
+    document.student
+      ? `${document.student.firstName} ${document.student.lastName} (${document.student.studentCode})`
+      : '—',
+  getDocumentTypeChipColor: () => 'primary',
 }));
 
 import { listDocuments } from '@/lib/documents/documents-client';

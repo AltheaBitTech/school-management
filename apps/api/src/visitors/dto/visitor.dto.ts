@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
+import { VISITOR_MOBILE_PATTERN } from '../constants/visitor-mobile.constants';
 import {
   VISITOR_MOBILE_MAX_LENGTH,
   VISITOR_NAME_MAX_LENGTH,
@@ -20,6 +21,9 @@ export class CreateVisitorDto {
   @IsString()
   @MinLength(1)
   @MaxLength(VISITOR_MOBILE_MAX_LENGTH)
+  @Matches(VISITOR_MOBILE_PATTERN, {
+    message: 'mobile must be a valid 10-digit Indian mobile number (optional +91 prefix)',
+  })
   mobile!: string;
 
   @ApiPropertyOptional({ example: 'ABC Services' })
@@ -49,4 +53,9 @@ export class CreateVisitorDto {
   @IsString()
   @MaxLength(VISITOR_REMARKS_MAX_LENGTH)
   remarks?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Optional visitor photo (image file)' })
+  @IsOptional()
+  @IsUUID()
+  photoFileId?: string;
 }

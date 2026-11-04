@@ -1,11 +1,23 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
-import { Box, Button, TextField, Alert, Grid, Typography, CircularProgress } from '@mui/material';
+import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
+import { resetSubmitting } from '@/lib/forms/submit-state';
+import PersonOutline from '@mui/icons-material/PersonOutline';
+import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
+import SendOutlined from '@mui/icons-material/SendOutlined';
+import { FormEvent, useEffect, useRef, useState, type ElementType, type ReactNode } from 'react';
+import { Box, Button, TextField, Alert, Grid, Typography, CircularProgress, Stack } from '@mui/material';
+import Link from 'next/link';
+import { ApiError } from '@/lib/api/client';
 import { registrationApi } from '@/lib/api/registration.api';
+import {
+  isValidOrganizationCodeInput,
+  normalizeOrganizationCodeInput,
+} from '@/lib/organizations/organization-code';
 
 interface FormData {
   organizationName: string;
+  organizationCode: string;
   contactEmail: string;
   contactFirstName: string;
   contactLastName: string;
@@ -23,9 +35,21 @@ interface RegisterOrganizationFormProps {
   onSuccess: (requestId: string) => void;
 }
 
+function SectionLabel({ icon: Icon, children }: { icon: ElementType; children: ReactNode }) {
+  return (
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ pt: 0.5 }}>
+      <Icon sx={{ fontSize: 18, color: 'primary.main' }} />
+      <Typography variant="overline" sx={{ letterSpacing: '0.08em', color: 'text.secondary', lineHeight: 1.4 }}>
+        {children}
+      </Typography>
+    </Stack>
+  );
+}
+
 export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationFormProps) {
   const [formData, setFormData] = useState<FormData>({
     organizationName: '',
+    organizationCode: '',
     contactEmail: '',
     contactFirstName: '',
     contactLastName: '',
@@ -37,6 +61,38 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
   const [errors, setErrors] = useState<FormErrors>({});
   const [globalError, setGlobalError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [organizationCodeHint, setOrganizationCodeHint] = useState(
+    'Suggested from your school name — used at sign-in',
+  );
+  const organizationCodeEditedRef = useRef(false);
+
+  useEffect(() => {
+    const name = formData.organizationName.trim();
+    if (name.length < 3) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void registrationApi
+        .suggestOrganizationCode(
+          name,
+          organizationCodeEditedRef.current ? formData.organizationCode : undefined,
+        )
+        .then((result) => {
+          if (!organizationCodeEditedRef.current) {
+            setFormData((prev) => ({ ...prev, organizationCode: result.code }));
+          }
+          setOrganizationCodeHint(
+            result.available
+              ? 'Your school sign-in code (fixed after approval). Lowercase letters, numbers, hyphens.'
+              : 'That code is taken — we suggested the next available option.',
+          );
+        })
+        .catch(() => undefined);
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [formData.organizationName, formData.organizationCode]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -45,6 +101,13 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
       newErrors.organizationName = 'School name is required';
     } else if (formData.organizationName.length < 3) {
       newErrors.organizationName = 'At least 3 characters';
+    }
+
+    const normalizedCode = normalizeOrganizationCodeInput(formData.organizationCode);
+    if (!normalizedCode) {
+      newErrors.organizationCode = 'School sign-in code is required';
+    } else if (!isValidOrganizationCodeInput(normalizedCode)) {
+      newErrors.organizationCode = 'Use 3–64 lowercase letters, numbers, or hyphens';
     }
 
     if (!formData.contactEmail.trim()) {
@@ -78,12 +141,22 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    if (name === 'organizationCode') {
+      organizationCodeEditedRef.current = true;
+    }
+
     const nextValue =
-      name === 'contactPhone' ? value.replace(/\D/g, '').slice(0, 10) : value;
+      name === 'contactPhone'
+        ? value.replace(/\D/g, '').slice(0, 10)
+        : name === 'organizationCode'
+          ? value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+          : value;
     setFormData(prev => ({ ...prev, [name]: nextValue }));
-    // Clear error for this field when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+    if (name === 'contactEmail' && globalError) {
+      setGlobalError('');
     }
   };
 
@@ -101,6 +174,7 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
       const phoneDigits = formData.contactPhone?.replace(/\D/g, '') ?? '';
       const response = await registrationApi.submitRegistrationRequest({
         organizationName: formData.organizationName.trim(),
+        preferredOrganizationCode: normalizeOrganizationCodeInput(formData.organizationCode),
         contactEmail: formData.contactEmail.trim(),
         contactFirstName: formData.contactFirstName.trim(),
         contactLastName: formData.contactLastName.trim(),
@@ -111,53 +185,70 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
       });
       onSuccess(response.id);
     } catch (error: unknown) {
-      const err = error as { code?: string; message?: string };
-      if (err.code === 'EMAIL_ALREADY_REGISTERED') {
-        setErrors(prev => ({
-          ...prev,
-          contactEmail: 'This email is already registered in another organization',
-        }));
-      } else if (err.code === 'REGISTRATION_ALREADY_PENDING') {
-        setGlobalError('A registration request already exists for this email. Check your email for updates.');
+      resetSubmitting(setIsSubmitting);
+      if (error instanceof ApiError) {
+        if (
+          error.code === 'EMAIL_ALREADY_REGISTERED' ||
+          error.code === 'REGISTRATION_ALREADY_PENDING'
+        ) {
+          setErrors(prev => ({
+            ...prev,
+            contactEmail: error.message,
+          }));
+        } else if (error.code === 'ORGANIZATION_CODE_UNAVAILABLE') {
+          setErrors(prev => ({
+            ...prev,
+            organizationCode: error.message,
+          }));
+        } else {
+          setGlobalError(error.message);
+        }
       } else {
-        setGlobalError(err.message || 'Failed to submit registration. Please try again.');
+        setGlobalError('Failed to submit registration. Please try again.');
       }
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {globalError && (
-        <Alert severity="error">{globalError}</Alert>
-      )}
+    <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+      {globalError ? <Alert severity="error">{globalError}</Alert> : null}
 
-      {/* Organization Name */}
+      <SectionLabel icon={ApartmentOutlined}>School</SectionLabel>
+
       <TextField
         fullWidth
         name="organizationName"
         label="School/Organization Name"
-        placeholder="e.g., Delhi Public School"
         value={formData.organizationName}
         onChange={handleChange}
         error={!!errors.organizationName}
-        helperText={errors.organizationName}
+        helperText={errors.organizationName || 'Official name as it should appear in CampusOps'}
         required
       />
 
-      {/* Contact Name - Two Columns */}
+      <TextField
+        fullWidth
+        name="organizationCode"
+        label="School sign-in code"
+        value={formData.organizationCode}
+        onChange={handleChange}
+        error={!!errors.organizationCode}
+        helperText={errors.organizationCode || organizationCodeHint}
+        required
+      />
+
+      <SectionLabel icon={PersonOutline}>Contact details</SectionLabel>
+
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             name="contactFirstName"
             label="First Name"
-            placeholder="Rajesh"
             value={formData.contactFirstName}
             onChange={handleChange}
             error={!!errors.contactFirstName}
-            helperText={errors.contactFirstName}
+            helperText={errors.contactFirstName || 'Primary contact person'}
             required
           />
         </Grid>
@@ -166,7 +257,6 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
             fullWidth
             name="contactLastName"
             label="Last Name"
-            placeholder="Kumar"
             value={formData.contactLastName}
             onChange={handleChange}
             error={!!errors.contactLastName}
@@ -176,26 +266,22 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
         </Grid>
       </Grid>
 
-      {/* Email */}
       <TextField
         fullWidth
         name="contactEmail"
         type="email"
         label="Email Address"
-        placeholder="principal@school.edu"
         value={formData.contactEmail}
         onChange={handleChange}
         error={!!errors.contactEmail}
-        helperText={errors.contactEmail}
+        helperText={errors.contactEmail || 'We will send approval and setup instructions here'}
         required
       />
 
-      {/* Phone */}
       <TextField
         fullWidth
         name="contactPhone"
         label="Phone Number"
-        placeholder="9876543210"
         value={formData.contactPhone}
         onChange={handleChange}
         error={!!errors.contactPhone}
@@ -204,28 +290,28 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
         required
       />
 
-      {/* Address */}
+      <SectionLabel icon={PlaceOutlined}>Campus location</SectionLabel>
+
       <TextField
         fullWidth
         name="address"
         label="Address (Optional)"
-        placeholder="Plot 123, Main Street"
         value={formData.address}
         onChange={handleChange}
+        helperText="Street address or campus location"
         multiline
         rows={2}
       />
 
-      {/* City & State */}
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             name="city"
             label="City (Optional)"
-            placeholder="Delhi"
             value={formData.city}
             onChange={handleChange}
+            helperText="City or district"
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -233,28 +319,30 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
             fullWidth
             name="state"
             label="State (Optional)"
-            placeholder="Delhi"
             value={formData.state}
             onChange={handleChange}
+            helperText="State or region"
           />
         </Grid>
       </Grid>
 
-      {/* Submit Button */}
       <Button
         fullWidth
         type="submit"
         variant="contained"
         size="large"
         disabled={isSubmitting}
-        startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : undefined}
-        sx={{ mt: 2 }}
+        startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : <SendOutlined />}
+        sx={{ mt: 1 }}
       >
-        {isSubmitting ? 'Submitting…' : 'Submit Registration'}
+        {isSubmitting ? 'Submitting…' : 'Submit registration'}
       </Button>
 
-      <Typography variant="caption" sx={{ textAlign: 'center', color: 'text.secondary' }}>
-        By submitting, you agree to our Terms of Service and Privacy Policy
+      <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
+        Already have a school account?{' '}
+        <Link href="/login" style={{ color: 'inherit', fontWeight: 600 }}>
+          Sign in
+        </Link>
       </Typography>
     </Box>
   );

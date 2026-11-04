@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Query, StreamableFile, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -7,6 +7,7 @@ import { RequirePermissions } from '../../common/decorators/require-permissions.
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { LeaveReportQueryDto } from './dto/leave-report-query.dto';
 import { LeaveReportResponseDto } from './dto/leave-report-response.dto';
+import { buildPdfFromCsv } from '../common/pdf-from-csv.util';
 import { LeaveReportsService } from './leave-reports.service';
 
 @ApiTags('reports')
@@ -25,5 +26,23 @@ export class LeaveReportsController {
     @Query() query: LeaveReportQueryDto,
   ) {
     return this.leaveReportsService.generate(user.organizationId, query);
+  }
+
+  @Get('leave/export.csv')
+  @RequirePermissions('report.leave.view')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="leave-report.csv"')
+  @ApiOperation({ summary: 'Export leave report rows as CSV' })
+  async exportCsv(@CurrentUser() user: AuthenticatedUser, @Query() query: LeaveReportQueryDto) {
+    return this.leaveReportsService.exportCsv(user.organizationId, query);
+  }
+
+  @Get('leave/export.pdf')
+  @RequirePermissions('report.leave.view')
+  @Header('Content-Type', 'application/pdf')
+  @Header('Content-Disposition', 'attachment; filename="leave-report.pdf"')
+  async exportPdf(@CurrentUser() user: AuthenticatedUser, @Query() query: LeaveReportQueryDto) {
+    const csv = await this.leaveReportsService.exportCsv(user.organizationId, query);
+    return new StreamableFile(await buildPdfFromCsv('Leave report', csv));
   }
 }

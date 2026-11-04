@@ -80,8 +80,8 @@ export class StaffSelfDashboardDto {
   @ApiProperty()
   localDate!: string;
 
-  @ApiProperty({ type: StaffSelfTodayAttendanceDto })
-  todayAttendance!: StaffSelfTodayAttendanceDto;
+  @ApiPropertyOptional({ type: StaffSelfTodayAttendanceDto })
+  todayAttendance?: StaffSelfTodayAttendanceDto;
 
   @ApiProperty({ type: [StaffSelfLeaveBalanceSummaryDto] })
   leaveBalances!: StaffSelfLeaveBalanceSummaryDto[];

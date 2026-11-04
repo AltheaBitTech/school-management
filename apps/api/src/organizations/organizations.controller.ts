@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -26,6 +27,7 @@ import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
+import { UpdateDocumentSettingsDto } from './dto/update-document-settings.dto';
 import {
   OrganizationBootstrapResponseDto,
   OrganizationResponseDto,
@@ -76,6 +78,40 @@ export class OrganizationsController {
     return {
       data: this.organizationsService.toOrganizationSummary(organization),
     };
+  }
+
+  @Get('current/document-settings')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('organization.settings.update')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'ID card layout options for the current organization' })
+  async getDocumentSettings(@CurrentUser() user: AuthenticatedUser) {
+    return this.organizationsService.getDocumentSettings(user.organizationId);
+  }
+
+  @Patch('current/document-settings')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('organization.settings.update')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update ID card layout options' })
+  async updateDocumentSettings(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: UpdateDocumentSettingsDto,
+  ) {
+    return this.organizationsService.updateDocumentSettings(user.organizationId, body);
+  }
+
+  @Patch('current/logo')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('organization.settings.update')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Set the organization logo from an uploaded image file' })
+  async setLogo(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { fileId: string },
+  ): Promise<OrganizationResponseDto> {
+    const organization = await this.organizationsService.setLogo(user.organizationId, body.fileId);
+    return { data: this.organizationsService.toOrganizationSummary(organization) };
   }
 
   @Get(':id')

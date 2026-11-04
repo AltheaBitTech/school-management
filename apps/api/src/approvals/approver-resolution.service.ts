@@ -14,6 +14,7 @@ export class ApproverResolutionService {
     organizationId: string,
     level: ApprovalLevel,
     actorUserId: string,
+    options?: { activeRoleId?: string },
   ): Promise<void> {
     const actor = await tx.user.findFirst({
       where: { id: actorUserId, organizationId, status: UserStatus.ACTIVE },
@@ -51,11 +52,18 @@ export class ApproverResolutionService {
         });
       }
 
-      const hasRole = actor.userRoles.some(
-        (assignment) =>
-          assignment.role.organizationId === organizationId &&
-          assignment.role.id === level.roleId,
-      );
+      const activeRoleId = options?.activeRoleId;
+      const hasRole = actor.userRoles.some((assignment) => {
+        if (assignment.role.organizationId !== organizationId || assignment.role.id !== level.roleId) {
+          return false;
+        }
+
+        if (activeRoleId) {
+          return assignment.role.id === activeRoleId;
+        }
+
+        return true;
+      });
 
       if (!hasRole) {
         throw new ForbiddenException({

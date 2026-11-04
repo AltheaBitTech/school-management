@@ -7,10 +7,11 @@ import Typography from '@mui/material/Typography';
 interface PageHeaderProps {
   title: string;
   description?: string;
+  icon?: React.ElementType;
   actions?: React.ReactNode;
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+export function PageHeader({ title, description, icon: Icon, actions }: PageHeaderProps) {
   return (
     <Stack
       direction={{ xs: 'column', sm: 'row' }}
@@ -18,16 +19,33 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
       alignItems={{ xs: 'stretch', sm: 'flex-start' }}
       spacing={2}
     >
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="h4" component="h1">
-          {title}
-        </Typography>
-        {description ? (
-          <Typography color="text.secondary" sx={{ mt: 0.5, maxWidth: 720 }}>
-            {description}
+      <Stack direction="row" spacing={1.25} sx={{ minWidth: 0, alignItems: 'flex-start' }}>
+        {Icon ? <Icon sx={{ color: 'primary.main', mt: 0.6, fontSize: 28 }} /> : null}
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              '&::after': {
+                content: '""',
+                display: 'block',
+                width: 40,
+                height: 3,
+                mt: 1,
+                borderRadius: 1,
+                bgcolor: '#e8c36a',
+              },
+            }}
+          >
+            {title}
           </Typography>
-        ) : null}
-      </Box>
+          {description ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 720 }}>
+              {description}
+            </Typography>
+          ) : null}
+        </Box>
+      </Stack>
       {actions ? (
         <Stack
           direction="row"

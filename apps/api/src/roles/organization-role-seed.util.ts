@@ -44,6 +44,15 @@ export async function ensureOrganizationRole(
     throw new Error(`Missing permission definition for ${missingCode ?? 'unknown'}`);
   }
 
+  const desiredPermissionIds = permissions.map((permission) => permission.id);
+
+  await client.rolePermission.deleteMany({
+    where: {
+      roleId: role.id,
+      permissionId: { notIn: desiredPermissionIds },
+    },
+  });
+
   await client.rolePermission.createMany({
     data: permissions.map((permission) => ({
       roleId: role.id,
@@ -51,6 +60,37 @@ export async function ensureOrganizationRole(
     })),
     skipDuplicates: true,
   });
+
+  return role;
+}
+
+export async function ensureAllOrganizationRoles(
+  client: PrismaClientLike,
+  organizationId: string,
+): Promise<void> {
+  for (const roleDefinition of ORGANIZATION_ROLE_DEFINITIONS) {
+    await ensureOrganizationRole(client, organizationId, roleDefinition);
+  }
+}
+
+export async function getOrganizationRoleByCode(
+  client: PrismaClientLike,
+  organizationId: string,
+  roleCode: string,
+): Promise<{ id: string; code: string }> {
+  const role = await client.role.findUnique({
+    where: {
+      organizationId_code: {
+        organizationId,
+        code: roleCode,
+      },
+    },
+    select: { id: true, code: true },
+  });
+
+  if (!role) {
+    throw new Error(`Organization role ${roleCode} was not found for organization ${organizationId}`);
+  }
 
   return role;
 }

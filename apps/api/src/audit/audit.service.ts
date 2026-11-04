@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AUDIT_DATE_PATTERN, AUDIT_ERROR_CODES } from './constants/audit.constants';
 import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
 import { RecordAuditEventInput } from './dto/record-audit-event.dto';
+import { auditActorContext } from './audit-actor.context';
 import { sanitizeAuditValue } from './utils/audit-sanitizer';
 
 type AuditWriteClient = PrismaService | Prisma.TransactionClient;
@@ -15,6 +16,8 @@ export class AuditService {
 
   async record(input: RecordAuditEventInput, client?: AuditWriteClient): Promise<void> {
     const db = client ?? this.prisma;
+
+    const metadata = this.withActiveRole(input.metadata);
 
     await db.auditLog.create({
       data: {
@@ -30,8 +33,8 @@ export class AuditService {
         ...(input.after !== undefined
           ? { after: sanitizeAuditValue(input.after) as Prisma.InputJsonValue }
           : {}),
-        ...(input.metadata !== undefined
-          ? { metadata: sanitizeAuditValue(input.metadata) as Prisma.InputJsonValue }
+        ...(metadata !== undefined
+          ? { metadata: sanitizeAuditValue(metadata) as Prisma.InputJsonValue }
           : {}),
       },
     });
@@ -67,6 +70,22 @@ export class AuditService {
     return {
       data: logs.map((log) => this.toDto(log)),
       meta: buildPaginationMeta(query.page, query.pageSize, total),
+    };
+  }
+
+  private withActiveRole(metadata: Prisma.InputJsonValue | undefined): Prisma.InputJsonValue | undefined {
+    const actor = auditActorContext.getStore();
+    if (!actor?.activeRoleCode && !actor?.activeRoleId) {
+      return metadata;
+    }
+
+    const base =
+      metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+
+    return {
+      ...base,
+      ...(actor.activeRoleId ? { activeRoleId: actor.activeRoleId } : {}),
+      ...(actor.activeRoleCode ? { activeRoleCode: actor.activeRoleCode } : {}),
     };
   }
 

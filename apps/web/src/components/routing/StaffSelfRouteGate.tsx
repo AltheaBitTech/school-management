@@ -3,7 +3,11 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
-import { isStaffSelfServiceUser } from '@/lib/auth/routing';
+import {
+  isParentSelfServiceUser,
+  isStaffSelfServiceUser,
+  isStudentSelfServiceUser,
+} from '@/lib/auth/routing';
 
 export function StaffSelfRouteGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -15,12 +19,24 @@ export function StaffSelfRouteGate({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    if (!isStaffSelfServiceUser(user.permissions)) {
+    if (isStaffSelfServiceUser(user.permissions)) {
+      if (pathname === '/' || pathname === '/onboarding') {
+        router.replace('/staff/dashboard');
+      }
       return;
     }
 
-    if (pathname === '/' || pathname === '/onboarding') {
-      router.replace('/staff/dashboard');
+    if (isStudentSelfServiceUser(user.permissions)) {
+      if (pathname === '/' || pathname === '/onboarding') {
+        router.replace('/student/profile');
+      }
+      return;
+    }
+
+    if (isParentSelfServiceUser(user.permissions)) {
+      if (pathname === '/' || pathname === '/onboarding') {
+        router.replace('/parent');
+      }
     }
   }, [isAuthenticated, isReady, pathname, router, user?.permissions]);
 

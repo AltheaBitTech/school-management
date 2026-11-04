@@ -1,16 +1,16 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
+import { resetSubmitting } from '@/lib/forms/submit-state';
+import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
-import Link from 'next/link';
-import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { FormActions, FormSection } from '@/components/ui/FormSection';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
+import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError } from '@/lib/api/client';
 import {
   createStaffSelfLeaveRequest,
@@ -39,8 +39,27 @@ export default function StaffNewLeavePage() {
       });
   }, []);
 
+  const selectedType = leaveTypes.find((type) => type.id === leaveTypeId);
+
+  const dateRangeError = useMemo(() => {
+    if (!startDate || !endDate) {
+      return null;
+    }
+    if (endDate < startDate) {
+      return 'End date must be on or after the start date.';
+    }
+    return null;
+  }, [endDate, startDate]);
+
+  const canSubmit =
+    Boolean(leaveTypeId && startDate && endDate && !dateRangeError) &&
+    (!selectedType?.requiresReason || reason.trim().length > 0);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (!canSubmit) {
+      return;
+    }
     setErrorMessage(null);
     setIsSubmitting(true);
 
@@ -53,13 +72,12 @@ export default function StaffNewLeavePage() {
       });
       router.push(`/staff/leave/${created.id}`);
     } catch (error) {
+      resetSubmitting(setIsSubmitting);
       if (error instanceof ApiError && error.statusCode === 403) {
         setIsForbidden(true);
       } else {
         setErrorMessage(error instanceof Error ? error.message : 'Failed to submit leave request');
       }
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -67,64 +85,71 @@ export default function StaffNewLeavePage() {
     return <ForbiddenState />;
   }
 
-  const selectedType = leaveTypes.find((type) => type.id === leaveTypeId);
-
   return (
-    <Stack spacing={3} component="form" onSubmit={handleSubmit}>
-      <PageHeader title="Submit leave" description="Your request will be sent for approval." />
+    <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+      <FormPageShell
+        title="Submit leave"
+        description="Your request will be sent for approval."
+        icon={EventAvailableOutlined}
+        footer={
+          <FormPageFooter
+            cancelHref="/staff/leave"
+            submitLabel="Submit for approval"
+            submittingLabel="Submitting…"
+            isSubmitting={isSubmitting}
+            submitDisabled={!canSubmit}
+          />
+        }
+      >
+        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-
-      <FormSection>
-        <TextField
-          select
-          label="Leave type"
-          value={leaveTypeId}
-          onChange={(event) => setLeaveTypeId(event.target.value)}
-          required
-          fullWidth
-        >
-          {leaveTypes.map((type) => (
-            <MenuItem key={type.id} value={type.id}>
-              {type.name}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          label="Start date"
-          type="date"
-          value={startDate}
-          onChange={(event) => setStartDate(event.target.value)}
-          InputLabelProps={{ shrink: true }}
-          required
-          fullWidth
-        />
-        <TextField
-          label="End date"
-          type="date"
-          value={endDate}
-          onChange={(event) => setEndDate(event.target.value)}
-          InputLabelProps={{ shrink: true }}
-          required
-          fullWidth
-        />
-        <TextField
-          label="Reason"
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          required={Boolean(selectedType?.requiresReason)}
-          multiline
-          minRows={3}
-          fullWidth
-        />
-
-        <FormActions>
-          <Button type="submit" variant="contained" disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting…' : 'Submit for approval'}
-          </Button>
-          <Button component={Link} href="/staff/leave">Cancel</Button>
-        </FormActions>
-      </FormSection>
-    </Stack>
+        <FormSection title="Leave details" maxWidth="100%">
+          <TextField
+            select
+            label="Leave type"
+            value={leaveTypeId}
+            onChange={(event) => setLeaveTypeId(event.target.value)}
+            required
+            fullWidth
+          >
+            {leaveTypes.map((type) => (
+              <MenuItem key={type.id} value={type.id}>
+                {type.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Start date"
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+            required
+            fullWidth
+            error={Boolean(dateRangeError)}
+          />
+          <TextField
+            label="End date"
+            type="date"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+            required
+            fullWidth
+            error={Boolean(dateRangeError)}
+            helperText={dateRangeError ?? undefined}
+          />
+          <TextField
+            label="Reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            required={Boolean(selectedType?.requiresReason)}
+            multiline
+            minRows={3}
+            fullWidth
+          />
+        </FormSection>
+      </FormPageShell>
+    </Box>
   );
 }

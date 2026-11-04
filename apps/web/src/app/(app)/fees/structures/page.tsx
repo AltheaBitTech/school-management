@@ -7,17 +7,18 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined';
+import RequestQuoteOutlined from '@mui/icons-material/RequestQuoteOutlined';
 import Link from 'next/link';
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { FormActions, FormSection } from '@/components/ui/FormSection';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
-  createFeeStructure,
   formatCurrency,
   formatFeeDate,
   listFeeStructures,
@@ -25,134 +26,85 @@ import {
 } from '@/lib/fees/fees-client';
 
 export default function FeeStructuresPage() {
+  const canCreate = useCan('fee.create');
   const [structures, setStructures] = useState<FeeStructure[]>([]);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [periodStart, setPeriodStart] = useState('');
-  const [periodEnd, setPeriodEnd] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
 
-  async function loadStructures(): Promise<void> {
-    setIsLoading(true);
-    setErrorMessage(null);
-    setIsForbidden(false);
-
-    try {
-      const response = await listFeeStructures({ page: 1, pageSize: 100 });
-      setStructures(response.data);
-    } catch (error) {
-      if (error instanceof ApiError && error.statusCode === 403) {
-        setIsForbidden(true);
-      } else {
-        setErrorMessage(error instanceof Error ? error.message : 'Failed to load fee structures');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   useEffect(() => {
-    void loadStructures();
-  }, []);
+    let cancelled = false;
 
-  async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setErrorMessage(null);
+    async function loadStructures(): Promise<void> {
+      setIsLoading(true);
+      setErrorMessage(null);
+      setIsForbidden(false);
 
-    try {
-      await createFeeStructure({
-        name,
-        description: description || undefined,
-        amount: Number(amount),
-        periodStart,
-        periodEnd,
-      });
-      setName('');
-      setDescription('');
-      setAmount('');
-      setPeriodStart('');
-      setPeriodEnd('');
-      await loadStructures();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to create fee structure');
-    } finally {
-      setIsSubmitting(false);
+      try {
+        const response = await listFeeStructures({ page: 1, pageSize: 100 });
+        if (!cancelled) {
+          setStructures(response.data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          if (error instanceof ApiError && error.statusCode === 403) {
+            setIsForbidden(true);
+          } else {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to load fee structures');
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
     }
-  }
+
+    void loadStructures();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (isForbidden) {
     return <ForbiddenState />;
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Fee structures"
-        description="Define reusable fee amounts for student assignments."
-        actions={
-          <Button component={Link} href="/fees" variant="outlined">
+    <ListPageShell
+      title="Fee structures"
+      description="Define reusable fee amounts for student assignments."
+      icon={RequestQuoteOutlined}
+      actions={
+        <>
+          <Button component={Link} href="/fees" variant="outlined" startIcon={<ArrowBackOutlined />}>
             Back to fees
           </Button>
-        }
-      />
-
-      <FormSection title="Create fee structure">
-        <Stack spacing={2} component="form" onSubmit={handleCreate}>
-          <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required fullWidth />
-          <TextField
-            label="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
-          <TextField
-            label="Amount"
-            type="number"
-            inputProps={{ min: 0.01, step: 0.01 }}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-            fullWidth
-          />
-          <TextField
-            label="Period start"
-            type="date"
-            value={periodStart}
-            onChange={(e) => setPeriodStart(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            required
-            fullWidth
-          />
-          <TextField
-            label="Period end"
-            type="date"
-            value={periodEnd}
-            onChange={(e) => setPeriodEnd(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            required
-            fullWidth
-          />
-          <FormActions>
-            <Button type="submit" variant="contained" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating…' : 'Create fee structure'}
+          {canCreate ? (
+            <Button component={Link} href="/fees/structures/new" variant="contained" startIcon={<AddOutlined />}>
+              New structure
             </Button>
-          </FormActions>
-        </Stack>
-      </FormSection>
+          ) : null}
+        </>
+      }
+    >
+      {isLoading ? <LoadingState label="Loading fee structures" columnCount={6} /> : null}
 
-      {isLoading ? <LoadingState label="Loading fee structures" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && structures.length === 0 ? (
-        <EmptyState message="No fee structures found." />
+        <EmptyState
+          icon={RequestQuoteOutlined}
+          message="No fee structures found."
+          action={
+            canCreate ? (
+              <Button component={Link} href="/fees/structures/new" variant="contained" startIcon={<AddOutlined />}>
+                New structure
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
 
       {!isLoading && structures.length > 0 ? (
@@ -160,6 +112,8 @@ export default function FeeStructuresPage() {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
+              <TableCell>Installment</TableCell>
+              <TableCell>Due date</TableCell>
               <TableCell>Amount</TableCell>
               <TableCell>Period</TableCell>
               <TableCell>Status</TableCell>
@@ -169,6 +123,8 @@ export default function FeeStructuresPage() {
             {structures.map((structure) => (
               <TableRow key={structure.id} hover>
                 <TableCell>{structure.name}</TableCell>
+                <TableCell>{structure.installmentLabel || '—'}</TableCell>
+                <TableCell>{structure.dueDate ? formatFeeDate(structure.dueDate) : '—'}</TableCell>
                 <TableCell>{formatCurrency(structure.amount)}</TableCell>
                 <TableCell>
                   {formatFeeDate(structure.periodStart)} to {formatFeeDate(structure.periodEnd)}
@@ -181,6 +137,6 @@ export default function FeeStructuresPage() {
           </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

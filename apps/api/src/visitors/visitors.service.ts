@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import QRCode from 'qrcode';
 import {
   EmploymentStatus,
   Prisma,
@@ -15,6 +16,7 @@ import {
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { buildPaginationMeta } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { buildOrganizationBlock, formatDocumentDateTime } from '../documents/utils/document-format.util';
 import { VISITOR_ERROR_CODES } from './constants/visitor.constants';
 import { CreateVisitorDto } from './dto/visitor.dto';
 import { ListVisitorsQueryDto } from './dto/list-visitors-query.dto';
@@ -27,6 +29,7 @@ import {
   buildCheckInEndExclusive,
   parseVisitorDate,
 } from './utils/visitor-date.util';
+import { VisitorNotificationService } from './visitor-notification.service';
 
 const staffSummarySelect = {
   id: true,
@@ -77,15 +80,21 @@ type VisitorDetail = VisitorWithRelations & {
 
 @Injectable()
 export class VisitorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly visitorNotificationService: VisitorNotificationService,
+  ) {}
 
   async create(
     organizationId: string,
     actor: AuthenticatedUser,
     dto: CreateVisitorDto,
   ): Promise<VisitorDetail> {
-    return this.prisma.$transaction(async (tx) => {
+    const visitor = await this.prisma.$transaction(async (tx) => {
       await this.assertActiveHostStaff(tx, organizationId, dto.hostStaffId);
+      if (dto.photoFileId) {
+        await this.assertVisitorPhotoFile(tx, organizationId, dto.photoFileId);
+      }
 
       const visitorCode = await this.generateVisitorCode(tx, organizationId);
       const checkInAt = new Date();
@@ -103,6 +112,7 @@ export class VisitorsService {
           checkInAt,
           status: VisitorStatus.CHECKED_IN,
           remarks: dto.remarks?.trim() || null,
+          photoFileId: dto.photoFileId ?? null,
           createdByUserId: actor.userId,
         },
         include: visitorDetailInclude,
@@ -120,6 +130,56 @@ export class VisitorsService {
 
       return this.reloadVisitorDetail(tx, organizationId, visitor.id);
     });
+
+    void this.visitorNotificationService
+      .notifyHostOnCheckIn(organizationId, visitor.id)
+      .catch(() => undefined);
+
+    return visitor;
+  }
+
+  async lookupByMobile(organizationId: string, mobile: string) {
+    const trimmed = mobile.trim();
+    const visitor = await this.prisma.visitor.findFirst({
+      where: { organizationId, mobile: trimmed },
+      orderBy: { checkInAt: 'desc' },
+      select: {
+        name: true,
+        mobile: true,
+        organizationName: true,
+        vehicleNumber: true,
+        photoFileId: true,
+        hostStaffId: true,
+        checkInAt: true,
+      },
+    });
+
+    if (!visitor) {
+      return null;
+    }
+
+    return {
+      name: visitor.name,
+      mobile: visitor.mobile,
+      organizationName: visitor.organizationName,
+      vehicleNumber: visitor.vehicleNumber,
+      photoFileId: visitor.photoFileId,
+      hostStaffId: visitor.hostStaffId,
+      lastVisitAt: visitor.checkInAt.toISOString(),
+    };
+  }
+
+  async listActiveHostStaff(organizationId: string) {
+    const staff = await this.prisma.staff.findMany({
+      where: {
+        organizationId,
+        employmentStatus: EmploymentStatus.ACTIVE,
+      },
+      select: staffSummarySelect,
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    });
+
+    return staff;
   }
 
   async list(organizationId: string, query: ListVisitorsQueryDto) {
@@ -131,7 +191,7 @@ export class VisitorsService {
 
     const where: Prisma.VisitorWhereInput = {
       organizationId,
-      ...(query.status ? { status: query.status } : { status: VisitorStatus.CHECKED_IN }),
+      ...(query.status ? { status: query.status } : {}),
       ...(query.hostStaffId ? { hostStaffId: query.hostStaffId } : {}),
       ...this.buildCheckInDateFilter(query),
       ...(searchTerm
@@ -176,6 +236,55 @@ export class VisitorsService {
     }
 
     return visitor;
+  }
+
+  async getVisitorPass(organizationId: string, visitorId: string) {
+    const visitor = await this.findById(organizationId, visitorId);
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { settings: true },
+    });
+
+    if (!organization) {
+      throw new NotFoundException({
+        code: VISITOR_ERROR_CODES.VISITOR_NOT_FOUND,
+        message: 'Organization not found',
+      });
+    }
+
+    const checkInTimestamp = visitor.checkInAt.toISOString();
+    const qrPayload = `CAMPUSOPS-VISITOR-${visitor.id}-${checkInTimestamp}`;
+    const qrCodeDataUrl = await QRCode.toDataURL(qrPayload, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 240,
+    });
+
+    const hostName = visitor.hostStaff.displayName?.trim()
+      ? visitor.hostStaff.displayName.trim()
+      : `${visitor.hostStaff.firstName} ${visitor.hostStaff.lastName}`.trim();
+
+    const organizationBlock = buildOrganizationBlock(organization, organization.settings);
+
+    return {
+      visitor: {
+        visitorCode: visitor.visitorCode,
+        name: visitor.name,
+        mobile: visitor.mobile,
+        organization: visitor.organizationName,
+        purpose: visitor.purpose,
+        host: hostName,
+        checkInTime: formatDocumentDateTime(visitor.checkInAt),
+        vehicleNumber: visitor.vehicleNumber,
+        photoFileId: visitor.photoFileId,
+      },
+      organization: {
+        name: organizationBlock.name,
+        city: organizationBlock.city,
+      },
+      qrCodeDataUrl,
+      passGeneratedAt: new Date().toISOString(),
+    };
   }
 
   async listHistory(organizationId: string, visitorId: string) {
@@ -257,6 +366,7 @@ export class VisitorsService {
       checkOutAt: visitor.checkOutAt?.toISOString() ?? null,
       status: visitor.status,
       remarks: visitor.remarks,
+      photoFileId: visitor.photoFileId,
       createdByUserId: visitor.createdByUserId,
       createdAt: visitor.createdAt.toISOString(),
       updatedAt: visitor.updatedAt.toISOString(),
@@ -409,6 +519,30 @@ export class VisitorsService {
       throw new BadRequestException({
         code: VISITOR_ERROR_CODES.VISITOR_HOST_INACTIVE,
         message: 'Inactive staff cannot host visitors',
+      });
+    }
+  }
+
+  private async assertVisitorPhotoFile(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    fileId: string,
+  ): Promise<void> {
+    const file = await tx.file.findFirst({
+      where: { id: fileId, organizationId },
+    });
+
+    if (!file) {
+      throw new BadRequestException({
+        code: VISITOR_ERROR_CODES.VISITOR_NOT_FOUND,
+        message: 'Visitor photo file was not found in this organization',
+      });
+    }
+
+    if (!file.mimeType.startsWith('image/')) {
+      throw new BadRequestException({
+        code: VISITOR_ERROR_CODES.VISITOR_NOT_FOUND,
+        message: 'Visitor photo must be an image',
       });
     }
   }

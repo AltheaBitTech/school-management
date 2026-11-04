@@ -10,7 +10,10 @@ import {
   COMPLAINT_REPORT_ERROR_CODES,
   HIGH_COMPLAINT_PRIORITIES,
 } from './constants/complaint-report.constants';
+import { buildCsv } from '../common/csv-export.util';
 import { ComplaintReportQueryDto } from './dto/complaint-report-query.dto';
+
+import { MAX_REPORT_CSV_EXPORT_ROWS } from '../common/max-export-rows';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -408,6 +411,39 @@ export class ComplaintsReportsService {
       ageDays,
       closedAt: record.closedAt?.toISOString() ?? null,
     };
+  }
+
+  async exportCsv(organizationId: string, query: ComplaintReportQueryDto): Promise<string> {
+    const report = await this.generate(organizationId, {
+      ...query,
+      page: 1,
+      pageSize: MAX_REPORT_CSV_EXPORT_ROWS,
+    });
+    const headers = [
+      'Complaint code',
+      'Title',
+      'Category',
+      'Priority',
+      'Status',
+      'Department',
+      'Assignee',
+      'Created at',
+      'Age (days)',
+      'Closed at',
+    ];
+    const rows = report.data.map((row) => [
+      row.complaintCode,
+      row.title,
+      row.category,
+      row.priority,
+      row.status,
+      row.departmentName,
+      row.assigneeName,
+      row.createdAt,
+      row.ageDays,
+      row.closedAt,
+    ]);
+    return buildCsv(headers, rows);
   }
 
   private async assertSchoolOrganization(organizationId: string): Promise<void> {

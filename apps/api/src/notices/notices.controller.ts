@@ -37,10 +37,12 @@ export class NoticesController {
   ) {}
 
   private async canPublish(user: AuthenticatedUser): Promise<boolean> {
-    const permissions = await this.permissionsService.getEffectivePermissions(
-      user.userId,
-      user.organizationId,
-    );
+    const permissions =
+      (await this.permissionsService.getEffectivePermissions(
+        user.userId,
+        user.organizationId,
+        user.activeRoleId ?? '',
+      )) ?? [];
     return permissions.includes('notice.publish');
   }
 

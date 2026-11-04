@@ -2,10 +2,10 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EmploymentStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
-import { PasswordService } from '../auth/services/password.service';
 import { RBAC_ERROR_CODES } from '../common/constants/rbac.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { RolesService } from '../roles/roles.service';
@@ -19,11 +19,14 @@ describe('StaffLoginProvisioningService', () => {
     role: { findUnique: jest.Mock };
     user: { findFirst: jest.Mock; create: jest.Mock };
     userRole: { create: jest.Mock };
+    passwordResetToken: { create: jest.Mock };
     $transaction: jest.Mock;
   };
-  let passwordService: jest.Mocked<Pick<PasswordService, 'hash'>>;
-  let rolesService: jest.Mocked<Pick<RolesService, 'assertRoleAssignmentAllowed'>>;
+  let rolesService: jest.Mocked<
+    Pick<RolesService, 'assertRoleAssignmentAllowed' | 'assignRoleToUser'>
+  >;
   let auditService: jest.Mocked<Pick<AuditService, 'record'>>;
+  let configService: jest.Mocked<Pick<ConfigService, 'get'>>;
 
   const actor = {
     userId: 'actor-1',
@@ -36,15 +39,18 @@ describe('StaffLoginProvisioningService', () => {
     id: 'staff-1',
     organizationId: 'org-a',
     userId: null,
+    firstName: 'Mira',
+    lastName: 'Sharma',
     employmentStatus: EmploymentStatus.ACTIVE,
     department: null,
+    organization: { code: 'demo-school' },
   };
 
   const roleRecord = {
     id: 'role-a',
     organizationId: 'org-a',
-    code: 'SCHOOL_ADMIN',
-    name: 'School Admin',
+    code: 'TEACHER',
+    name: 'Teacher',
   };
 
   beforeEach(() => {
@@ -53,16 +59,18 @@ describe('StaffLoginProvisioningService', () => {
       role: { findUnique: jest.fn() },
       user: { findFirst: jest.fn(), create: jest.fn() },
       userRole: { create: jest.fn() },
+      passwordResetToken: { create: jest.fn() },
       $transaction: jest.fn(),
-    };
-    passwordService = {
-      hash: jest.fn().mockResolvedValue('hashed-password'),
     };
     rolesService = {
       assertRoleAssignmentAllowed: jest.fn().mockResolvedValue(undefined),
+      assignRoleToUser: jest.fn().mockResolvedValue(undefined),
     };
     auditService = {
       record: jest.fn().mockResolvedValue(undefined),
+    };
+    configService = {
+      get: jest.fn().mockReturnValue({ corsOrigin: 'http://localhost:3000' }),
     };
 
     prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
@@ -71,13 +79,13 @@ describe('StaffLoginProvisioningService', () => {
 
     service = new StaffLoginProvisioningService(
       prisma as unknown as PrismaService,
-      passwordService as unknown as PasswordService,
       rolesService as unknown as RolesService,
       auditService as unknown as AuditService,
+      configService as unknown as ConfigService,
     );
   });
 
-  it('provisions login on the happy path', async () => {
+  it('provisions login with an invite link on the happy path', async () => {
     prisma.staff.findFirst.mockResolvedValue(staffRecord);
     prisma.role.findUnique.mockResolvedValue(roleRecord);
     prisma.user.findFirst.mockResolvedValue(null);
@@ -91,113 +99,37 @@ describe('StaffLoginProvisioningService', () => {
       userId: 'user-1',
     });
 
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+
     const result = await service.provisionLogin(actor, 'staff-1', {
       email: 'Staff@Example.com',
-      password: 'TemporaryPass123!',
       roleId: 'role-a',
     });
 
-    expect(passwordService.hash).toHaveBeenCalledWith('TemporaryPass123!');
-    expect(rolesService.assertRoleAssignmentAllowed).toHaveBeenCalled();
     expect(prisma.user.create).toHaveBeenCalledWith({
       data: {
         organizationId: 'org-a',
         email: 'staff@example.com',
-        passwordHash: 'hashed-password',
+        passwordHash: null,
         status: 'ACTIVE',
       },
     });
-    expect(auditService.record).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: AUDIT_ACTIONS.USER_CREATED,
-        entityType: AUDIT_ENTITY_TYPES.USER,
-      }),
-      prisma,
-    );
-    expect(auditService.record).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: AUDIT_ACTIONS.USER_ROLE_ASSIGNED,
-      }),
-      prisma,
-    );
+    expect(prisma.passwordResetToken.create).toHaveBeenCalled();
     expect(result.loginEmail).toBe('staff@example.com');
-    expect(result.staff.userId).toBe('user-1');
-  });
-
-  it('rejects staff not found', async () => {
-    prisma.staff.findFirst.mockResolvedValue(null);
-
-    await expect(
-      service.provisionLogin(actor, 'missing-staff', {
-        email: 'staff@example.com',
-        password: 'TemporaryPass123!',
-        roleId: 'role-a',
-      }),
-    ).rejects.toMatchObject({
-      response: { code: STAFF_ERROR_CODES.STAFF_NOT_FOUND },
-    });
-  });
-
-  it('rejects cross-tenant staff access', async () => {
-    prisma.staff.findFirst.mockResolvedValue(null);
-
-    await expect(
-      service.provisionLogin(
-        { ...actor, organizationId: 'org-b' },
-        'staff-1',
-        {
-          email: 'staff@example.com',
-          password: 'TemporaryPass123!',
-          roleId: 'role-a',
-        },
-      ),
-    ).rejects.toBeInstanceOf(NotFoundException);
-  });
-
-  it('rejects already provisioned staff', async () => {
-    prisma.staff.findFirst.mockResolvedValue({
-      ...staffRecord,
-      userId: 'existing-user',
-    });
-
-    await expect(
-      service.provisionLogin(actor, 'staff-1', {
-        email: 'staff@example.com',
-        password: 'TemporaryPass123!',
-        roleId: 'role-a',
-      }),
-    ).rejects.toMatchObject({
-      response: { code: STAFF_ERROR_CODES.STAFF_LOGIN_ALREADY_PROVISIONED },
-    });
-  });
-
-  it('rejects offboarded staff', async () => {
-    prisma.staff.findFirst.mockResolvedValue({
-      ...staffRecord,
-      employmentStatus: EmploymentStatus.OFFBOARDED,
-    });
-
-    await expect(
-      service.provisionLogin(actor, 'staff-1', {
-        email: 'staff@example.com',
-        password: 'TemporaryPass123!',
-        roleId: 'role-a',
-      }),
-    ).rejects.toMatchObject({
-      response: { code: STAFF_ERROR_CODES.STAFF_NOT_ELIGIBLE_FOR_LOGIN },
-    });
-    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(result.inviteUrl).toContain('isInvite=true');
+    expect(result.inviteExpiresAt).toBeTruthy();
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 
   it('rejects duplicate email in the organization', async () => {
     prisma.staff.findFirst.mockResolvedValue(staffRecord);
     prisma.role.findUnique.mockResolvedValue(roleRecord);
-    prisma.user.findFirst.mockResolvedValue({ id: 'existing-user' });
+    prisma.user.findFirst.mockResolvedValue({ id: 'existing-user', organizationId: 'org-b' });
 
     await expect(
       service.provisionLogin(actor, 'staff-1', {
         email: 'staff@example.com',
-        password: 'TemporaryPass123!',
         roleId: 'role-a',
       }),
     ).rejects.toMatchObject({
@@ -205,81 +137,56 @@ describe('StaffLoginProvisioningService', () => {
     });
   });
 
-  it('rejects invalid role', async () => {
-    prisma.staff.findFirst.mockResolvedValue(staffRecord);
-    prisma.role.findUnique.mockResolvedValue(null);
-
-    await expect(
-      service.provisionLogin(actor, 'staff-1', {
-        email: 'staff@example.com',
-        password: 'TemporaryPass123!',
-        roleId: 'missing-role',
-      }),
-    ).rejects.toMatchObject({
-      response: { code: STAFF_ERROR_CODES.INVALID_ROLE },
+  it('assigns another role to an existing unlinked user instead of creating a duplicate', async () => {
+    prisma.staff.findFirst.mockResolvedValueOnce(staffRecord).mockResolvedValueOnce(null);
+    prisma.role.findUnique.mockResolvedValue(roleRecord);
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'existing-user',
+      organizationId: 'org-a',
+      passwordHash: 'hash',
     });
-  });
+    prisma.staff.update.mockResolvedValue({ ...staffRecord, userId: 'existing-user' });
 
-  it('rejects cross-tenant roles', async () => {
-    prisma.staff.findFirst.mockResolvedValue(staffRecord);
-    prisma.role.findUnique.mockResolvedValue({
-      ...roleRecord,
-      organizationId: 'org-b',
+    const result = await service.provisionLogin(actor, 'staff-1', {
+      email: 'staff@example.com',
+      roleId: 'role-a',
     });
 
-    await expect(
-      service.provisionLogin(actor, 'staff-1', {
-        email: 'staff@example.com',
-        password: 'TemporaryPass123!',
-        roleId: 'role-a',
-      }),
-    ).rejects.toMatchObject({
-      response: { code: STAFF_ERROR_CODES.INVALID_ROLE },
-    });
+    expect(rolesService.assignRoleToUser).toHaveBeenCalledWith(
+      actor,
+      'existing-user',
+      'role-a',
+      undefined,
+    );
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(result.loginEmail).toBe('staff@example.com');
+    expect(result.inviteUrl).toBe('');
   });
 
   it('rejects platform roles', async () => {
     prisma.staff.findFirst.mockResolvedValue(staffRecord);
     prisma.role.findUnique.mockResolvedValue({
-      ...roleRecord,
+      id: 'platform-role',
       organizationId: null,
     });
 
     await expect(
       service.provisionLogin(actor, 'staff-1', {
         email: 'staff@example.com',
-        password: 'TemporaryPass123!',
-        roleId: 'role-a',
-      }),
-    ).rejects.toMatchObject({
-      response: { code: RBAC_ERROR_CODES.PLATFORM_ROLE_ASSIGNMENT_FORBIDDEN },
-    });
-  });
-
-  it('does not persist partial state when role assignment is forbidden inside the transaction', async () => {
-    prisma.staff.findFirst.mockResolvedValue(staffRecord);
-    prisma.role.findUnique.mockResolvedValue(roleRecord);
-    prisma.user.findFirst.mockResolvedValue(null);
-    prisma.user.create.mockResolvedValue({
-      id: 'user-1',
-      organizationId: 'org-a',
-      email: 'staff@example.com',
-    });
-    rolesService.assertRoleAssignmentAllowed.mockRejectedValue(
-      new ForbiddenException({
-        code: RBAC_ERROR_CODES.FORBIDDEN,
-        message: 'You do not have permission to perform this action',
-      }),
-    );
-
-    await expect(
-      service.provisionLogin(actor, 'staff-1', {
-        email: 'staff@example.com',
-        password: 'TemporaryPass123!',
-        roleId: 'role-a',
+        roleId: 'platform-role',
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 
-    expect(prisma.staff.update).not.toHaveBeenCalled();
+  it('rejects missing staff', async () => {
+    prisma.staff.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.provisionLogin(actor, 'missing', {
+        email: 'staff@example.com',
+        roleId: 'role-a',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+

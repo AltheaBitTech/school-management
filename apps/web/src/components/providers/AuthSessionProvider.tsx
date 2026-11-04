@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getCurrentUser, logout, refreshSession, type AuthUser } from '@/lib/auth/auth-client';
 import { clearAccessToken, getAccessToken } from '@/lib/auth/session';
+import { setFeatureFlagsFromSession } from '@/lib/features/feature-flags';
 
 interface AuthSessionContextValue {
   isReady: boolean;
@@ -18,6 +19,17 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
+    function onSessionExpired(): void {
+      setUser(null);
+    }
+
+    window.addEventListener('campusops:session-expired', onSessionExpired);
+    return () => {
+      window.removeEventListener('campusops:session-expired', onSessionExpired);
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function hydrate(): Promise<void> {
@@ -27,10 +39,12 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         }
         const currentUser = await getCurrentUser();
         if (!cancelled) {
+          setFeatureFlagsFromSession(currentUser.features);
           setUser(currentUser);
         }
       } catch {
         if (!cancelled) {
+          setFeatureFlagsFromSession(undefined);
           setUser(null);
         }
       } finally {
@@ -54,6 +68,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       clearAccessToken();
     } finally {
       setUser(null);
+      setFeatureFlagsFromSession(undefined);
     }
   }, []);
 
@@ -80,4 +95,24 @@ export function useAuthSession(): AuthSessionContextValue {
 
 export function useOptionalAuthSession(): AuthSessionContextValue | null {
   return useContext(AuthSessionContext);
+}
+
+export function AuthSessionOverride({
+  user,
+  children,
+}: {
+  user: AuthUser | null;
+  children: React.ReactNode;
+}) {
+  const value = useMemo<AuthSessionContextValue>(
+    () => ({
+      isReady: true,
+      isAuthenticated: Boolean(user),
+      user,
+      signOut: async () => undefined,
+    }),
+    [user],
+  );
+
+  return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
 }

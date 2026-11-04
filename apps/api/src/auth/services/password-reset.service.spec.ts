@@ -90,7 +90,6 @@ describe('PasswordResetService', () => {
     prisma.user.findFirst.mockResolvedValue(null);
 
     const result = await service.requestPasswordReset({
-      organizationCode: 'school-a',
       email: 'missing@example.com',
     });
 
@@ -103,7 +102,6 @@ describe('PasswordResetService', () => {
     prisma.user.findFirst.mockResolvedValue(activeUser);
 
     const result = await service.requestPasswordReset({
-      organizationCode: 'school-a',
       email: activeUser.email,
     });
 
@@ -127,7 +125,6 @@ describe('PasswordResetService', () => {
     emailProvider.sendEmail.mockRejectedValue(new Error('provider down'));
 
     const result = await service.requestPasswordReset({
-      organizationCode: 'school-a',
       email: activeUser.email,
     });
 
@@ -176,6 +173,75 @@ describe('PasswordResetService', () => {
         entityId: activeUser.id,
       }),
     );
+  });
+
+  it('ignores text glued onto the reset token by a log line', async () => {
+    const rawToken = 'reset-token-value';
+    const tokenHash = hashRefreshToken(rawToken);
+    const findUnique = jest.fn().mockResolvedValue({
+      id: 'token-1',
+      userId: activeUser.id,
+      organizationId: activeUser.organizationId,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 60_000),
+      usedAt: null,
+      user: activeUser,
+    });
+
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback({
+        passwordResetToken: {
+          findUnique,
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        user: {
+          update: jest.fn().mockResolvedValue(activeUser),
+        },
+      }),
+    );
+
+    await service.resetPassword({
+      token: `${rawToken}\\n\\nThis`,
+      newPassword: 'NewPassword123!',
+    });
+
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { tokenHash },
+      include: { user: true },
+    });
+  });
+
+  it('sets initial password for invite users without an existing password hash', async () => {
+    const rawToken = 'invite-token-value';
+    const tokenHash = hashRefreshToken(rawToken);
+    const inviteUser: User = { ...activeUser, passwordHash: null };
+
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback({
+        passwordResetToken: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'token-2',
+            userId: inviteUser.id,
+            organizationId: inviteUser.organizationId,
+            tokenHash,
+            expiresAt: new Date(Date.now() + 60_000),
+            usedAt: null,
+            user: inviteUser,
+          }),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        user: {
+          update: jest.fn().mockResolvedValue({ ...inviteUser, passwordHash: '$argon2id$new' }),
+        },
+      }),
+    );
+
+    await service.resetPassword({
+      token: rawToken,
+      newPassword: 'NewPassword123!',
+    });
+
+    expect(passwordService.hash).toHaveBeenCalledWith('NewPassword123!');
   });
 
   it('rejects invalid reset token', async () => {
@@ -246,17 +312,15 @@ describe('PasswordResetService', () => {
     });
   });
 
-  it('only matches active users with passwords in active organizations', async () => {
+  it('matches active users in active organizations including pending first-time password setup', async () => {
     prisma.user.findFirst.mockResolvedValue(null);
-    await service.requestPasswordReset({ organizationCode: 'school-a', email: 'x@example.com' });
+    await service.requestPasswordReset({ email: 'x@example.com' });
 
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: {
         email: 'x@example.com',
-        passwordHash: { not: null },
         status: UserStatus.ACTIVE,
         organization: {
-          code: 'school-a',
           status: OrganizationStatus.ACTIVE,
         },
       },

@@ -40,8 +40,15 @@ describe('HomePage', () => {
     render(<HomePage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Register school' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Register Your School' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Sign In' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', {
+          name: 'One platform to manage every school operation',
+        }),
+      ).toBeInTheDocument();
     });
     expect(getDashboardSummary).not.toHaveBeenCalled();
   });
@@ -94,6 +101,7 @@ describe('HomePage', () => {
         upcomingEvents: [],
         recentNotices: [],
         unreadNotifications: 0,
+        assetAlerts: null,
       },
     });
 
@@ -106,6 +114,7 @@ describe('HomePage', () => {
       expect(screen.getByText('12')).toBeInTheDocument();
       expect(screen.getByText('₹60.00')).toBeInTheDocument();
       expect(screen.getByText('Pending leave')).toBeInTheDocument();
+      expect(screen.getByText('Needs attention')).toBeInTheDocument();
       expect(screen.getByText('3 requiring attention')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Today's attendance/i })).toHaveAttribute(
         'href',
@@ -142,6 +151,10 @@ describe('HomePage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Welcome to CampusOps')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Create school' })).toHaveAttribute(
+        'href',
+        '/organizations/new',
+      );
       expect(screen.getByRole('link', { name: 'Open registration requests' })).toHaveAttribute(
         'href',
         '/admin/registrations',

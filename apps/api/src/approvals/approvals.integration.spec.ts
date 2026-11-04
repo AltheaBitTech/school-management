@@ -16,7 +16,11 @@ import { ApprovalWorkflowsService } from './approval-workflows.service';
 import { ApproverResolutionService } from './approver-resolution.service';
 import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions';
 import { PrismaService } from '../prisma/prisma.service';
-import { ensureSchoolAdminRole } from '../roles/organization-role-seed.util';
+import { ensureOrganizationRole } from '../roles/organization-role-seed.util';
+import {
+  ORGANIZATION_ROLE_CODES,
+  ORGANIZATION_ROLE_DEFINITIONS,
+} from '../permissions/constants/system-roles';
 import { LeaveApprovalIntegrationService } from '../leave/leave-approval-integration.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailProvider } from '../notifications/providers/email-provider.interface';
@@ -37,8 +41,10 @@ describeIfDatabase('Approvals integration', () => {
   let orgAId: string;
   let orgBId: string;
   let submitterUserId: string;
-  let levelOneApproverId: string;
-  let levelTwoApproverId: string;
+  let principalApproverId: string;
+  let principalRoleId: string;
+  let schoolAdminUserId: string;
+  let schoolAdminRoleId: string;
   let staffId: string;
   let leaveTypeId: string;
 
@@ -68,14 +74,14 @@ describeIfDatabase('Approvals integration', () => {
         data: { organizationId: orgAId, email: `approval-submitter-${Date.now()}@example.com` },
       })
     ).id;
-    levelOneApproverId = (
+    principalApproverId = (
       await prisma.user.create({
-        data: { organizationId: orgAId, email: `approval-level1-${Date.now()}@example.com` },
+        data: { organizationId: orgAId, email: `approval-principal-${Date.now()}@example.com` },
       })
     ).id;
-    levelTwoApproverId = (
+    schoolAdminUserId = (
       await prisma.user.create({
-        data: { organizationId: orgAId, email: `approval-level2-${Date.now()}@example.com` },
+        data: { organizationId: orgAId, email: `approval-school-admin-${Date.now()}@example.com` },
       })
     ).id;
 
@@ -91,15 +97,22 @@ describeIfDatabase('Approvals integration', () => {
       })
     ).id;
 
-    await ensureSchoolAdminRole(prisma, orgAId);
-    const schoolAdminRole = await prisma.role.findFirstOrThrow({
-      where: { organizationId: orgAId, code: 'SCHOOL_ADMIN' },
+    for (const roleDefinition of ORGANIZATION_ROLE_DEFINITIONS) {
+      await ensureOrganizationRole(prisma, orgAId, roleDefinition);
+    }
+    const principalRole = await prisma.role.findFirstOrThrow({
+      where: { organizationId: orgAId, code: ORGANIZATION_ROLE_CODES.PRINCIPAL },
     });
+    const schoolAdminRole = await prisma.role.findFirstOrThrow({
+      where: { organizationId: orgAId, code: ORGANIZATION_ROLE_CODES.SCHOOL_ADMIN },
+    });
+    principalRoleId = principalRole.id;
+    schoolAdminRoleId = schoolAdminRole.id;
 
     await prisma.userRole.createMany({
       data: [
-        { userId: levelOneApproverId, roleId: schoolAdminRole.id },
-        { userId: levelTwoApproverId, roleId: schoolAdminRole.id },
+        { userId: principalApproverId, roleId: principalRole.id },
+        { userId: schoolAdminUserId, roleId: schoolAdminRole.id },
       ],
     });
 
@@ -156,20 +169,14 @@ describeIfDatabase('Approvals integration', () => {
 
     await approvalWorkflowsService.create(orgAId, {
       code: 'LEAVE_APPROVAL',
-      name: 'Two Level Leave Approval',
+      name: 'Principal Leave Approval',
       entityType: ApprovalEntityType.LEAVE,
       levels: [
         {
           level: 1,
-          name: 'Level 1 Approver',
-          approverType: ApprovalApproverType.USER,
-          userId: levelOneApproverId,
-        },
-        {
-          level: 2,
-          name: 'Level 2 Approver',
-          approverType: ApprovalApproverType.USER,
-          userId: levelTwoApproverId,
+          name: 'Principal Approver',
+          approverType: ApprovalApproverType.ROLE,
+          roleId: principalRole.id,
         },
       ],
     });
@@ -199,7 +206,7 @@ describeIfDatabase('Approvals integration', () => {
     await prisma.$disconnect();
   });
 
-  it('progresses through multi-level approval and consumes leave balance only once', async () => {
+  it('approves leave through generic approval API and consumes leave balance once', async () => {
     const leaveRequest = await leaveRequestsService.create(
       orgAId,
       {
@@ -213,29 +220,12 @@ describeIfDatabase('Approvals integration', () => {
         leaveTypeId,
         startDate: '2026-02-01',
         endDate: '2026-02-01',
-        reason: 'Multi-level approval',
+        reason: 'Principal approval',
       },
       false,
     );
 
     expect(leaveRequest.approvalRequestId).toBeTruthy();
-
-    const afterLevelOne = await approvalActionsService.approve(
-      orgAId,
-      leaveRequest.approvalRequestId!,
-      {
-        userId: levelOneApproverId,
-        organizationId: orgAId,
-        sessionId: 'session-2',
-        email: 'level1@example.com',
-      },
-    );
-
-    expect(afterLevelOne.status).toBe(ApprovalRequestStatus.PENDING);
-    expect(afterLevelOne.currentLevel).toBe(2);
-
-    const pendingLeave = await leaveRequestsService.findById(orgAId, leaveRequest.id);
-    expect(pendingLeave.status).toBe('PENDING_APPROVAL');
 
     const balancesBeforeFinal = await leaveBalancesService.list(orgAId, {
       page: 1,
@@ -245,12 +235,19 @@ describeIfDatabase('Approvals integration', () => {
     });
     expect(balancesBeforeFinal.data[0]?.usedAmount).toBe(0);
 
-    await approvalActionsService.approve(orgAId, leaveRequest.approvalRequestId!, {
-      userId: levelTwoApproverId,
-      organizationId: orgAId,
-      sessionId: 'session-3',
-      email: 'level2@example.com',
-    });
+    const approvedRequest = await approvalActionsService.approve(
+      orgAId,
+      leaveRequest.approvalRequestId!,
+      {
+        userId: principalApproverId,
+        organizationId: orgAId,
+        sessionId: 'session-2',
+        email: 'principal@example.com',
+        activeRoleId: principalRoleId,
+      },
+    );
+
+    expect(approvedRequest.status).toBe(ApprovalRequestStatus.APPROVED);
 
     const approvedLeave = await leaveRequestsService.findById(orgAId, leaveRequest.id);
     expect(approvedLeave.status).toBe('APPROVED');
@@ -333,10 +330,11 @@ describeIfDatabase('Approvals integration', () => {
     });
 
     await approvalActionsService.reject(orgAId, leaveRequest.approvalRequestId!, {
-      userId: levelOneApproverId,
+      userId: principalApproverId,
       organizationId: orgAId,
       sessionId: 'session-reject',
-      email: 'level1@example.com',
+      email: 'principal@example.com',
+      activeRoleId: principalRoleId,
     });
 
     const rejectedLeave = await leaveRequestsService.findById(orgAId, leaveRequest.id);
@@ -372,12 +370,43 @@ describeIfDatabase('Approvals integration', () => {
 
     await expect(
       approvalActionsService.approve(orgBId, leaveRequest.approvalRequestId!, {
-        userId: levelOneApproverId,
+        userId: principalApproverId,
         organizationId: orgBId,
         sessionId: 'session-tenant',
-        email: 'level1@example.com',
+        email: 'principal@example.com',
+        activeRoleId: principalRoleId,
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects School Admin acting on leave through generic approval API', async () => {
+    const leaveRequest = await leaveRequestsService.create(
+      orgAId,
+      {
+        userId: submitterUserId,
+        organizationId: orgAId,
+        sessionId: 'session-admin-leave',
+        email: 'submitter@example.com',
+      },
+      {
+        staffId,
+        leaveTypeId,
+        startDate: '2026-07-01',
+        endDate: '2026-07-01',
+        reason: 'Principal-only enforcement',
+      },
+      false,
+    );
+
+    await expect(
+      approvalActionsService.approve(orgAId, leaveRequest.approvalRequestId!, {
+        userId: schoolAdminUserId,
+        organizationId: orgAId,
+        sessionId: 'session-admin',
+        email: 'school-admin@example.com',
+        activeRoleId: schoolAdminRoleId,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('serializes concurrent approve/reject actions', async () => {
@@ -401,16 +430,18 @@ describeIfDatabase('Approvals integration', () => {
 
     const results = await Promise.allSettled([
       approvalActionsService.approve(orgAId, leaveRequest.approvalRequestId!, {
-        userId: levelOneApproverId,
+        userId: principalApproverId,
         organizationId: orgAId,
         sessionId: 'session-concurrency',
-        email: 'level1@example.com',
+        email: 'principal@example.com',
+        activeRoleId: principalRoleId,
       }),
       approvalActionsService.reject(orgAId, leaveRequest.approvalRequestId!, {
-        userId: levelOneApproverId,
+        userId: principalApproverId,
         organizationId: orgAId,
         sessionId: 'session-concurrency',
-        email: 'level1@example.com',
+        email: 'principal@example.com',
+        activeRoleId: principalRoleId,
       }),
     ]);
 
@@ -424,7 +455,7 @@ describeIfDatabase('Approvals integration', () => {
       leaveRequest.approvalRequestId!,
     );
     if (approval.status === ApprovalRequestStatus.PENDING) {
-      expect(approval.currentLevel).toBeGreaterThan(1);
+      expect(approval.currentLevel).toBe(1);
     } else {
       expect([ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED]).toContain(
         approval.status,

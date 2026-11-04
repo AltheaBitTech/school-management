@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -18,6 +19,7 @@ import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { PermissionsService } from '../permissions/permissions.service';
+import { buildContentDispositionFilename } from '../files/utils/filename.util';
 import { ComplaintsService } from './complaints.service';
 import {
   AddComplaintCommentDto,
@@ -50,7 +52,8 @@ export class ComplaintsController {
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListComplaintsQueryDto,
   ) {
-    return this.complaintsService.list(user.organizationId, query);
+    const scope = await this.readScope(user);
+    return this.complaintsService.list(user.organizationId, query, scope);
   }
 
   @Post()
@@ -62,6 +65,29 @@ export class ComplaintsController {
     return { data: this.complaintsService.toDto(complaint) };
   }
 
+  @Get(':id/attachments/:fileId')
+  @RequirePermissions('complaint.view')
+  @ApiOperation({ summary: 'Download a complaint attachment (complaint-scoped authorization)' })
+  async downloadAttachment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('fileId', ParseUUIDPipe) fileId: string,
+  ): Promise<StreamableFile> {
+    const scope = await this.readScope(user);
+    const { file, buffer } = await this.complaintsService.downloadAttachment(
+      user.organizationId,
+      id,
+      fileId,
+      scope,
+    );
+
+    return new StreamableFile(buffer, {
+      type: file.mimeType,
+      disposition: buildContentDispositionFilename(file.originalName),
+      length: file.size,
+    });
+  }
+
   @Get(':id')
   @RequirePermissions('complaint.view')
   @ApiOperation({ summary: 'Get a complaint by ID' })
@@ -70,12 +96,13 @@ export class ComplaintsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const complaint = await this.complaintsService.findById(user.organizationId, id);
+    const scope = await this.readScope(user);
+    const complaint = await this.complaintsService.findById(user.organizationId, id, scope);
     return { data: this.complaintsService.toDto(complaint) };
   }
 
   @Patch(':id')
-  @RequirePermissions('complaint.update')
+  @RequirePermissions('complaint.update', 'complaint.assign')
   @ApiOperation({ summary: 'Update complaint details' })
   @ApiOkResponse({ type: ComplaintResponseDto })
   async update(
@@ -111,17 +138,21 @@ export class ComplaintsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ChangeComplaintStatusDto,
   ) {
-    const permissions = await this.permissionsService.getEffectivePermissions(
-      user.userId,
-      user.organizationId,
-    );
+    const permissions =
+      (await this.permissionsService.getEffectivePermissions(
+        user.userId,
+        user.organizationId,
+        user.activeRoleId ?? '',
+      )) ?? [];
     const canClose = permissions.includes('complaint.close');
+    const scope = await this.complaintsService.resolveReadScope(user, permissions);
     const complaint = await this.complaintsService.changeStatus(
       user.organizationId,
       id,
       user,
       dto,
       canClose,
+      scope,
     );
     return { data: this.complaintsService.toDto(complaint) };
   }
@@ -136,12 +167,24 @@ export class ComplaintsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AddComplaintCommentDto,
   ) {
+    const scope = await this.readScope(user);
     const complaint = await this.complaintsService.addComment(
       user.organizationId,
       id,
       user,
       dto,
+      scope,
     );
     return { data: this.complaintsService.toDto(complaint) };
+  }
+
+  private async readScope(user: AuthenticatedUser) {
+    const permissions =
+      (await this.permissionsService.getEffectivePermissions(
+        user.userId,
+        user.organizationId,
+        user.activeRoleId ?? '',
+      )) ?? [];
+    return this.complaintsService.resolveReadScope(user, permissions);
   }
 }

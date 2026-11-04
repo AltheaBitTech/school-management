@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import StudentFeesPage from '@/app/(app)/fees/student-fees/page';
 import { ApiError } from '@/lib/api/client';
+import { renderWithAppProviders } from '@/test/render-app';
 
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -43,7 +44,7 @@ describe('StudentFeesPage', () => {
     vi.mocked(listStudents).mockReturnValue(new Promise(() => undefined));
     vi.mocked(listFeeStructures).mockReturnValue(new Promise(() => undefined));
 
-    render(<StudentFeesPage />);
+    renderWithAppProviders(<StudentFeesPage />);
     expect(screen.getByLabelText('Loading student fees')).toBeInTheDocument();
   });
 
@@ -105,7 +106,7 @@ describe('StudentFeesPage', () => {
       meta: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
     });
 
-    render(<StudentFeesPage />);
+    renderWithAppProviders(<StudentFeesPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Ravi Kumar')).toBeInTheDocument();
@@ -125,7 +126,7 @@ describe('StudentFeesPage', () => {
       meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 },
     });
 
-    render(<StudentFeesPage />);
+    renderWithAppProviders(<StudentFeesPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Access denied')).toBeInTheDocument();

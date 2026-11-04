@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -16,6 +17,7 @@ import {
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions';
+import { FilesService } from '../files/files.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ComplaintsService } from './complaints.service';
 
@@ -33,6 +35,7 @@ describeIfDatabase('Complaints integration', () => {
   let staffAId: string;
   let staffBId: string;
   let offboardedStaffAId: string;
+  let maintUserId: string;
 
   const actorA = {
     userId: '',
@@ -40,6 +43,17 @@ describeIfDatabase('Complaints integration', () => {
     sessionId: 'session-a',
     email: 'admin-a@example.com',
   };
+
+  const actorMaint = {
+    userId: '',
+    organizationId: '',
+    sessionId: 'session-maint',
+    email: 'maint@example.com',
+  };
+
+  const filesService = {
+    download: jest.fn(),
+  } as unknown as FilesService;
 
   beforeAll(async () => {
     prisma = new PrismaClient();
@@ -104,12 +118,38 @@ describeIfDatabase('Complaints integration', () => {
     staffBId = staffB.id;
     offboardedStaffAId = offboardedStaff.id;
 
-    complaintsService = new ComplaintsService(prisma as unknown as PrismaService);
+    const maintUser = await prisma.user.create({
+      data: {
+        organizationId: orgAId,
+        email: `complaint-maint-${Date.now()}@example.com`,
+      },
+    });
+    maintUserId = maintUser.id;
+    await prisma.staff.update({
+      where: { id: staffAId },
+      data: { userId: maintUserId },
+    });
+    actorMaint.userId = maintUserId;
+    actorMaint.organizationId = orgAId;
+
+    const complaintNotificationService = {
+      notifyAssigned: jest.fn().mockResolvedValue(undefined),
+      notifyStatusChanged: jest.fn().mockResolvedValue(undefined),
+    };
+    complaintsService = new ComplaintsService(
+      prisma as unknown as PrismaService,
+      complaintNotificationService as never,
+      filesService,
+    );
     permissionsService = new PermissionsService(prisma as unknown as PrismaService);
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
   });
 
   afterAll(async () => {
+    await prisma.complaintAttachment.deleteMany({
+      where: { organizationId: { in: [orgAId, orgBId] } },
+    });
+    await prisma.file.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.complaintHistory.deleteMany({
       where: { organizationId: { in: [orgAId, orgBId] } },
     });
@@ -552,6 +592,175 @@ describeIfDatabase('Complaints integration', () => {
 
     const refreshed = await complaintsService.findById(orgAId, complaint.id);
     expect(refreshed.status).toBe(ComplaintStatus.IN_PROGRESS);
+  });
+
+  it('rejects non-image attachments when completing a complaint', async () => {
+    const complaint = await complaintsService.create(orgAId, actorA, {
+      title: 'Attachment validation',
+      description: 'Completion attachments must stay image-only.',
+      category: ComplaintCategory.IT,
+      priority: ComplaintPriority.MEDIUM,
+    });
+
+    await complaintsService.assign(orgAId, complaint.id, actorA, {
+      assignedToStaffId: staffAId,
+    });
+
+    await complaintsService.changeStatus(
+      orgAId,
+      complaint.id,
+      actorA,
+      { status: ComplaintStatus.IN_PROGRESS },
+      true,
+    );
+
+    const pdfFile = await prisma.file.create({
+      data: {
+        organizationId: orgAId,
+        originalName: 'report.pdf',
+        mimeType: 'application/pdf',
+        size: 128,
+        storageKey: `complaint-tests/${complaint.id}/report.pdf`,
+        createdById: userAId,
+      },
+    });
+
+    await expect(
+      complaintsService.changeStatus(
+        orgAId,
+        complaint.id,
+        actorA,
+        {
+          status: ComplaintStatus.COMPLETED,
+          note: 'Should not complete with a PDF attachment.',
+          attachmentFileIds: [pdfFile.id],
+        },
+        true,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const refreshed = await complaintsService.findById(orgAId, complaint.id);
+    expect(refreshed.status).toBe(ComplaintStatus.IN_PROGRESS);
+    expect(refreshed.attachments ?? []).toHaveLength(0);
+  });
+
+  it('allows assignee-scoped download only for linked complaint attachments', async () => {
+    const complaint = await complaintsService.create(orgAId, actorA, {
+      title: 'Scoped download',
+      description: 'Maintenance can download linked photos only.',
+      category: ComplaintCategory.IT,
+      priority: ComplaintPriority.MEDIUM,
+    });
+
+    await complaintsService.assign(orgAId, complaint.id, actorA, {
+      assignedToStaffId: staffAId,
+    });
+
+    const imageFile = await prisma.file.create({
+      data: {
+        organizationId: orgAId,
+        originalName: 'done.jpg',
+        mimeType: 'image/jpeg',
+        size: 64,
+        storageKey: `complaint-tests/${complaint.id}/done.jpg`,
+        createdById: maintUserId,
+      },
+    });
+
+    await prisma.complaintAttachment.create({
+      data: {
+        organizationId: orgAId,
+        complaintId: complaint.id,
+        fileId: imageFile.id,
+      },
+    });
+
+    (filesService.download as jest.Mock).mockResolvedValueOnce({
+      file: imageFile,
+      buffer: Buffer.from('jpeg-bytes'),
+    });
+
+    const scope = await complaintsService.resolveReadScope(actorMaint, [
+      'complaint.view',
+      'complaint.update',
+    ]);
+    const payload = await complaintsService.downloadAttachment(
+      orgAId,
+      complaint.id,
+      imageFile.id,
+      scope,
+    );
+    expect(payload.buffer.toString()).toBe('jpeg-bytes');
+
+    await expect(
+      complaintsService.downloadAttachment(orgAId, complaint.id, imageFile.id, {
+        mode: 'assignee',
+        staffId: staffBId,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    await expect(
+      complaintsService.downloadAttachment(orgAId, complaint.id, randomUUID(), scope),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects attaching a file that is already linked to another complaint', async () => {
+    const first = await complaintsService.create(orgAId, actorA, {
+      title: 'First complaint',
+      description: 'Keeps the image link.',
+      category: ComplaintCategory.IT,
+      priority: ComplaintPriority.LOW,
+    });
+    const second = await complaintsService.create(orgAId, actorA, {
+      title: 'Second complaint',
+      description: 'Must not reuse the same file id.',
+      category: ComplaintCategory.IT,
+      priority: ComplaintPriority.LOW,
+    });
+
+    const imageFile = await prisma.file.create({
+      data: {
+        organizationId: orgAId,
+        originalName: 'shared.jpg',
+        mimeType: 'image/jpeg',
+        size: 32,
+        storageKey: `complaint-tests/shared.jpg`,
+        createdById: userAId,
+      },
+    });
+
+    await prisma.complaintAttachment.create({
+      data: {
+        organizationId: orgAId,
+        complaintId: first.id,
+        fileId: imageFile.id,
+      },
+    });
+
+    await complaintsService.assign(orgAId, second.id, actorA, {
+      assignedToStaffId: staffAId,
+    });
+    await complaintsService.changeStatus(
+      orgAId,
+      second.id,
+      actorA,
+      { status: ComplaintStatus.IN_PROGRESS },
+      true,
+    );
+
+    await expect(
+      complaintsService.changeStatus(
+        orgAId,
+        second.id,
+        actorA,
+        {
+          status: ComplaintStatus.COMPLETED,
+          note: 'Trying to reuse an image from another complaint.',
+          attachmentFileIds: [imageFile.id],
+        },
+        true,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('denies complaint create permission when complaint.create is missing', async () => {

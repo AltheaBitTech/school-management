@@ -1,22 +1,24 @@
 'use client';
 
+import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
+import { resetSubmitting } from '@/lib/forms/submit-state';
 import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
+import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { FormActions, FormSection } from '@/components/ui/FormSection';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
+import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
+import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError } from '@/lib/api/client';
 import { createLeaveRequest, listLeaveTypes, type LeaveType } from '@/lib/leave/leave-client';
 import { listStaff, type StaffMember } from '@/lib/staff/staff-client';
 
 export default function NewLeaveRequestPage() {
   const router = useRouter();
+  const { showSuccess } = useAppSnackbar();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [staffId, setStaffId] = useState('');
@@ -44,8 +46,24 @@ export default function NewLeaveRequestPage() {
       });
   }, []);
 
+  const dateRangeError = useMemo(() => {
+    if (!startDate || !endDate) {
+      return null;
+    }
+    if (endDate < startDate) {
+      return 'End date must be on or after the start date.';
+    }
+    return null;
+  }, [endDate, startDate]);
+
+  const canSubmit = Boolean(staffId && leaveTypeId && startDate && endDate && !dateRangeError);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (!canSubmit) {
+      setErrorMessage(dateRangeError);
+      return;
+    }
     setErrorMessage(null);
     setIsSubmitting(true);
 
@@ -57,15 +75,15 @@ export default function NewLeaveRequestPage() {
         endDate,
         reason: reason || undefined,
       });
+      showSuccess('Leave request submitted');
       router.push('/leave');
     } catch (error) {
+      resetSubmitting(setIsSubmitting);
       if (error instanceof ApiError && error.statusCode === 403) {
         setIsForbidden(true);
       } else {
         setErrorMessage(error instanceof Error ? error.message : 'Failed to submit leave request');
       }
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -74,13 +92,23 @@ export default function NewLeaveRequestPage() {
   }
 
   return (
-    <Stack spacing={3} component="form" onSubmit={handleSubmit}>
-      <PageHeader
+    <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+      <FormPageShell
         title="New leave request"
         description="Submit a leave request for approval."
-      />
-
-      <FormSection>
+        icon={EventAvailableOutlined}
+        footer={
+          <FormPageFooter
+            cancelHref="/leave"
+            submitLabel="Submit request"
+            submittingLabel="Submitting…"
+            isSubmitting={isSubmitting}
+            submitDisabled={!canSubmit}
+          />
+        }
+      >
+        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      <FormSection title="Request" description="Who is away, and for which dates." maxWidth="100%">
         <TextField select label="Staff" value={staffId} onChange={(e) => setStaffId(e.target.value)} required fullWidth>
           {staff.map((member) => (
             <MenuItem key={member.id} value={member.id}>
@@ -119,6 +147,8 @@ export default function NewLeaveRequestPage() {
           InputLabelProps={{ shrink: true }}
           required
           fullWidth
+          error={Boolean(dateRangeError)}
+          helperText={dateRangeError ?? undefined}
         />
         <TextField
           label="Reason"
@@ -127,19 +157,10 @@ export default function NewLeaveRequestPage() {
           multiline
           minRows={3}
           fullWidth
+          helperText="Optional context for the approver"
         />
-
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-
-        <FormActions>
-          <Button type="submit" variant="contained" disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting…' : 'Submit request'}
-          </Button>
-          <Button component={Link} href="/leave">
-            Cancel
-          </Button>
-        </FormActions>
       </FormSection>
-    </Stack>
+      </FormPageShell>
+    </Box>
   );
 }

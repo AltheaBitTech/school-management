@@ -1,9 +1,11 @@
 import { ForbiddenException } from '@nestjs/common';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { PrismaClient, UserStatus } from '@prisma/client';
 import { PasswordService } from '../auth/services/password.service';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { CONFIGURATION_KEY } from '../config/configuration';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions';
 import {
@@ -50,11 +52,19 @@ describeIfDatabase('Onboarding integration', () => {
     const rolesService = new RolesService(prisma as unknown as PrismaService, permissionsService, auditService);
     const departmentsService = new DepartmentsService(prisma as unknown as PrismaService);
     staffService = new StaffService(prisma as unknown as PrismaService, departmentsService);
+    const configService = {
+      get: (key: string) => {
+        if (key === CONFIGURATION_KEY) {
+          return { corsOrigin: 'http://localhost:3000' };
+        }
+        return undefined;
+      },
+    };
     staffLoginProvisioningService = new StaffLoginProvisioningService(
       prisma as unknown as PrismaService,
-      new PasswordService(),
       rolesService,
       auditService,
+      configService as unknown as ConfigService,
     );
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
 
@@ -204,8 +214,7 @@ describeIfDatabase('Onboarding integration', () => {
         },
         staff.id,
         {
-          email: `initial-staff-login-${Date.now()}@example.com`,
-          password: 'Temporary123!',
+          email: staff.email!,
           roleId: platformRole.id,
         },
       ),

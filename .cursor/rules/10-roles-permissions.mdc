@@ -1,0 +1,73 @@
+---
+description: CampusOps role definitions, permission scope, and role-seeding rules
+globs: ["apps/api/src/permissions/**", "apps/api/src/roles/**", "apps/web/src/lib/auth/**", "apps/web/src/components/layout/**"]
+---
+
+# Roles & Permissions
+
+## Role Architecture
+
+CampusOps uses two tiers of roles:
+
+1. **Platform roles** — apply to the `campusops-platform` super organization only
+2. **Organization roles** — scoped per school organization
+
+All role codes, permission codes, and role definitions live in:
+- `apps/api/src/permissions/constants/system-permissions.ts` — permission catalog
+- `apps/api/src/permissions/constants/system-roles.ts` — role definitions
+
+## Organization Roles (School-level)
+
+| Role Code | Name | Primary Users |
+|-----------|------|--------------|
+| `SCHOOL_ADMIN` | School Admin | IT admin, school management |
+| `PRINCIPAL` | Principal | Head of school |
+| `TEACHER` | Teacher | Teaching staff |
+| `RECEPTIONIST` | Receptionist | Front desk / reception |
+| `MAINTENANCE_STAFF` | Maintenance Staff | Facility / maintenance team |
+| `ACCOUNTANT` | Accountant | Finance/accounts team |
+| `STAFF` | Staff (self-service) | General staff — self-service portal only |
+| `STUDENT` | Student | Student self-service portal |
+
+## Role Scoping Rules
+
+- `SCHOOL_ADMIN` sees all modules — full access
+- `PRINCIPAL` sees operational dashboard, leave approvals, complaints, notices, events, reports — no staff management
+- `TEACHER` has staff self-service (leave, attendance self-view), notices, events, complaints (create only)
+- `RECEPTIONIST` sees visitors, notices, events, document generation (visitor pass)
+- `MAINTENANCE_STAFF` sees complaints only (view + update assigned)
+- `ACCOUNTANT` sees fees, assets, documents, approval participation, fee reports
+- `STAFF` has self-service only: own dashboard, own leave, own attendance
+- `STUDENT` has student self-service: own profile, own fees, certificate download, notices, events
+
+## Frontend Navigation Filtering Rule
+
+**Never show a sidebar nav item if the user does not have at least one required permission for that module.**
+
+Each nav item in `AppShell` must declare its required permission(s).
+The sidebar renders only items where `hasPermission(user.permissions, item.requiredPermission)` is true.
+
+## Role Seeding
+
+- Roles are seeded automatically when a new school organization is created (onboarding flow)
+- A one-time migration script exists at `apps/api/scripts/seed-org-roles.ts` to seed roles for existing organizations
+- New role definitions added to `ORGANIZATION_ROLE_DEFINITIONS` are automatically applied by re-running the seed script
+- Never hardcode role IDs — always resolve by `organizationId + roleCode`
+
+## Permission Naming Convention
+
+Format: `resource.action`
+
+Examples:
+- `staff.view` `staff.create` `staff.update` `staff.deactivate`
+- `leave.view` `leave.create` `leave.approve` `leave.reject`
+- `student.self.view` `student.self.fee.view` `student.self.certificate.download`
+
+Self-service permissions use `resource.self.action` pattern.
+
+## Security Enforcement
+
+- Role and permission checks happen on the **backend** — frontend filters are UX only
+- Every API endpoint uses the `@RequirePermission('permission.code')` guard
+- Never trust a client-supplied roleId or organizationId
+- Assigning a role to a user requires `role.assign` permission

@@ -27,6 +27,7 @@ import {
   formatLeaveDate,
   parseLeaveDate,
 } from './utils/leave.util';
+import { assertPrincipalLeaveApprover } from './utils/leave-approval-authorization.util';
 
 type LeaveRequestWithRelations = LeaveRequest & {
   staff: {
@@ -210,6 +211,8 @@ export class LeaveRequestsService {
     approver: AuthenticatedUser,
     options?: { requestId?: string },
   ): Promise<LeaveRequestWithRelations> {
+    await assertPrincipalLeaveApprover(this.prisma, approver);
+
     const request = await this.findById(organizationId, requestId);
 
     if (!request.approvalRequestId) {
@@ -236,6 +239,8 @@ export class LeaveRequestsService {
     approver: AuthenticatedUser,
     options?: { requestId?: string },
   ): Promise<LeaveRequestWithRelations> {
+    await assertPrincipalLeaveApprover(this.prisma, approver);
+
     const request = await this.findById(organizationId, requestId);
 
     if (!request.approvalRequestId) {

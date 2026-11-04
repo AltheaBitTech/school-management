@@ -25,6 +25,7 @@ export class RefreshSessionService {
   async createSession(
     userId: string,
     metadata: RefreshSessionMetadata = {},
+    activeRoleId?: string,
   ): Promise<CreatedRefreshSession> {
     const refreshToken = generateRefreshToken();
     const tokenHash = hashRefreshToken(refreshToken);
@@ -36,6 +37,7 @@ export class RefreshSessionService {
         expiresAt: this.tokenService.getRefreshTokenExpiresAt(),
         userAgent: metadata.userAgent,
         ipAddress: metadata.ipAddress,
+        activeRoleId: activeRoleId ?? null,
       },
     });
 
@@ -85,6 +87,7 @@ export class RefreshSessionService {
           expiresAt: this.tokenService.getRefreshTokenExpiresAt(),
           userAgent: metadata.userAgent,
           ipAddress: metadata.ipAddress,
+          activeRoleId: existingSession.activeRoleId,
         },
       });
 
@@ -128,7 +131,12 @@ export class RefreshSessionService {
   }
 
   async isSessionActive(sessionId: string, userId: string): Promise<boolean> {
-    const session = await this.prisma.refreshSession.findFirst({
+    const session = await this.findActiveSession(sessionId, userId);
+    return session !== null;
+  }
+
+  async findActiveSession(sessionId: string, userId: string): Promise<RefreshSession | null> {
+    return this.prisma.refreshSession.findFirst({
       where: {
         id: sessionId,
         userId,
@@ -138,8 +146,6 @@ export class RefreshSessionService {
         },
       },
     });
-
-    return session !== null;
   }
 
   private async revokeSession(sessionId: string, reason: RefreshRevokeReason): Promise<void> {

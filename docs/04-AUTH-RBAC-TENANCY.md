@@ -125,16 +125,20 @@ Client
   ↓
 POST /auth/login
   ↓
+Resolve the account by email
+  ↓
 Validate credentials
   ↓
 Check account status
   ↓
-Resolve organization membership
+Resolve organization membership from that account
   ↓
 Issue access + refresh credentials
   ↓
 Return authenticated session
 ```
+
+Email is unique across CampusOps. The sign-in and forgot-password screens collect email and password. The organization code remains the school's internal identifier and is not entered at login.
 
 At minimum, authentication should validate:
 
@@ -144,6 +148,31 @@ At minimum, authentication should validate:
 - organization membership where applicable.
 
 Failed login responses should avoid revealing whether a particular account exists.
+
+## 5.1 Active role context
+
+One user in one organization may hold several assigned roles. A session uses exactly one of them.
+
+```text
+POST /auth/login
+  ↓
+Password check
+  ↓
+One eligible role → issue access token, refresh cookie, and bind that role
+Several eligible roles → return a short-lived selection token and the role list
+  ↓
+POST /auth/login/context { selectionToken, roleId }
+  ↓
+Server checks the role is assigned in that organization
+  ↓
+Issue the session for that role only
+```
+
+`RefreshSession.activeRoleId` is the source of truth. The access token repeats it as a hint. Guards and `GET /auth/me` load permissions for that role only. A missing or revoked assignment returns 401 `ROLE_REVOKED` and refresh revokes the new session. Changing role requires logout and a new login. The client cannot send a role id except on `POST /auth/login/context`, and that call rejects roles the user does not hold.
+
+Platform roles (`organizationId` null) are eligible only for the platform organization. School sessions do not pick up `SAAS_SUPER_ADMIN`.
+
+Audit events written during a request include `activeRoleId` and `activeRoleCode` in metadata. Login itself records `USER_LOGGED_IN` with that role.
 
 ---
 

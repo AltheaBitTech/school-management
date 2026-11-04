@@ -9,5 +9,11 @@
       "includeFiles": "node_modules/.prisma/client/**"
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
+  "crons": [
+    {
+      "path": "/cron/publish-scheduled-notices",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

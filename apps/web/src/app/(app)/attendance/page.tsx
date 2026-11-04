@@ -1,5 +1,6 @@
 'use client';
 
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
@@ -11,9 +12,12 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import { useEffect, useMemo, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AttendanceFeatureGate } from '@/components/features/AttendanceFeatureGate';
+import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   ATTENDANCE_STATUS_OPTIONS,
   formatAttendanceStatus,
@@ -33,7 +37,9 @@ function todayDateInputValue(): string {
   return `${year}-${month}-${day}`;
 }
 
-export default function AttendancePage() {
+function AttendancePageContent() {
+  const canMark = useCan('attendance.mark');
+  const { showSuccess } = useAppSnackbar();
   const [attendanceDate, setAttendanceDate] = useState(todayDateInputValue());
   const [departmentId, setDepartmentId] = useState('');
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -44,7 +50,6 @@ export default function AttendancePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [savingStaffId, setSavingStaffId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
 
   useEffect(() => {
@@ -59,7 +64,6 @@ export default function AttendancePage() {
     async function loadDailyAttendance(): Promise<void> {
       setIsLoading(true);
       setErrorMessage(null);
-      setSuccessMessage(null);
       setIsForbidden(false);
 
       try {
@@ -130,7 +134,6 @@ export default function AttendancePage() {
   async function handleSave(staffMember: StaffMember): Promise<void> {
     setSavingStaffId(staffMember.id);
     setErrorMessage(null);
-    setSuccessMessage(null);
 
     try {
       const saved = await saveAttendanceForStaff({
@@ -142,7 +145,7 @@ export default function AttendancePage() {
       });
 
       setAttendanceByStaffId((current) => ({ ...current, [staffMember.id]: saved }));
-      setSuccessMessage(`Saved attendance for ${getStaffDisplayName(staffMember)}.`);
+      showSuccess(`Saved attendance for ${getStaffDisplayName(staffMember)}.`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to save attendance');
     } finally {
@@ -155,12 +158,11 @@ export default function AttendancePage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Staff attendance"
-        description="Mark and review daily attendance for your organization."
-      />
-
+    <ListPageShell
+      title="Staff attendance"
+      description="Mark and review daily attendance for your organization."
+      icon={FactCheckOutlined}
+      filters={
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
         <TextField
           label="Attendance date"
@@ -184,14 +186,17 @@ export default function AttendancePage() {
           ))}
         </TextField>
       </Stack>
-
-      {isLoading ? <LoadingState label="Loading attendance" /> : null}
+      }
+    >
+      {isLoading ? <LoadingState label="Loading attendance" columnCount={5} /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-      {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
 
       {!isLoading && activeStaff.length === 0 ? (
-        <EmptyState message="No active staff members found for the selected filters." />
+        <EmptyState
+          icon={FactCheckOutlined}
+          message="No active staff members found for the selected filters."
+        />
       ) : null}
 
       {!isLoading && activeStaff.length > 0 ? (
@@ -245,20 +250,32 @@ export default function AttendancePage() {
                     />
                   </TableCell>
                   <TableCell align="right">
-                    <Button
-                      size="small"
-                      variant="contained"
-                      disabled={savingStaffId === member.id}
-                      onClick={() => void handleSave(member)}
-                    >
-                      {savingStaffId === member.id ? 'Saving…' : 'Save'}
-                    </Button>
+                    {canMark ? (
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={savingStaffId === member.id}
+                        onClick={() => void handleSave(member)}
+                      >
+                        {savingStaffId === member.id ? 'Saving…' : 'Save'}
+                      </Button>
+                    ) : (
+                      '—'
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
+  );
+}
+
+export default function AttendancePage() {
+  return (
+    <AttendanceFeatureGate>
+      <AttendancePageContent />
+    </AttendanceFeatureGate>
   );
 }

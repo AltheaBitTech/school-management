@@ -9,11 +9,12 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import TaskAltOutlined from '@mui/icons-material/TaskAltOutlined';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import {
@@ -77,12 +78,11 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Approvals"
-        description="Review pending approval requests and track approval status."
-      />
-
+    <ListPageShell
+      title="Approvals"
+      description="Review pending approval requests and track approval status."
+      icon={TaskAltOutlined}
+      filters={
       <TextField
         select
         label="Status"
@@ -97,13 +97,24 @@ export default function ApprovalsPage() {
           </MenuItem>
         ))}
       </TextField>
+      }
+    >
+      {isLoading ? <LoadingState label="Loading approvals" columnCount={6} /> : null}
 
-      {isLoading ? <LoadingState label="Loading approvals" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && requests.length === 0 ? (
-        <EmptyState message="No approval requests found." />
+        <EmptyState
+          icon={TaskAltOutlined}
+          message="No approval requests found."
+          action={
+            statusFilter ? (
+              <Button variant="outlined" onClick={() => setStatusFilter('')}>
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
 
       {!isLoading && requests.length > 0 ? (
@@ -141,6 +152,6 @@ export default function ApprovalsPage() {
           </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

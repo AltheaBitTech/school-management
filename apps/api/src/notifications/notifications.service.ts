@@ -11,7 +11,7 @@ import {
   EMAIL_PROVIDER,
   EmailProvider,
 } from './providers/email-provider.interface';
-import { renderLeaveNotificationTemplate } from './utils/notification-template.util';
+import { renderNotificationTemplate } from './utils/notification-template.util';
 
 @Injectable()
 export class NotificationsService {
@@ -49,7 +49,7 @@ export class NotificationsService {
       return;
     }
 
-    const template = renderLeaveNotificationTemplate(input.eventKey, input.templateContext);
+    const template = renderNotificationTemplate(input.eventKey, input.templateContext);
 
     const notification = await this.prisma.notification.create({
       data: {

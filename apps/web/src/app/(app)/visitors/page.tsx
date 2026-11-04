@@ -9,27 +9,32 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { AppTable, EmptyState, LoadingState, TableIconLink } from '@/components/ui/AppTable';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
-import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   formatDateTime,
   formatVisitorStatus,
-  getVisitorStaffDisplayName,
+  getVisitorHostStaffDisplayName,
+  listVisitorHostStaff,
   listVisitors,
   VISITOR_STATUSES,
   type Visitor,
+  type VisitorStaffSummary,
   type VisitorStatus,
 } from '@/lib/visitors/visitors-client';
 
 export default function VisitorsPage() {
+  const canCreate = useCan('visitor.create');
   const [visitors, setVisitors] = useState<Visitor[]>([]);
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [staff, setStaff] = useState<VisitorStaffSummary[]>([]);
   const [statusFilter, setStatusFilter] = useState<VisitorStatus | ''>('CHECKED_IN');
   const [hostStaffId, setHostStaffId] = useState('');
   const [date, setDate] = useState('');
@@ -43,15 +48,9 @@ export default function VisitorsPage() {
 
     async function loadStaff(): Promise<void> {
       try {
-        const response = await listStaff({
-          page: 1,
-          pageSize: 100,
-          sortBy: 'firstName',
-          sortOrder: 'asc',
-          employmentStatus: 'ACTIVE',
-        });
+        const hosts = await listVisitorHostStaff();
         if (!cancelled) {
-          setStaff(response.data);
+          setStaff(hosts);
         }
       } catch {
         // Host filter is optional UX; list still works without staff options.
@@ -113,72 +112,84 @@ export default function VisitorsPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Visitors"
-        description="Register visitors, track current check-ins, and review visit history."
-        actions={
-          <Button component={Link} href="/visitors/new" variant="contained">
+    <ListPageShell
+      title="Visitors"
+      description="Register visitors, track current check-ins, and review visit history."
+      icon={BadgeOutlined}
+      actions={
+        canCreate ? (
+          <Button component={Link} href="/visitors/new" variant="contained" startIcon={<AddOutlined />}>
             Register visitor
           </Button>
-        }
-      />
+        ) : undefined
+      }
+      filters={
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap" useFlexGap>
+          <TextField
+            select
+            label="Status"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as VisitorStatus | '')}
+            sx={{ minWidth: 200 }}
+          >
+            <MenuItem value="">All statuses</MenuItem>
+            {VISITOR_STATUSES.map((status) => (
+              <MenuItem key={status} value={status}>
+                {formatVisitorStatus(status)}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Host"
+            value={hostStaffId}
+            onChange={(event) => setHostStaffId(event.target.value)}
+            sx={{ minWidth: 220 }}
+          >
+            <MenuItem value="">All hosts</MenuItem>
+            {staff.map((member) => (
+              <MenuItem key={member.id} value={member.id}>
+                {getVisitorHostStaffDisplayName(member)}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Date"
+            type="date"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 180 }}
+          />
+          <TextField
+            label="Search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Name, mobile, or code"
+            sx={{ minWidth: 240, flex: 1 }}
+          />
+        </Stack>
+      }
+    >
+      {isLoading ? <LoadingState label="Loading visitors" columnCount={9} minWidth={960} /> : null}
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap">
-        <TextField
-          select
-          label="Status"
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as VisitorStatus | '')}
-          sx={{ minWidth: 200 }}
-        >
-          <MenuItem value="">All statuses</MenuItem>
-          {VISITOR_STATUSES.map((status) => (
-            <MenuItem key={status} value={status}>
-              {formatVisitorStatus(status)}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          label="Host"
-          value={hostStaffId}
-          onChange={(event) => setHostStaffId(event.target.value)}
-          sx={{ minWidth: 220 }}
-        >
-          <MenuItem value="">All hosts</MenuItem>
-          {staff.map((member) => (
-            <MenuItem key={member.id} value={member.id}>
-              {getStaffDisplayName(member)}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          label="Date"
-          type="date"
-          value={date}
-          onChange={(event) => setDate(event.target.value)}
-          InputLabelProps={{ shrink: true }}
-          sx={{ minWidth: 180 }}
+      {!isLoading && errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+
+      {!isLoading && !errorMessage && visitors.length === 0 ? (
+        <EmptyState
+          icon={BadgeOutlined}
+          message="No visitors found for the selected filters."
+          action={
+            canCreate ? (
+              <Button component={Link} href="/visitors/new" variant="contained" startIcon={<AddOutlined />}>
+                Register visitor
+              </Button>
+            ) : undefined
+          }
         />
-        <TextField
-          label="Search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Name, mobile, or code"
-          sx={{ minWidth: 240 }}
-        />
-      </Stack>
-
-      {isLoading ? <LoadingState label="Loading visitors" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-
-      {!isLoading && visitors.length === 0 ? (
-        <EmptyState message="No visitors found for the selected filters." />
       ) : null}
 
-      {!isLoading && visitors.length > 0 ? (
+      {!isLoading && !errorMessage && visitors.length > 0 ? (
         <AppTable minWidth={960} aria-label="Visitors">
           <TableHead>
             <TableRow>
@@ -201,7 +212,7 @@ export default function VisitorsPage() {
                 <TableCell>{visitor.mobile}</TableCell>
                 <TableCell>{visitor.purpose}</TableCell>
                 <TableCell>
-                  {visitor.hostStaff ? getVisitorStaffDisplayName(visitor.hostStaff) : '—'}
+                  {visitor.hostStaff ? getVisitorHostStaffDisplayName(visitor.hostStaff) : '—'}
                 </TableCell>
                 <TableCell>{formatDateTime(visitor.checkInAt)}</TableCell>
                 <TableCell>
@@ -211,15 +222,13 @@ export default function VisitorsPage() {
                   <StatusChip status={visitor.status} label={formatVisitorStatus(visitor.status)} />
                 </TableCell>
                 <TableCell align="right">
-                  <Button component={Link} href={`/visitors/${visitor.id}`} size="small">
-                    View
-                  </Button>
+                  <TableIconLink href={`/visitors/${visitor.id}`} label="View visitor" />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

@@ -10,16 +10,20 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { AppTable, EmptyState, LoadingState, TableIconLink } from '@/components/ui/AppTable';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import {
   ASSET_STATUSES,
   formatAssetStatus,
   getAssetStaffDisplayName,
+  getAssetStudentDisplayName,
   isWarrantyActive,
   listAssetCategories,
   listAssets,
@@ -28,10 +32,15 @@ import {
   type AssetStatus,
 } from '@/lib/assets/assets-client';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
+import { listStudents, type Student } from '@/lib/students/students-client';
 
 export default function AssetsPage() {
+  const canCreate = useCan('asset.create');
+  const searchParams = useSearchParams();
+  const warrantyAlertOnly = searchParams.get('warrantyAlert') === 'true';
   const [assets, setAssets] = useState<Asset[]>([]);
   const [categories, setCategories] = useState<AssetCategory[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -40,6 +49,8 @@ export default function AssetsPage() {
   const [categoryId, setCategoryId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [assignedStaffId, setAssignedStaffId] = useState('');
+  const [assignedStudentId, setAssignedStudentId] = useState('');
+  const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -50,7 +61,7 @@ export default function AssetsPage() {
 
     async function loadFilters(): Promise<void> {
       try {
-        const [categoryData, departmentResponse, staffResponse] = await Promise.all([
+        const [categoryData, departmentResponse, staffResponse, studentResponse] = await Promise.all([
           listAssetCategories(),
           listDepartments({ page: 1, pageSize: 100, status: 'ACTIVE' }),
           listStaff({
@@ -60,11 +71,13 @@ export default function AssetsPage() {
             sortOrder: 'asc',
             employmentStatus: 'ACTIVE',
           }),
+          listStudents({ page: 1, pageSize: 100, status: 'ACTIVE' }),
         ]);
         if (!cancelled) {
           setCategories(categoryData.filter((category) => category.status === 'ACTIVE'));
           setDepartments(departmentResponse.data);
           setStaff(staffResponse.data);
+          setStudents(studentResponse.data);
         }
       } catch {
         // Filters are optional UX; list still works without options.
@@ -94,6 +107,8 @@ export default function AssetsPage() {
           categoryId: categoryId || undefined,
           departmentId: departmentId || undefined,
           assignedStaffId: assignedStaffId || undefined,
+          assignedStudentId: assignedStudentId || undefined,
+          warrantyAlert: warrantyAlertOnly || undefined,
           search: search || undefined,
         });
         if (!cancelled) {
@@ -120,25 +135,30 @@ export default function AssetsPage() {
     return () => {
       cancelled = true;
     };
-  }, [statusFilter, categoryId, departmentId, assignedStaffId, search]);
+  }, [statusFilter, categoryId, departmentId, assignedStaffId, assignedStudentId, warrantyAlertOnly, search]);
 
   if (isForbidden) {
     return <ForbiddenState />;
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Assets"
-        description="Track school assets, assignments, maintenance, and lifecycle status."
-        actions={
-          <Button component={Link} href="/assets/new" variant="contained">
+    <ListPageShell
+      title="Assets"
+      description={
+        warrantyAlertOnly
+          ? 'Assets with warranty expired or expiring within 30 days.'
+          : 'Track school assets, assignments, maintenance, and lifecycle status.'
+      }
+      icon={Inventory2Outlined}
+      actions={
+        canCreate ? (
+          <Button component={Link} href="/assets/new" variant="contained" startIcon={<AddOutlined />}>
             Register asset
           </Button>
-        }
-      />
-
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap">
+        ) : undefined
+      }
+      filters={
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap" useFlexGap>
         <TextField
           select
           label="Status"
@@ -196,6 +216,20 @@ export default function AssetsPage() {
           ))}
         </TextField>
         <TextField
+          select
+          label="Assigned student"
+          value={assignedStudentId}
+          onChange={(event) => setAssignedStudentId(event.target.value)}
+          sx={{ minWidth: 220 }}
+        >
+          <MenuItem value="">All students</MenuItem>
+          {students.map((student) => (
+            <MenuItem key={student.id} value={student.id}>
+              {student.studentCode} — {student.firstName} {student.lastName}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
           label="Search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -203,13 +237,24 @@ export default function AssetsPage() {
           sx={{ minWidth: 240 }}
         />
       </Stack>
+      }
+    >
+      {isLoading ? <LoadingState label="Loading assets" columnCount={9} /> : null}
 
-      {isLoading ? <LoadingState label="Loading assets" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && assets.length === 0 ? (
-        <EmptyState message="No assets found for the selected filters." />
+        <EmptyState
+          icon={Inventory2Outlined}
+          message="No assets found for the selected filters."
+          action={
+            canCreate ? (
+              <Button component={Link} href="/assets/new" variant="contained" startIcon={<AddOutlined />}>
+                Register asset
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
 
       {!isLoading && assets.length > 0 ? (
@@ -221,7 +266,7 @@ export default function AssetsPage() {
                 <TableCell>Category</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Department</TableCell>
-                <TableCell>Assigned staff</TableCell>
+                <TableCell>Assignee</TableCell>
                 <TableCell>Location</TableCell>
                 <TableCell>Warranty</TableCell>
                 <TableCell align="right">Actions</TableCell>
@@ -240,7 +285,9 @@ export default function AssetsPage() {
                   <TableCell>
                     {asset.assignedStaff
                       ? getAssetStaffDisplayName(asset.assignedStaff)
-                      : '—'}
+                      : asset.assignedStudent
+                        ? getAssetStudentDisplayName(asset.assignedStudent)
+                        : '—'}
                   </TableCell>
                   <TableCell>{asset.location || '—'}</TableCell>
                   <TableCell>
@@ -253,15 +300,13 @@ export default function AssetsPage() {
                     )}
                   </TableCell>
                   <TableCell align="right">
-                    <Button component={Link} href={`/assets/${asset.id}`} size="small">
-                      View
-                    </Button>
+                    <TableIconLink href={`/assets/${asset.id}`} label="View asset" />
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

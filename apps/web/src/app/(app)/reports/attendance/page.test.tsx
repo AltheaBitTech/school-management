@@ -20,6 +20,10 @@ vi.mock('@/lib/departments/departments-client', () => ({
 }));
 
 import { getAttendanceReport } from '@/lib/reports/attendance-reports-client';
+import {
+  resetFeatureFlagsCacheForTests,
+  setFeatureFlagsFromSession,
+} from '@/lib/features/feature-flags';
 
 describe('AttendanceReportPage', () => {
   beforeEach(() => {
@@ -111,5 +115,13 @@ describe('AttendanceReportPage', () => {
   it('recognizes forbidden responses', () => {
     expect(isAttendanceReportForbiddenError({ statusCode: 403 })).toBe(true);
     expect(isAttendanceReportForbiddenError({ statusCode: 401 })).toBe(false);
+  });
+
+  it('does not load report data when attendance is disabled', () => {
+    setFeatureFlagsFromSession({ attendanceEnabled: false });
+    render(<AttendanceReportPage />);
+    expect(screen.getByText(/Attendance is turned off/i)).toBeInTheDocument();
+    expect(vi.mocked(getAttendanceReport)).not.toHaveBeenCalled();
+    resetFeatureFlagsCacheForTests();
   });
 });

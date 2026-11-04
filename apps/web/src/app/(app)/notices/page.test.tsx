@@ -2,7 +2,9 @@ import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import NoticesPage from '@/app/(app)/notices/page';
+import { AuthSessionOverride } from '@/components/providers/AuthSessionProvider';
 import { ApiError } from '@/lib/api/client';
+import type { AuthUser } from '@/lib/auth/auth-client';
 
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -66,6 +68,31 @@ describe('NoticesPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/No notices found/i)).toBeInTheDocument();
     });
+  });
+
+  it('hides New notice when the active role cannot publish', async () => {
+    vi.mocked(listNotices).mockResolvedValue({
+      data: [],
+      meta: { page: 1, pageSize: 25, total: 0, totalPages: 0 },
+    });
+    const teacher: AuthUser = {
+      id: 'teacher-1',
+      email: 'teacher@school.example',
+      organizationId: 'org-1',
+      permissions: ['notice.view', 'event.view', 'complaint.create'],
+      role: { name: 'Teacher', code: 'TEACHER' },
+    };
+
+    render(
+      <AuthSessionOverride user={teacher}>
+        <NoticesPage />
+      </AuthSessionOverride>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/not part of this role/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('link', { name: 'New notice' })).not.toBeInTheDocument();
   });
 
   it('shows a forbidden state on 403 responses', async () => {

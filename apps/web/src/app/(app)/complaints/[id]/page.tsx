@@ -1,5 +1,6 @@
 'use client';
 
+import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -13,9 +14,13 @@ import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { FileAttachmentUploadField } from '@/components/files/FileAttachmentUploadField';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
+import { downloadComplaintAttachment } from '@/lib/files/files-client';
 import {
   addComplaintComment,
   assignComplaint,
@@ -44,6 +49,10 @@ function formatHistoryLine(entry: NonNullable<Complaint['history']>[number]): st
 }
 
 export default function ComplaintDetailPage() {
+  const canAssignComplaint = useCan('complaint.assign');
+  const canUpdateComplaint = useCan('complaint.update');
+  const canCloseComplaint = useCan('complaint.close');
+  const canUploadFile = useCan('file.create');
   const params = useParams<{ id: string }>();
   const complaintId = params.id;
 
@@ -51,6 +60,8 @@ export default function ComplaintDetailPage() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [assigneeId, setAssigneeId] = useState('');
   const [comment, setComment] = useState('');
+  const [completionNote, setCompletionNote] = useState('');
+  const [completionFileIds, setCompletionFileIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isForbidden, setIsForbidden] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -72,15 +83,29 @@ export default function ComplaintDetailPage() {
       setIsForbidden(false);
 
       try {
-        const [complaintData, staffResponse] = await Promise.all([
-          getComplaint(complaintId),
-          listStaff({ page: 1, pageSize: 100, sortBy: 'firstName', sortOrder: 'asc' }),
-        ]);
+        const complaintData = await getComplaint(complaintId);
+        if (cancelled) {
+          return;
+        }
+        setComplaint(complaintData);
+        setAssigneeId(complaintData.assignedToStaffId ?? '');
 
-        if (!cancelled) {
-          setComplaint(complaintData);
-          setAssigneeId(complaintData.assignedToStaffId ?? '');
-          setStaff(staffResponse.data.filter((member) => member.employmentStatus !== 'OFFBOARDED'));
+        if (canAssignComplaint) {
+          try {
+            const staffResponse = await listStaff({
+              page: 1,
+              pageSize: 100,
+              sortBy: 'firstName',
+              sortOrder: 'asc',
+            });
+            if (!cancelled) {
+              setStaff(staffResponse.data.filter((member) => member.employmentStatus !== 'OFFBOARDED'));
+            }
+          } catch {
+            if (!cancelled) {
+              setStaff([]);
+            }
+          }
         }
       } catch (error) {
         if (cancelled) {
@@ -103,7 +128,7 @@ export default function ComplaintDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [complaintId]);
+  }, [canAssignComplaint, complaintId]);
 
   async function handleAssign(): Promise<void> {
     if (!assigneeId) {
@@ -131,7 +156,12 @@ export default function ComplaintDetailPage() {
     setSuccessMessage(null);
 
     try {
-      await changeComplaintStatus(complaintId, nextStatus);
+      await changeComplaintStatus(complaintId, nextStatus, {
+        note: completionNote.trim() || undefined,
+        attachmentFileIds: completionFileIds,
+      });
+      setCompletionNote('');
+      setCompletionFileIds([]);
       await reloadComplaint();
       setSuccessMessage(`Complaint moved to ${formatComplaintStatus(nextStatus).toLowerCase()}.`);
     } catch (error) {
@@ -168,35 +198,37 @@ export default function ComplaintDetailPage() {
 
   if (isLoading || !complaint) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-        <CircularProgress aria-label="Loading complaint" />
-      </Box>
+      <Stack spacing={3}>
+        <PageHeader title="Complaint" description="Loading this complaint." icon={BuildOutlined} />
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress aria-label="Loading complaint" />
+        </Box>
+      </Stack>
     );
   }
 
   const nextStatus = getNextComplaintStatus(complaint.status);
-  const canAssign = complaint.status === 'OPEN' || complaint.status === 'ASSIGNED';
-  const canComment = complaint.status !== 'CLOSED';
+  const canAssign =
+    canAssignComplaint && (complaint.status === 'OPEN' || complaint.status === 'ASSIGNED');
+  const canComment = canUpdateComplaint && complaint.status !== 'CLOSED';
   const canAdvanceStatus =
     nextStatus !== null &&
     complaint.status !== 'OPEN' &&
-    complaint.status !== 'CLOSED';
+    complaint.status !== 'CLOSED' &&
+    (nextStatus === 'CLOSED' ? canCloseComplaint : canUpdateComplaint);
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            {complaint.title}
-          </Typography>
-          <Typography color="text.secondary">
-            {complaint.complaintCode} · {formatComplaintCategory(complaint.category)}
-          </Typography>
-        </Box>
-        <Button component={Link} href="/complaints" variant="outlined">
-          Back to list
-        </Button>
-      </Stack>
+      <PageHeader
+        title={complaint.title}
+        description={`${complaint.complaintCode} · ${formatComplaintCategory(complaint.category)}`}
+        icon={BuildOutlined}
+        actions={
+          <Button component={Link} href="/complaints" variant="outlined">
+            Back to list
+          </Button>
+        }
+      />
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
       {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
@@ -215,6 +247,32 @@ export default function ComplaintDetailPage() {
           </Stack>
 
           <Typography variant="body1">{complaint.description}</Typography>
+          {complaint.attachments && complaint.attachments.length > 0 ? (
+            <Stack spacing={0.5} sx={{ mt: 2 }}>
+              <Typography variant="subtitle2">Photos</Typography>
+              {complaint.attachments.map((attachment) => (
+                <Button
+                  key={attachment.id}
+                  variant="text"
+                  size="small"
+                  sx={{ justifyContent: 'flex-start', px: 0 }}
+                  onClick={() =>
+                    void downloadComplaintAttachment(
+                      complaint.id,
+                      attachment.fileId,
+                      attachment.file.originalName,
+                    ).catch((error) => {
+                      setErrorMessage(
+                        error instanceof Error ? error.message : 'Failed to download attachment',
+                      );
+                    })
+                  }
+                >
+                  {attachment.file.originalName} ({Math.round(attachment.file.size / 1024)} KB)
+                </Button>
+              ))}
+            </Stack>
+          ) : null}
 
           <Stack spacing={1}>
             <Typography variant="body2" color="text.secondary">
@@ -265,9 +323,33 @@ export default function ComplaintDetailPage() {
         <Paper sx={{ p: 3 }}>
           <Stack spacing={2}>
             <Typography variant="h6">Status</Typography>
+            {nextStatus === 'COMPLETED' ? (
+              <>
+                <TextField
+                  label="Completion note"
+                  value={completionNote}
+                  onChange={(event) => setCompletionNote(event.target.value)}
+                  helperText="Describe the work that was finished."
+                  multiline
+                  minRows={3}
+                  fullWidth
+                  required
+                />
+                {canUploadFile ? (
+                  <FileAttachmentUploadField
+                    label="Completion photos"
+                    helperText="Optional images of the finished work."
+                    accept="image/*"
+                    maxFiles={5}
+                    fileIds={completionFileIds}
+                    onChange={setCompletionFileIds}
+                  />
+                ) : null}
+              </>
+            ) : null}
             <Button
               variant="contained"
-              disabled={isActing}
+              disabled={isActing || (nextStatus === 'COMPLETED' && !completionNote.trim())}
               onClick={() => void handleStatusChange(nextStatus)}
             >
               Mark as {formatComplaintStatus(nextStatus)}

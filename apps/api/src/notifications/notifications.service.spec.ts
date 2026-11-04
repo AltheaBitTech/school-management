@@ -7,6 +7,7 @@ import { renderLeaveNotificationTemplate } from './utils/notification-template.u
 
 describe('renderLeaveNotificationTemplate', () => {
   const context = {
+    kind: 'leave' as const,
     staffName: 'Anita Desai',
     leaveTypeName: 'Casual Leave',
     startDate: '2026-09-01',
@@ -83,6 +84,7 @@ describe('NotificationsService', () => {
     recipientUserId: 'user-a',
     eventKey: NOTIFICATION_EVENT_KEYS.LEAVE_APPROVED,
     templateContext: {
+      kind: 'leave' as const,
       staffName: 'Anita Desai',
       leaveTypeName: 'Casual Leave',
       startDate: '2026-09-01',

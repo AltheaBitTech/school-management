@@ -13,6 +13,8 @@ import { formatFeeDate, parseFeeDate } from '../../fees/utils/fee-date.util';
 import { PLATFORM_ORGANIZATION_CODE } from '../../organizations/constants/organization.constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FEE_REPORT_ERROR_CODES, FeeReportDateScope } from './constants/fee-report.constants';
+import { buildCsv } from '../common/csv-export.util';
+import { MAX_REPORT_CSV_EXPORT_ROWS } from '../common/max-export-rows';
 import { FeeReportQueryDto } from './dto/fee-report-query.dto';
 
 const studentFeeInclude = {
@@ -395,6 +397,36 @@ export class FeesReportsService {
         message: 'Platform organizations do not use school fee reports',
       });
     }
+  }
+
+  async exportCsv(organizationId: string, query: FeeReportQueryDto): Promise<string> {
+    const report = await this.generate(organizationId, {
+      ...query,
+      page: 1,
+      pageSize: MAX_REPORT_CSV_EXPORT_ROWS,
+    });
+    return buildCsv(
+      [
+        'Student code',
+        'Student name',
+        'Fee structure',
+        'Assigned',
+        'Paid',
+        'Outstanding',
+        'Status',
+        'Latest payment',
+      ],
+      report.data.map((row) => [
+        row.studentCode,
+        row.studentName,
+        row.feeStructureName,
+        row.assignedAmount,
+        row.paidAmount,
+        row.outstandingAmount,
+        row.status,
+        row.latestPaymentDate,
+      ]),
+    );
   }
 
   private async getOrganizationTimezone(organizationId: string): Promise<string> {

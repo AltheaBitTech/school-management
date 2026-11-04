@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   ApprovalActionType,
+  ApprovalEntityType,
   ApprovalLevel,
   ApprovalRequest,
   ApprovalRequestStatus,
@@ -18,6 +19,7 @@ import { ApprovalNotificationService } from './approval-notification.service';
 import { ApproverResolutionService } from './approver-resolution.service';
 import { APPROVAL_ERROR_CODES } from './constants/approval.constants';
 import { ApprovalDecisionDto } from './dto/approval.dto';
+import { assertPrincipalLeaveApprover } from '../leave/utils/leave-approval-authorization.util';
 
 type LockedApprovalRequest = ApprovalRequest & {
   workflow: {
@@ -44,6 +46,10 @@ export class ApprovalActionsService {
     const result = await this.prisma.$transaction(async (tx) => {
       const request = await this.lockPendingApprovalRequest(tx, organizationId, approvalRequestId);
 
+      if (request.entityType === ApprovalEntityType.LEAVE) {
+        await assertPrincipalLeaveApprover(tx, actor);
+      }
+
       if (request.submittedById === actor.userId) {
         throw new ForbiddenException({
           code: APPROVAL_ERROR_CODES.APPROVAL_SELF_APPROVAL,
@@ -57,6 +63,7 @@ export class ApprovalActionsService {
         organizationId,
         currentLevel,
         actor.userId,
+        { activeRoleId: actor.activeRoleId },
       );
 
       await tx.approvalAction.create({
@@ -117,6 +124,10 @@ export class ApprovalActionsService {
     const result = await this.prisma.$transaction(async (tx) => {
       const request = await this.lockPendingApprovalRequest(tx, organizationId, approvalRequestId);
 
+      if (request.entityType === ApprovalEntityType.LEAVE) {
+        await assertPrincipalLeaveApprover(tx, actor);
+      }
+
       if (request.submittedById === actor.userId) {
         throw new ForbiddenException({
           code: APPROVAL_ERROR_CODES.APPROVAL_SELF_APPROVAL,
@@ -130,6 +141,7 @@ export class ApprovalActionsService {
         organizationId,
         currentLevel,
         actor.userId,
+        { activeRoleId: actor.activeRoleId },
       );
 
       await tx.approvalAction.create({

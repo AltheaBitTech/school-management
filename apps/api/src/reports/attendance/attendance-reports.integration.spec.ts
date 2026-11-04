@@ -35,6 +35,7 @@ describeIfDatabase('Attendance reports integration', () => {
   let staffBId: string;
   let schoolAdminUserId: string;
   let schoolAdminEmail: string;
+  let schoolAdminRoleId: string;
 
   beforeAll(async () => {
     prisma = new PrismaClient();
@@ -161,6 +162,7 @@ describeIfDatabase('Attendance reports integration', () => {
       },
     });
     schoolAdminUserId = schoolAdmin.id;
+    schoolAdminRoleId = schoolAdminRole.id;
     await prisma.userRole.create({
       data: { userId: schoolAdminUserId, roleId: schoolAdminRole.id },
     });
@@ -245,6 +247,7 @@ describeIfDatabase('Attendance reports integration', () => {
               organizationId: orgAId,
               sessionId: 'session-1',
               email: schoolAdminEmail,
+              activeRoleId: schoolAdminRoleId,
             },
           }),
         }),

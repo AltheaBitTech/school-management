@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class OrganizationSummaryDto {
   @ApiProperty()
@@ -15,6 +15,9 @@ export class OrganizationSummaryDto {
 
   @ApiProperty({ example: 'UTC' })
   timezone!: string;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  logoFileId?: string | null;
 }
 
 export class OrganizationAdminSummaryDto {

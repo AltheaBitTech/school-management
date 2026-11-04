@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { ORGANIZATION_CODE_PATTERN } from '../../organizations/constants/organization.constants';
 
 function normalizeEmail(value: unknown): unknown {
   return typeof value === 'string' ? value.trim().toLowerCase() : value;
@@ -29,6 +30,18 @@ export class CreateOrganizationRegistrationRequestDto {
   @MinLength(3)
   @MaxLength(255)
   organizationName!: string;
+
+  @ApiPropertyOptional({
+    example: 'delhi-public-school',
+    description: 'Preferred login code for your school (lowercase letters, numbers, hyphens)',
+  })
+  @IsOptional()
+  @Transform(({ value }) => normalizeOptionalString(value))
+  @IsString()
+  @Matches(ORGANIZATION_CODE_PATTERN, {
+    message: 'School code must be 3-64 characters of lowercase letters, numbers, or hyphens',
+  })
+  preferredOrganizationCode?: string;
 
   @ApiProperty({ example: 'principal@dps.edu' })
   @IsNotEmpty()

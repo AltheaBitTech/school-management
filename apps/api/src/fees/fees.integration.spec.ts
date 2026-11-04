@@ -15,6 +15,7 @@ import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions'
 import { PrismaService } from '../prisma/prisma.service';
 import { FeeStructuresService } from './fee-structures.service';
 import { StudentFeesService } from './student-fees.service';
+import { PaymentReceiptPdfService } from './services/payment-receipt-pdf.service';
 
 const describeIfDatabase = process.env.RUN_DB_TESTS === 'true' ? describe : describe.skip;
 
@@ -75,6 +76,7 @@ describeIfDatabase('Fees integration', () => {
       prisma as unknown as PrismaService,
       feeStructuresService,
       auditService,
+      new PaymentReceiptPdfService(),
     );
     permissionsService = new PermissionsService(prisma as unknown as PrismaService);
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);

@@ -6,6 +6,7 @@ import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { AttendanceFeatureGuard } from '../common/features/attendance-feature.guard';
 import { LeaveRequestResponseDto } from '../leave/dto/leave-response.dto';
 import { CreateStaffSelfLeaveRequestDto } from './dto/create-staff-self-leave-request.dto';
 import { StaffSelfAttendanceQueryDto } from './dto/staff-self-attendance-query.dto';
@@ -31,7 +32,17 @@ export class StaffSelfController {
     return { data };
   }
 
+  @Get('attendance-qr')
+  @UseGuards(AttendanceFeatureGuard)
+  @RequirePermissions('staff.self.attendance.view')
+  @ApiOperation({ summary: 'QR code for the signed-in staff member' })
+  async attendanceQr(@CurrentUser() user: AuthenticatedUser) {
+    const data = await this.staffSelfService.issueAttendanceQr(user);
+    return { data };
+  }
+
   @Get('attendance')
+  @UseGuards(AttendanceFeatureGuard)
   @RequirePermissions('staff.self.attendance.view')
   @ApiOperation({ summary: 'List attendance records for the authenticated staff member' })
   async listAttendance(

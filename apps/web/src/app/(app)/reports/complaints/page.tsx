@@ -1,7 +1,9 @@
 'use client';
 
+import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -20,6 +22,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { ReportExportCsvButton } from '@/components/ui/ReportExportCsvButton';
+import { ReportFilterPanel } from '@/components/ui/ReportFilterPanel';
 import { StatusChip } from '@/components/ui/StatusChip';
 import {
   COMPLAINT_CATEGORIES,
@@ -61,7 +65,6 @@ export default function ComplaintsReportPage() {
   const [isForbidden, setIsForbidden] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [filterError, setFilterError] = useState<string | null>(null);
-
   const queryParams = useMemo(
     () => ({
       startDate: startDate || undefined,
@@ -154,11 +157,21 @@ export default function ComplaintsReportPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
+        icon={BuildOutlined}
         title="Complaints report"
         description="Date filters apply to complaint createdAt in the organization timezone. Open complaints match the dashboard metric (OPEN, ASSIGNED, IN_PROGRESS, COMPLETED). Age uses days from creation to closedAt when CLOSED, otherwise to now. Ageing buckets count non-closed complaints only."
+        actions={
+          <ReportExportCsvButton
+            exportPath="/reports/complaints/export.csv"
+            queryParams={queryParams}
+            filename="complaints-report.csv"
+            rowCount={report?.data.length ?? 0}
+            onError={setErrorMessage}
+          />
+        }
       />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} flexWrap="wrap">
+      <ReportFilterPanel>
         <TextField
           label="From"
           type="date"
@@ -256,7 +269,7 @@ export default function ComplaintsReportPage() {
           <MenuItem value="false">No</MenuItem>
           <MenuItem value="true">Yes (dashboard open)</MenuItem>
         </TextField>
-      </Stack>
+      </ReportFilterPanel>
 
       {filterError && <Alert severity="warning">{filterError}</Alert>}
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}

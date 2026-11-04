@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AuthUserDto {
   @ApiProperty()
@@ -11,15 +11,35 @@ export class AuthUserDto {
   organizationId!: string;
 }
 
-export class AuthDataDto {
+export class LoginRoleOptionDto {
   @ApiProperty()
-  accessToken!: string;
+  id!: string;
+
+  @ApiProperty()
+  code!: string;
+
+  @ApiProperty()
+  name!: string;
+}
+
+export class AuthDataDto {
+  @ApiPropertyOptional()
+  accessToken?: string;
 
   @ApiProperty({ example: 900 })
   expiresIn!: number;
 
-  @ApiProperty({ type: AuthUserDto })
-  user!: AuthUserDto;
+  @ApiPropertyOptional({ type: AuthUserDto })
+  user?: AuthUserDto;
+
+  @ApiPropertyOptional()
+  contextSelectionRequired?: boolean;
+
+  @ApiPropertyOptional()
+  selectionToken?: string;
+
+  @ApiPropertyOptional({ type: [LoginRoleOptionDto] })
+  roles?: LoginRoleOptionDto[];
 }
 
 export class AuthResponseDto {

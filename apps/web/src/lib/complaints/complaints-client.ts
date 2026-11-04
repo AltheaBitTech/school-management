@@ -32,6 +32,20 @@ export interface ComplaintUserSummary {
   email: string;
 }
 
+export interface ComplaintFileSummary {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface ComplaintAttachment {
+  id: string;
+  fileId: string;
+  file: ComplaintFileSummary;
+}
+
 export interface ComplaintHistoryEntry {
   id: string;
   actorUserId: string;
@@ -59,6 +73,7 @@ export interface Complaint {
   closedAt?: string | null;
   createdBy?: ComplaintUserSummary;
   assignedToStaff?: ComplaintStaffSummary | null;
+  attachments?: ComplaintAttachment[];
   history?: ComplaintHistoryEntry[];
 }
 
@@ -106,6 +121,7 @@ export async function createComplaint(payload: {
   category: ComplaintCategory;
   priority: ComplaintPriority;
   location?: string;
+  attachmentFileIds?: string[];
 }): Promise<Complaint> {
   const response = await apiClient.post<ComplaintResponse>('/complaints', payload, { auth: true });
   return response.data;
@@ -126,10 +142,15 @@ export async function assignComplaint(
 export async function changeComplaintStatus(
   id: string,
   status: ComplaintStatus,
+  extras?: { note?: string; attachmentFileIds?: string[] },
 ): Promise<Complaint> {
   const response = await apiClient.post<ComplaintResponse>(
     `/complaints/${id}/status`,
-    { status },
+    {
+      status,
+      ...(extras?.note ? { note: extras.note } : {}),
+      ...(extras?.attachmentFileIds?.length ? { attachmentFileIds: extras.attachmentFileIds } : {}),
+    },
     { auth: true },
   );
   return response.data;

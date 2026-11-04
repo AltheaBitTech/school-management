@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class MeOrganizationDto {
   @ApiProperty()
@@ -12,6 +12,30 @@ export class MeOrganizationDto {
 
   @ApiProperty({ example: 'ACTIVE' })
   status!: string;
+}
+
+export class MeStaffDto {
+  @ApiProperty()
+  firstName!: string;
+
+  @ApiProperty()
+  lastName!: string;
+
+  @ApiPropertyOptional()
+  displayName?: string | null;
+}
+
+export class MeRoleDto {
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional()
+  code?: string;
+}
+
+export class MeFeaturesDto {
+  @ApiProperty({ description: 'When false, attendance modules and APIs are disabled' })
+  attendanceEnabled!: boolean;
 }
 
 export class MeUserDto {
@@ -29,6 +53,18 @@ export class MeUserDto {
 
   @ApiProperty({ type: [String], description: 'Effective permission codes for the current user' })
   permissions!: string[];
+
+  @ApiPropertyOptional({ type: MeStaffDto })
+  staff?: MeStaffDto;
+
+  @ApiPropertyOptional({ type: MeRoleDto })
+  role?: MeRoleDto;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Linked student record when present' })
+  studentId?: string;
+
+  @ApiProperty({ type: MeFeaturesDto })
+  features!: MeFeaturesDto;
 }
 
 export class MeResponseDto {

@@ -7,6 +7,7 @@ import {
   Post,
   Query,
   Req,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -37,6 +38,7 @@ import { ListStudentFeesQueryDto } from './dto/list-student-fees-query.dto';
 import { RecordFeePaymentDto } from './dto/record-fee-payment.dto';
 import { FeeStructuresService } from './fee-structures.service';
 import { StudentFeesService } from './student-fees.service';
+import { PermissionsService } from '../permissions/permissions.service';
 
 @ApiTags('fees')
 @ApiBearerAuth()
@@ -78,7 +80,10 @@ export class FeeStructuresController {
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('fees/student-fees')
 export class StudentFeesController {
-  constructor(private readonly studentFeesService: StudentFeesService) {}
+  constructor(
+    private readonly studentFeesService: StudentFeesService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   @Get()
   @RequirePermissions('fee.view')
@@ -134,6 +139,33 @@ export class StudentFeesController {
     });
 
     return { data: result };
+  }
+
+  @Get(':id/payments/:paymentId/receipt')
+  @ApiOperation({ summary: 'Download a PDF receipt for a fee payment' })
+  async downloadPaymentReceipt(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('paymentId', ParseUUIDPipe) paymentId: string,
+  ): Promise<StreamableFile> {
+    const permissions =
+      (await this.permissionsService.getEffectivePermissions(
+        user.userId,
+        user.organizationId,
+        user.activeRoleId ?? '',
+      )) ?? [];
+    const { buffer, filename } = await this.studentFeesService.downloadPaymentReceipt(
+      user,
+      id,
+      paymentId,
+      permissions,
+    );
+
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${filename}"`,
+      length: buffer.length,
+    });
   }
 }
 

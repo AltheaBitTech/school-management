@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,12 +18,16 @@ import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { buildPaginationMeta } from '../common/dto/pagination-query.dto';
+import type { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { FEE_ERROR_CODES } from './constants/fee.constants';
 import { CreateStudentFeeDto } from './dto/create-student-fee.dto';
 import { ListStudentFeesQueryDto } from './dto/list-student-fees-query.dto';
 import { RecordFeePaymentDto } from './dto/record-fee-payment.dto';
 import { FeeStructuresService } from './fee-structures.service';
+import { PaymentReceiptPdfService } from './services/payment-receipt-pdf.service';
+import { buildStudentClassName } from '../students/utils/student-class.util';
+import { getStudentDisplayName } from '../students/utils/student-display.util';
 import {
   calculateOutstanding,
   decimalToNumber,
@@ -37,7 +42,17 @@ import {
 } from './utils/fee-date.util';
 
 type StudentFeeWithRelations = StudentFee & {
-  student: Pick<Student, 'id' | 'studentCode' | 'firstName' | 'lastName' | 'displayName'>;
+  student: Pick<
+    Student,
+    | 'id'
+    | 'studentCode'
+    | 'firstName'
+    | 'lastName'
+    | 'displayName'
+    | 'className'
+    | 'studentClass'
+    | 'section'
+  >;
   feeStructure: { id: string; name: string };
   payments: FeePayment[];
 };
@@ -50,6 +65,9 @@ const studentFeeListInclude = {
       firstName: true,
       lastName: true,
       displayName: true,
+      className: true,
+      studentClass: true,
+      section: true,
     },
   },
   feeStructure: {
@@ -69,6 +87,7 @@ export class StudentFeesService {
     private readonly prisma: PrismaService,
     private readonly feeStructuresService: FeeStructuresService,
     private readonly auditService: AuditService,
+    private readonly paymentReceiptPdfService: PaymentReceiptPdfService,
   ) {}
 
   async assign(
@@ -152,6 +171,29 @@ export class StudentFeesService {
 
     return {
       data: items.map((item) => this.toListDto(item)),
+      meta: buildPaginationMeta(query.page, query.pageSize, total),
+    };
+  }
+
+  async listForStudent(organizationId: string, studentId: string, query: PaginationQueryDto) {
+    const where: Prisma.StudentFeeWhereInput = {
+      organizationId,
+      studentId,
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.studentFee.findMany({
+        where,
+        include: studentFeeListInclude,
+        orderBy: [{ createdAt: 'desc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      this.prisma.studentFee.count({ where }),
+    ]);
+
+    return {
+      data: items.map((item) => this.toDetailDto(item)),
       meta: buildPaginationMeta(query.page, query.pageSize, total),
     };
   }
@@ -320,6 +362,104 @@ export class StudentFeesService {
         studentFee: this.toDetailDto(updatedStudentFee),
       };
     });
+  }
+
+  async downloadPaymentReceipt(
+    actor: AuthenticatedUser,
+    studentFeeId: string,
+    paymentId: string,
+    effectivePermissions: string[],
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const canRecordPayment = effectivePermissions.includes('fee.record_payment');
+    const canDownloadSelfReceipt = effectivePermissions.includes(
+      'student.self.fee.receipt.download',
+    );
+
+    if (!canRecordPayment && !canDownloadSelfReceipt) {
+      throw new ForbiddenException({
+        code: FEE_ERROR_CODES.FEE_RECEIPT_FORBIDDEN,
+        message: 'You do not have permission to download this receipt',
+      });
+    }
+
+    const studentFee = await this.prisma.studentFee.findFirst({
+      where: { id: studentFeeId, organizationId: actor.organizationId },
+      include: {
+        student: true,
+        feeStructure: { select: { id: true, name: true } },
+        payments: { orderBy: { paymentDate: 'desc' } },
+      },
+    });
+
+    if (!studentFee) {
+      throw new NotFoundException({
+        code: FEE_ERROR_CODES.STUDENT_FEE_NOT_FOUND,
+        message: 'Student fee not found',
+      });
+    }
+
+    if (canDownloadSelfReceipt && !canRecordPayment) {
+      const linkedStudent = await this.prisma.student.findFirst({
+        where: {
+          organizationId: actor.organizationId,
+          userId: actor.userId,
+        },
+        select: { id: true },
+      });
+
+      if (!linkedStudent || linkedStudent.id !== studentFee.studentId) {
+        throw new ForbiddenException({
+          code: FEE_ERROR_CODES.FEE_RECEIPT_FORBIDDEN,
+          message: 'You do not have permission to download this receipt',
+        });
+      }
+    }
+
+    const payment = studentFee.payments.find((item) => item.id === paymentId);
+
+    if (!payment) {
+      throw new NotFoundException({
+        code: FEE_ERROR_CODES.FEE_PAYMENT_NOT_FOUND,
+        message: 'Payment not found',
+      });
+    }
+
+    const paidAmount = sumPaymentAmounts(studentFee.payments);
+    const outstandingAmount = calculateOutstanding(studentFee.amount, paidAmount);
+
+    const [organization, organizationSettings] = await Promise.all([
+      this.prisma.organization.findUniqueOrThrow({
+        where: { id: actor.organizationId },
+      }),
+      this.prisma.organizationSettings.findUnique({
+        where: { organizationId: actor.organizationId },
+      }),
+    ]);
+
+    const buffer = await this.paymentReceiptPdfService.generate({
+      organization,
+      organizationSettings,
+      payment: {
+        id: payment.id,
+        amount: decimalToNumber(payment.amount),
+        paymentDate: formatFeeDate(payment.paymentDate),
+        paymentMethod: payment.paymentMethod,
+        reference: payment.reference,
+      },
+      student: {
+        name: getStudentDisplayName(studentFee.student),
+        studentCode: studentFee.student.studentCode,
+        classLabel: buildStudentClassName(studentFee.student),
+      },
+      feeStructureName: studentFee.feeStructure.name,
+      assignedAmount: decimalToNumber(studentFee.amount),
+      paidTotal: decimalToNumber(paidAmount),
+      outstandingAmount: decimalToNumber(outstandingAmount),
+    });
+
+    const filename = `fee-receipt-${studentFee.student.studentCode}-${formatFeeDate(payment.paymentDate)}.pdf`;
+
+    return { buffer, filename };
   }
 
   toListDto(studentFee: StudentFeeWithRelations) {

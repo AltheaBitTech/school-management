@@ -1,20 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsUUID, MaxLength } from 'class-validator';
 
 export class ProvisionStaffLoginDto {
-  @ApiProperty({ example: 'rajesh.kumar@sunrise-school.test' })
+  @ApiProperty({
+    description: 'Email for login. Must match staff email or be the staff email.',
+    example: 'rajesh.kumar@sunrise-school.test',
+  })
   @IsEmail()
+  @IsNotEmpty()
   @MaxLength(320)
   email!: string;
 
-  @ApiProperty({ example: 'TemporaryPass123!' })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(8)
-  @MaxLength(128)
-  password!: string;
-
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ description: 'Role to assign to this user', format: 'uuid' })
   @IsUUID()
+  @IsNotEmpty()
   roleId!: string;
 }

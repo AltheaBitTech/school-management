@@ -76,7 +76,9 @@ describeIfDatabase('Attendance integration', () => {
     staffBId = staffB.id;
     offboardedStaffAId = offboardedStaff.id;
 
-    attendanceService = new AttendanceService(prisma as unknown as PrismaService);
+    attendanceService = new AttendanceService(prisma as unknown as PrismaService, {
+      get: () => ({ accessSecret: 'test-secret-with-enough-length' }),
+    } as never);
     permissionsService = new PermissionsService(prisma as unknown as PrismaService);
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
   });
@@ -247,6 +249,7 @@ describeIfDatabase('Attendance integration', () => {
         organizationId: orgAId,
         sessionId: 'session-1',
         email: 'user@example.com',
+        activeRoleId: '00000000-0000-4000-8000-000000000099',
       },
     };
 

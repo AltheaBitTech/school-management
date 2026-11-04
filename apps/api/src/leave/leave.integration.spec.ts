@@ -15,9 +15,20 @@ import { ApprovalEntityIntegrationService } from '../approvals/approval-entity-i
 import { ApprovalNotificationService } from '../approvals/approval-notification.service';
 import { ApprovalRequestsService } from '../approvals/approval-requests.service';
 import { ApproverResolutionService } from '../approvals/approver-resolution.service';
-import { ensureDefaultLeaveApprovalWorkflow } from '../approvals/utils/approval-workflow-seed.util';
+import {
+  DEFAULT_LEAVE_APPROVAL_WORKFLOW_CODE,
+  MAINTENANCE_APPROVAL_WORKFLOW_CODE,
+} from '../approvals/constants/approval.constants';
+import {
+  ensureDefaultLeaveApprovalWorkflow,
+  ensureDefaultOperationalApprovalWorkflows,
+} from '../approvals/utils/approval-workflow-seed.util';
 import { PrismaService } from '../prisma/prisma.service';
-import { ensureSchoolAdminRole } from '../roles/organization-role-seed.util';
+import {
+  ORGANIZATION_ROLE_CODES,
+  ORGANIZATION_ROLE_DEFINITIONS,
+} from '../permissions/constants/system-roles';
+import { ensureOrganizationRole } from '../roles/organization-role-seed.util';
 import { LeaveApprovalIntegrationService } from './leave-approval-integration.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailProvider } from '../notifications/providers/email-provider.interface';
@@ -41,6 +52,7 @@ describeIfDatabase('Leave integration', () => {
   let staffCId: string;
   let userAId: string;
   let approverUserId: string;
+  let principalRoleId: string;
   let leaveTypeAId: string;
 
   beforeAll(async () => {
@@ -103,13 +115,17 @@ describeIfDatabase('Leave integration', () => {
     staffBId = staffB.id;
     staffCId = staffC.id;
 
-    await ensureSchoolAdminRole(prisma, orgAId);
+    for (const roleDefinition of ORGANIZATION_ROLE_DEFINITIONS) {
+      await ensureOrganizationRole(prisma, orgAId, roleDefinition);
+    }
     await ensureDefaultLeaveApprovalWorkflow(prisma, orgAId);
-    const schoolAdminRole = await prisma.role.findFirstOrThrow({
-      where: { organizationId: orgAId, code: 'SCHOOL_ADMIN' },
+
+    const principalRole = await prisma.role.findFirstOrThrow({
+      where: { organizationId: orgAId, code: ORGANIZATION_ROLE_CODES.PRINCIPAL },
     });
+    principalRoleId = principalRole.id;
     await prisma.userRole.create({
-      data: { userId: approverUserId, roleId: schoolAdminRole.id },
+      data: { userId: approverUserId, roleId: principalRole.id },
     });
 
     leaveTypesService = new LeaveTypesService(prisma as unknown as PrismaService);
@@ -240,6 +256,7 @@ describeIfDatabase('Leave integration', () => {
       organizationId: orgAId,
       sessionId: 'session-2',
       email: 'approver@example.com',
+      activeRoleId: principalRoleId,
     });
 
     expect(approved.status).toBe(LeaveRequestStatus.APPROVED);
@@ -298,6 +315,7 @@ describeIfDatabase('Leave integration', () => {
       organizationId: orgAId,
       sessionId: 'session-2',
       email: 'approver@example.com',
+      activeRoleId: principalRoleId,
     });
     expect(rejected.status).toBe(LeaveRequestStatus.REJECTED);
 
@@ -307,6 +325,7 @@ describeIfDatabase('Leave integration', () => {
         organizationId: orgAId,
         sessionId: 'session-2',
         email: 'approver@example.com',
+        activeRoleId: principalRoleId,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
@@ -338,6 +357,7 @@ describeIfDatabase('Leave integration', () => {
       organizationId: orgAId,
       sessionId: 'session-2',
       email: 'approver@example.com',
+      activeRoleId: principalRoleId,
     };
 
     const requestA = await leaveRequestsService.create(
@@ -450,8 +470,94 @@ describeIfDatabase('Leave integration', () => {
         organizationId: orgAId,
         sessionId: 'session-2',
         email: 'approver@example.com',
+        activeRoleId: principalRoleId,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('migrates legacy School Admin leave approver to Principal without duplicating levels', async () => {
+    const schoolAdminRole = await prisma.role.findFirstOrThrow({
+      where: { organizationId: orgAId, code: ORGANIZATION_ROLE_CODES.SCHOOL_ADMIN },
+    });
+    await ensureDefaultOperationalApprovalWorkflows(prisma, orgAId);
+
+    const leaveWorkflow = await prisma.approvalWorkflow.findFirstOrThrow({
+      where: { organizationId: orgAId, code: DEFAULT_LEAVE_APPROVAL_WORKFLOW_CODE },
+    });
+    const maintenanceWorkflow = await prisma.approvalWorkflow.findFirstOrThrow({
+      where: { organizationId: orgAId, code: MAINTENANCE_APPROVAL_WORKFLOW_CODE },
+    });
+    const maintenanceLevelBefore = await prisma.approvalLevel.findFirstOrThrow({
+      where: { workflowId: maintenanceWorkflow.id, level: 1 },
+    });
+
+    await prisma.approvalLevel.update({
+      where: {
+        workflowId_level: { workflowId: leaveWorkflow.id, level: 1 },
+      },
+      data: {
+        roleId: schoolAdminRole.id,
+        name: 'Legacy School Admin Approval',
+      },
+    });
+
+    await ensureDefaultLeaveApprovalWorkflow(prisma, orgAId);
+    await ensureDefaultLeaveApprovalWorkflow(prisma, orgAId);
+
+    const leaveLevel = await prisma.approvalLevel.findFirstOrThrow({
+      where: { workflowId: leaveWorkflow.id, level: 1 },
+    });
+    const leaveLevels = await prisma.approvalLevel.findMany({
+      where: { workflowId: leaveWorkflow.id },
+    });
+    const maintenanceLevelAfter = await prisma.approvalLevel.findFirstOrThrow({
+      where: { workflowId: maintenanceWorkflow.id, level: 1 },
+    });
+
+    expect(leaveLevel.roleId).toBe(principalRoleId);
+    expect(leaveLevels).toHaveLength(1);
+    expect(maintenanceLevelAfter.roleId).toBe(maintenanceLevelBefore.roleId);
+    expect(maintenanceLevelAfter.roleId).toBe(schoolAdminRole.id);
+  });
+
+  it('rejects leave approval from School Admin even with stale permissions', async () => {
+    const schoolAdminRole = await prisma.role.findFirstOrThrow({
+      where: { organizationId: orgAId, code: ORGANIZATION_ROLE_CODES.SCHOOL_ADMIN },
+    });
+    const schoolAdminUser = await prisma.user.create({
+      data: { organizationId: orgAId, email: `leave-school-admin-${Date.now()}@example.com` },
+    });
+    await prisma.userRole.create({
+      data: { userId: schoolAdminUser.id, roleId: schoolAdminRole.id },
+    });
+
+    const request = await leaveRequestsService.create(
+      orgAId,
+      {
+        userId: userAId,
+        organizationId: orgAId,
+        sessionId: 'session-1',
+        email: 'staff@example.com',
+      },
+      {
+        staffId: staffAId,
+        leaveTypeId: leaveTypeAId,
+        startDate: '2026-08-01',
+        endDate: '2026-08-01',
+        reason: 'Principal-only approval test',
+      },
+      true,
+    );
+
+    await expect(
+      leaveRequestsService.approve(orgAId, request.id, {
+        userId: schoolAdminUser.id,
+        organizationId: orgAId,
+        sessionId: 'session-admin',
+        email: 'school-admin@example.com',
+        activeRoleId: schoolAdminRole.id,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('blocks cross-tenant leave request reads and approvals', async () => {
@@ -484,7 +590,7 @@ describeIfDatabase('Leave integration', () => {
         sessionId: 'session-2',
         email: 'approver@example.com',
       }),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('allows self-service leave submission without manage_balances permission', async () => {
@@ -564,6 +670,7 @@ describeIfDatabase('Leave integration', () => {
         organizationId: orgAId,
         sessionId: 'session-1',
         email: 'user@example.com',
+        activeRoleId: principalRoleId,
       },
     };
 

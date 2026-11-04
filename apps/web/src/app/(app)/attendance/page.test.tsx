@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithAppProviders } from '@/test/render-app';
 import AttendancePage from '@/app/(app)/attendance/page';
 import { ApiError } from '@/lib/api/client';
 
@@ -28,13 +29,26 @@ vi.mock('@/lib/attendance/attendance-client', async () => {
 
 import { listStaff } from '@/lib/staff/staff-client';
 import { listAttendance } from '@/lib/attendance/attendance-client';
+import {
+  isAttendanceEnabled,
+  resetFeatureFlagsCacheForTests,
+  setFeatureFlagsFromSession,
+} from '@/lib/features/feature-flags';
 
 describe('AttendancePage', () => {
+  it('shows a disabled notice when attendance is turned off', () => {
+    setFeatureFlagsFromSession({ attendanceEnabled: false });
+    renderWithAppProviders(<AttendancePage />);
+    expect(screen.getByText(/Attendance is turned off/i)).toBeInTheDocument();
+    resetFeatureFlagsCacheForTests();
+    expect(isAttendanceEnabled()).toBe(true);
+  });
+
   it('shows a loading state while attendance is being fetched', () => {
     vi.mocked(listStaff).mockReturnValue(new Promise(() => undefined));
     vi.mocked(listAttendance).mockReturnValue(new Promise(() => undefined));
 
-    render(<AttendancePage />);
+    renderWithAppProviders(<AttendancePage />);
 
     expect(screen.getByLabelText('Loading attendance')).toBeInTheDocument();
   });
@@ -60,7 +74,7 @@ describe('AttendancePage', () => {
       meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 },
     });
 
-    render(<AttendancePage />);
+    renderWithAppProviders(<AttendancePage />);
 
     await waitFor(() => {
       expect(screen.getByText('Anita Desai')).toBeInTheDocument();
@@ -77,7 +91,7 @@ describe('AttendancePage', () => {
       meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 },
     });
 
-    render(<AttendancePage />);
+    renderWithAppProviders(<AttendancePage />);
 
     await waitFor(() => {
       expect(screen.getByText(/No active staff members found/i)).toBeInTheDocument();
@@ -87,7 +101,7 @@ describe('AttendancePage', () => {
   it('shows a forbidden state on 403 responses', async () => {
     vi.mocked(listStaff).mockRejectedValue(new ApiError('Forbidden', 403));
 
-    render(<AttendancePage />);
+    renderWithAppProviders(<AttendancePage />);
 
     await waitFor(() => {
       expect(screen.getByText('Access denied')).toBeInTheDocument();

@@ -1,0 +1,74 @@
+---
+description: Form design and validation standards for CampusOps frontend
+globs: ["apps/web/**/*.tsx"]
+---
+
+# Form & Validation Standards
+
+## Input Variant
+
+Always use `variant="filled"` for all MUI TextField, Select, and Autocomplete inputs.
+Never mix `outlined` and `filled` in the same form.
+
+## Required Fields
+
+- Mark required fields with `*` in the label: `label="First name *"`
+- Use `required` prop on the MUI TextField for HTML validation
+- Show a form-level note: "Fields marked * are required" at the top of the form when there are 3+ required fields
+
+## Validation Approach
+
+- Run validation on blur (`onBlur`) for field-level errors — not only on submit
+- Run full validation on submit
+- Error messages must be specific and human-readable:
+  - ✅ "Employee code must be 2–32 lowercase letters, numbers, or hyphens"
+  - ❌ "Invalid format"
+  - ✅ "Joining date cannot be in the future"
+  - ❌ "Invalid date"
+- Use `helperText` on MUI TextField to show errors — never use `alert()` or `window.confirm()`
+
+## Field Groups
+
+Use the `FormSection` component to group related fields visually:
+- Personal information group
+- Contact details group
+- Role & department group
+- Dates group
+
+Example groups for staff creation:
+- Personal: First Name, Last Name, Date of Birth
+- Employment: Employee Code, Designation, Department, Joining Date, Role
+- Contact: Email, Phone
+
+## Autofill Handling
+
+All forms must handle browser autofill gracefully:
+- The MUI theme overrides `-webkit-autofill` so filled fields don't turn dark blue
+- Test login form with browser saved credentials — should look consistent
+
+## Success & Error Feedback
+
+- After successful create/update/delete: show MUI Snackbar (bottom-left, auto-dismiss after 4s) with green success message
+- After API error: show MUI Alert `severity="error"` above the form with the error message
+- Never silently succeed or fail — always give feedback
+
+## Confirmation Dialogs
+
+- Destructive actions (delete, deactivate, retire, close) must show a MUI Dialog confirmation:
+  - Title: "Confirm [action]"
+  - Body: Specific impact text — "This will permanently deactivate [Name]. They will no longer be able to log in."
+  - Actions: "Cancel" (left) and "[Action]" in `color="error"` (right)
+- Do NOT use browser `confirm()` dialog
+
+## Loading States in Forms
+
+- Submit button shows a CircularProgress spinner and is disabled while the API call is in progress
+- Form fields should be disabled (or read-only) during submission to prevent double-submit
+- Use `isSubmitting` state to control this
+
+## Form Page Layout
+
+- Max-width for forms: 720px on desktop (don't stretch to full width)
+- Two-column layout for simple field pairs (Name + Code, Start Date + End Date) on `md+`
+- Single column on mobile
+- Submit / Cancel buttons: right-aligned at the bottom of the form section

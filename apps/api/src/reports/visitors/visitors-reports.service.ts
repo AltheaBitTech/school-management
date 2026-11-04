@@ -6,6 +6,8 @@ import { PLATFORM_ORGANIZATION_CODE } from '../../organizations/constants/organi
 import { PrismaService } from '../../prisma/prisma.service';
 import { parseVisitorDate } from '../../visitors/utils/visitor-date.util';
 import { VISITOR_REPORT_ERROR_CODES } from './constants/visitor-report.constants';
+import { buildCsv } from '../common/csv-export.util';
+import { MAX_REPORT_CSV_EXPORT_ROWS } from '../common/max-export-rows';
 import { VisitorReportQueryDto } from './dto/visitor-report-query.dto';
 
 const recordSelect = {
@@ -348,6 +350,40 @@ export class VisitorsReportsService {
       status: record.status,
       visitDate: getLocalDateString(timezone, record.checkInAt),
     };
+  }
+
+  async exportCsv(organizationId: string, query: VisitorReportQueryDto): Promise<string> {
+    const report = await this.generate(organizationId, {
+      ...query,
+      page: 1,
+      pageSize: MAX_REPORT_CSV_EXPORT_ROWS,
+    });
+    return buildCsv(
+      [
+        'Visitor code',
+        'Name',
+        'Mobile',
+        'Purpose',
+        'Host',
+        'Department',
+        'Check-in',
+        'Check-out',
+        'Status',
+        'Visit date',
+      ],
+      report.data.map((row) => [
+        row.visitorCode,
+        row.name,
+        row.mobile,
+        row.purpose,
+        row.hostName,
+        row.departmentName,
+        row.checkInAt,
+        row.checkOutAt,
+        row.status,
+        row.visitDate,
+      ]),
+    );
   }
 
   private async assertSchoolOrganization(organizationId: string): Promise<void> {

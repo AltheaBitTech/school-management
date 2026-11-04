@@ -1,5 +1,7 @@
 'use client';
 
+import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
+import { resetSubmitting } from '@/lib/forms/submit-state';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -9,11 +11,15 @@ import FormGroup from '@mui/material/FormGroup';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FileAttachmentUploadField } from '@/components/files/FileAttachmentUploadField';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
+import { FormSection } from '@/components/ui/FormSection';
+import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError } from '@/lib/api/client';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import {
@@ -26,6 +32,8 @@ import {
 function buildAudiences(
   entireSchool: boolean,
   allStaff: boolean,
+  allStudents: boolean,
+  allParents: boolean,
   departmentIds: string[],
 ): NoticeAudienceInput[] {
   const audiences: NoticeAudienceInput[] = [];
@@ -36,6 +44,12 @@ function buildAudiences(
   if (allStaff) {
     audiences.push({ audienceType: 'STAFF' });
   }
+  if (allStudents) {
+    audiences.push({ audienceType: 'STUDENT' });
+  }
+  if (allParents) {
+    audiences.push({ audienceType: 'PARENT' });
+  }
   for (const departmentId of departmentIds) {
     audiences.push({ audienceType: 'DEPARTMENT', departmentId });
   }
@@ -45,10 +59,14 @@ function buildAudiences(
 
 export default function NewNoticePage() {
   const router = useRouter();
+  const { showSuccess } = useAppSnackbar();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [entireSchool, setEntireSchool] = useState(true);
   const [allStaff, setAllStaff] = useState(false);
+  const [allStudents, setAllStudents] = useState(false);
+  const [allParents, setAllParents] = useState(false);
+  const [attachmentFileIds, setAttachmentFileIds] = useState<string[]>([]);
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [scheduleAt, setScheduleAt] = useState('');
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -57,8 +75,8 @@ export default function NewNoticePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const audiences = useMemo(
-    () => buildAudiences(entireSchool, allStaff, selectedDepartments),
-    [entireSchool, allStaff, selectedDepartments],
+    () => buildAudiences(entireSchool, allStaff, allStudents, allParents, selectedDepartments),
+    [entireSchool, allStaff, allStudents, allParents, selectedDepartments],
   );
 
   useEffect(() => {
@@ -76,30 +94,38 @@ export default function NewNoticePage() {
         throw new Error('Select at least one audience.');
       }
 
-      const notice = await createNotice({ title, content, audiences });
+      const notice = await createNotice({
+        title,
+        content,
+        audiences,
+        attachmentFileIds: attachmentFileIds.length ? attachmentFileIds : undefined,
+      });
 
       if (action === 'schedule') {
         if (!scheduleAt) {
           throw new Error('Choose a schedule date and time.');
         }
         await updateNotice(notice.id, { scheduledAt: new Date(scheduleAt).toISOString() });
+        showSuccess('Notice scheduled');
         router.push(`/notices/${notice.id}`);
         return;
       }
 
       if (action === 'publish') {
         await publishNotice(notice.id);
+        showSuccess('Notice published');
+      } else {
+        showSuccess('Draft saved');
       }
 
       router.push(`/notices/${notice.id}`);
     } catch (error) {
+      resetSubmitting(setIsSubmitting);
       if (error instanceof ApiError && error.statusCode === 403) {
         setIsForbidden(true);
       } else {
         setErrorMessage(error instanceof Error ? error.message : 'Failed to create notice');
       }
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -112,19 +138,57 @@ export default function NewNoticePage() {
     return <ForbiddenState />;
   }
 
-  return (
-    <Stack spacing={3} component="form" onSubmit={handleSubmit}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          New notice
-        </Typography>
-        <Typography color="text.secondary">
-          Create a draft, schedule it for later, or publish immediately.
-        </Typography>
-      </Box>
+  const canSave = title.trim().length > 0 && content.trim().length > 0 && audiences.length > 0;
 
-      <Stack spacing={2} maxWidth="md">
-        <TextField label="Title" value={title} onChange={(event) => setTitle(event.target.value)} required />
+  return (
+    <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+      <FormPageShell
+        title="New notice"
+        description="Create a draft, schedule it for later, or publish immediately."
+        icon={AnnouncementOutlined}
+        maxWidth={840}
+        footer={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+            <Button component={Link} href="/notices" variant="text" disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="outlined" disabled={isSubmitting || !canSave}>
+              {isSubmitting ? (
+                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={16} color="inherit" aria-hidden />
+                  Saving…
+                </Box>
+              ) : (
+                'Save draft'
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="contained"
+              disabled={isSubmitting || !canSave || !scheduleAt}
+              onClick={() => void handleAction('schedule')}
+            >
+              {isSubmitting ? 'Scheduling…' : 'Schedule'}
+            </Button>
+            <Button
+              type="button"
+              variant="contained"
+              color="success"
+              disabled={isSubmitting || !canSave}
+              onClick={() => void handleAction('publish')}
+            >
+              {isSubmitting ? 'Publishing…' : 'Publish now'}
+            </Button>
+          </Stack>
+        }
+      >
+        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+        {audiences.length === 0 ? (
+          <Alert severity="warning">Select at least one audience before saving.</Alert>
+        ) : null}
+
+        <FormSection title="Notice" description="What people will read." maxWidth="100%">
+        <TextField label="Title" value={title} onChange={(event) => setTitle(event.target.value)} required fullWidth />
         <TextField
           label="Content"
           value={content}
@@ -132,12 +196,11 @@ export default function NewNoticePage() {
           multiline
           minRows={6}
           required
+          fullWidth
         />
+        </FormSection>
 
-        <Box>
-          <Typography variant="subtitle1" gutterBottom>
-            Audience
-          </Typography>
+        <FormSection title="Audience" description="Who should receive this notice." maxWidth="100%">
           <FormGroup>
             <FormControlLabel
               control={
@@ -154,7 +217,35 @@ export default function NewNoticePage() {
               }
               label="All staff"
             />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={allStudents}
+                  onChange={(event) => setAllStudents(event.target.checked)}
+                />
+              }
+              label="All students"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={allParents}
+                  onChange={(event) => setAllParents(event.target.checked)}
+                />
+              }
+              label="Parents (student portal)"
+            />
           </FormGroup>
+          <Box sx={{ mt: 2 }}>
+            <FileAttachmentUploadField
+              label="Attachments (optional)"
+              helperText="Images or PDF, up to 10 files."
+              accept="image/png,image/jpeg,application/pdf"
+              maxFiles={10}
+              fileIds={attachmentFileIds}
+              onChange={setAttachmentFileIds}
+            />
+          </Box>
           <TextField
             select
             SelectProps={{ multiple: true }}
@@ -167,9 +258,8 @@ export default function NewNoticePage() {
                   : event.target.value,
               )
             }
-            helperText="Department audiences use union semantics."
+            helperText="Optional. People in these departments are included as well."
             fullWidth
-            sx={{ mt: 2 }}
           >
             {departments.map((department) => (
               <MenuItem key={department.id} value={department.id}>
@@ -177,45 +267,20 @@ export default function NewNoticePage() {
               </MenuItem>
             ))}
           </TextField>
-        </Box>
+        </FormSection>
 
+        <FormSection title="Schedule" description="Leave this empty to save a draft or publish now." maxWidth="100%">
         <TextField
           label="Schedule for"
           type="datetime-local"
           value={scheduleAt}
           onChange={(event) => setScheduleAt(event.target.value)}
           InputLabelProps={{ shrink: true }}
-          helperText="Optional. Used when scheduling instead of publishing now."
+          helperText="Required only when you choose Schedule."
+          fullWidth
         />
-
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <Button type="submit" variant="outlined" disabled={isSubmitting}>
-            Save draft
-          </Button>
-          <Button
-            type="button"
-            variant="contained"
-            disabled={isSubmitting}
-            onClick={() => void handleAction('schedule')}
-          >
-            Schedule
-          </Button>
-          <Button
-            type="button"
-            variant="contained"
-            color="success"
-            disabled={isSubmitting}
-            onClick={() => void handleAction('publish')}
-          >
-            Publish now
-          </Button>
-          <Button component={Link} href="/notices">
-            Cancel
-          </Button>
-        </Stack>
-      </Stack>
-    </Stack>
+        </FormSection>
+      </FormPageShell>
+    </Box>
   );
 }

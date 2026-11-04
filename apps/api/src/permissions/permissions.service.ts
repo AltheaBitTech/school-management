@@ -5,9 +5,20 @@ import { PrismaService } from '../prisma/prisma.service';
 export class PermissionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getEffectivePermissions(userId: string, organizationId: string): Promise<string[]> {
-    const userRoles = await this.prisma.userRole.findMany({
-      where: { userId },
+  /**
+   * Permissions for the active login role only.
+   * Returns null when that role is not assigned in this organization.
+   */
+  async getEffectivePermissions(
+    userId: string,
+    organizationId: string,
+    activeRoleId: string,
+  ): Promise<string[] | null> {
+    const assignment = await this.prisma.userRole.findFirst({
+      where: {
+        userId,
+        roleId: activeRoleId,
+      },
       include: {
         role: {
           include: {
@@ -21,18 +32,17 @@ export class PermissionsService {
       },
     });
 
+    if (!assignment) {
+      return null;
+    }
+
+    if (!this.isRoleApplicableToOrganization(assignment.role.organizationId, organizationId)) {
+      return null;
+    }
+
     const permissionCodes = new Set<string>();
-
-    for (const userRole of userRoles) {
-      const role = userRole.role;
-
-      if (!this.isRoleApplicableToOrganization(role.organizationId, organizationId)) {
-        continue;
-      }
-
-      for (const rolePermission of role.rolePermissions) {
-        permissionCodes.add(rolePermission.permission.code);
-      }
+    for (const rolePermission of assignment.role.rolePermissions) {
+      permissionCodes.add(rolePermission.permission.code);
     }
 
     return [...permissionCodes].sort();
@@ -42,12 +52,21 @@ export class PermissionsService {
     userId: string,
     organizationId: string,
     requiredPermissions: string[],
+    activeRoleId: string,
   ): Promise<boolean> {
     if (requiredPermissions.length === 0) {
       return true;
     }
 
-    const effectivePermissions = await this.getEffectivePermissions(userId, organizationId);
+    const effectivePermissions = await this.getEffectivePermissions(
+      userId,
+      organizationId,
+      activeRoleId,
+    );
+    if (!effectivePermissions) {
+      return false;
+    }
+
     return requiredPermissions.every((permission) => effectivePermissions.includes(permission));
   }
 

@@ -11,6 +11,7 @@ import { LeaveRequestsService } from '../leave/leave-requests.service';
 import { LeaveTypesService } from '../leave/leave-types.service';
 import { LEAVE_ERROR_CODES } from '../leave/constants/leave.constants';
 import { formatLeaveDate } from '../leave/utils/leave.util';
+import { FeatureFlagsService } from '../common/features/feature-flags.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { STAFF_SELF_ERROR_CODES, STAFF_SELF_RECENT_LEAVE_LIMIT } from './constants/staff-self.constants';
 import { CreateStaffSelfLeaveRequestDto } from './dto/create-staff-self-leave-request.dto';
@@ -31,7 +32,13 @@ export class StaffSelfService {
     private readonly leaveRequestsService: LeaveRequestsService,
     private readonly leaveTypesService: LeaveTypesService,
     private readonly approvalRequestsService: ApprovalRequestsService,
+    private readonly featureFlagsService: FeatureFlagsService,
   ) {}
+
+  async issueAttendanceQr(user: AuthenticatedUser) {
+    const staff = await this.staffContextService.resolveStaffProfile(user);
+    return this.attendanceService.issueQr(user.organizationId, staff.id);
+  }
 
   async getDashboard(user: AuthenticatedUser): Promise<StaffSelfDashboardDto> {
     const staff = await this.staffContextService.resolveStaffProfile(user);
@@ -41,14 +48,17 @@ export class StaffSelfService {
     });
     const timezone = settings?.timezone ?? 'UTC';
     const localDate = getLocalDateString(timezone);
+    const attendanceEnabled = this.featureFlagsService.isAttendanceEnabled();
 
-    const todayRecord = await this.prisma.staffAttendance.findFirst({
-      where: {
-        organizationId: user.organizationId,
-        staffId: staff.id,
-        attendanceDate: parseAttendanceDate(localDate),
-      },
-    });
+    const todayRecord = attendanceEnabled
+      ? await this.prisma.staffAttendance.findFirst({
+          where: {
+            organizationId: user.organizationId,
+            staffId: staff.id,
+            attendanceDate: parseAttendanceDate(localDate),
+          },
+        })
+      : null;
 
     const balancesResult = await this.leaveBalancesService.list(user.organizationId, {
       staffId: staff.id,
@@ -98,12 +108,16 @@ export class StaffSelfService {
         departmentName: staff.department?.name ?? null,
       },
       localDate,
-      todayAttendance: {
-        date: localDate,
-        status: todayRecord?.status ?? null,
-        checkInAt: todayRecord?.checkInAt?.toISOString() ?? null,
-        checkOutAt: todayRecord?.checkOutAt?.toISOString() ?? null,
-      },
+      ...(attendanceEnabled
+        ? {
+            todayAttendance: {
+              date: localDate,
+              status: todayRecord?.status ?? null,
+              checkInAt: todayRecord?.checkInAt?.toISOString() ?? null,
+              checkOutAt: todayRecord?.checkOutAt?.toISOString() ?? null,
+            },
+          }
+        : {}),
       leaveBalances: balancesResult.data.map((balance) => ({
         leaveTypeId: balance.leaveTypeId,
         leaveTypeName: leaveTypeNameById.get(balance.leaveTypeId) ?? 'Leave',

@@ -11,8 +11,12 @@ export class ConsoleEmailProvider implements EmailProvider {
         action: 'email.send',
         to: input.to,
         subject: input.subject,
-        text: input.text,
       }),
     );
+
+    const link = input.text.match(/https?:\/\/\S+/)?.[0];
+    if (link) {
+      this.logger.log(link);
+    }
   }
 }

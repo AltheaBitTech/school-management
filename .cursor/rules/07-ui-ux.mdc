@@ -5,41 +5,103 @@ globs: ["apps/web/**/*.tsx", "apps/web/**/*.css"]
 
 # UI/UX Standards
 
-The application should feel like one polished professional SaaS product.
+The application must feel like a professional, production-grade SaaS product at every touchpoint.
+Target: reviewers and school administrators should never feel the UI is basic, incomplete, or inconsistent.
 
-Maintain:
+## Design System
 
-- Consistent typography
-- Consistent spacing
-- Design tokens
-- Predictable form layouts
-- Clear hierarchy
-- Accessible contrast
-- Keyboard accessibility
-- Responsive behavior
-- Consistent status badges
-- Consistent feedback patterns
+- UI library: **MUI v6** with enhanced custom theme (`apps/web/src/theme/theme.ts`)
+- Icons: **@mui/icons-material v6** — every nav item, action button, and status must have an icon
+- Sidebar background: **deep navy blue** (`#0f2044`) with white text and icons
+- Input variant: **filled** across all forms (avoids label-clip issues)
+- Font: Inter or Segoe UI — clean, modern, legible
 
-Use mature reusable primitives for:
+## Theme Tokens (use these, do not hardcode colors)
 
-- Buttons
-- Inputs
-- Selects
-- Dialogs
-- Tables
-- Pagination
-- Date/time controls
-- Badges
-- Snackbars
-- Skeletons
-- Empty states
+- `primary.main`: brand blue — used for CTAs, links, active states
+- `background.default`: light grey page background (`#f4f6fb`)
+- `background.paper`: white cards/panels
+- `text.primary`: near-black (`#0f172a`)
+- `text.secondary`: muted slate (`#475569`)
+- `divider`: soft grey border (`#e3e8f0`)
+- Sidebar bg: `#0f2044` (deep navy)
+- Sidebar active item bg: `rgba(255,255,255,0.12)` with left 3px accent
 
-Avoid:
+## Form Standards
 
-- Excessive gradients
-- Decorative animations
-- Overloaded dashboards
-- Unnecessary modals
-- Inconsistent component styling
+- Always use `variant="filled"` for all TextField, Select inputs
+- Every required field must show `*` in the label
+- Real-time inline validation on blur (not only on submit)
+- Error messages must be specific — not "Invalid input", say "Employee code must be 2–32 lowercase characters"
+- Autofill/browser prefill must not turn inputs dark — override `-webkit-autofill` in theme
+- Group related fields into logical sections using `FormSection` component
+- Action buttons: primary action right-aligned, secondary/cancel left-aligned
+- Success confirmation must show after every create/update/delete action (Snackbar or Alert)
 
-Before creating a new UI pattern, search for an existing project pattern and reuse it.
+## Page layout shells (required for new pages)
+
+- **List pages:** `ListPageShell` + module icon, filters in outlined `Paper`, `TableIconLink` for row “View” actions
+- **Create/edit forms:** `FormPageShell` + `FormSection` blocks + `FormPageFooter` (Cancel text, Save contained)
+- **Detail pages:** `DetailPageShell` with optional `meta` sidebar and `DetailFactRow` for facts
+- **Destructive actions:** `ConfirmDialog` — never `window.confirm`
+- **Mutations:** prefer `useAppSnackbar().showSuccess()` / `showError()` over one-off success Alerts
+
+## Navigation / Sidebar
+
+- Deep navy blue background (`#0f2044`)
+- Nav items have icons from `@mui/icons-material` — icon + label, no icon-only
+- Active nav item: white text, soft white-transparent background, 3px left border accent in primary blue
+- Nav is grouped by section with overline section headers
+- Nav items are filtered by the user's actual permissions — never show a link the user cannot access
+- Logo area: "CampusOps" in white, bold, with a school icon beside it
+
+## Page Structure
+
+- Every page starts with a `PageHeader` (title + optional description + optional action buttons)
+- PageHeader title has a relevant icon beside it
+- Lists/tables use `AppTable` with column headers, pagination, search, filters
+- Empty states use `EmptyState` with a relevant icon and descriptive text — never blank white space
+- Loading states use MUI `Skeleton` for table rows and card grids — not a spinner-only
+- Error states use `Alert severity="error"` with a retry button
+
+## Status Indicators
+
+- All status chips must use `StatusChip` component with semantic colors:
+  - ACTIVE / APPROVED / COMPLETED / PUBLISHED → green
+  - PENDING / IN_PROGRESS / ASSIGNED / DRAFT → amber/orange
+  - INACTIVE / REJECTED / CLOSED / ARCHIVED → grey
+  - CRITICAL / OFFBOARDED → red
+- Every status chip has a small icon matching the status
+
+## Images & Visual Assets
+
+- School-themed contextual images on the public landing page (from open-license sources like Unsplash)
+- Module-specific illustrations on empty states (complaints, visitors, events, etc.)
+- School logo placeholder: default school icon (MUI `SchoolOutlined`) — replaced by org logo when uploaded
+- All images have alt text
+
+## Landing Page (Public)
+
+- Professional hero: large heading, tagline, two CTAs (Register School / Sign In)
+- Feature grid: 8 modules with icon, name, one-line description
+- "How it works" section: 3 steps (Register → Onboard → Operate)
+- Trust section: target school types (CBSE, ICSE, International)
+- Clean footer with links
+
+## Responsiveness
+
+- Mobile-first: sidebar collapses to hamburger on `xs/sm`
+- Tables scroll horizontally on mobile
+- Forms stack vertically on mobile, side-by-side on `md+`
+- Cards use `Grid2` with responsive column counts
+
+## Prohibited Patterns
+
+- Do NOT hardcode colors outside the theme — always use `theme.palette.*` or `sx` tokens
+- Do NOT show raw UUIDs or technical error codes to users
+- Do NOT leave blank white pages while loading — always show skeleton or spinner
+- Do NOT use `window.alert()` or browser dialogs for confirmation — use MUI Dialog
+- Do NOT mix `outlined` and `filled` input variants in the same form
+- Do NOT create a new component if an existing one can be extended
+
+Before creating a new UI pattern, search the existing codebase for a similar pattern and reuse it.

@@ -1,6 +1,11 @@
 export const NOTIFICATION_EVENT_KEYS = {
   LEAVE_APPROVED: 'leave.approved',
   LEAVE_REJECTED: 'leave.rejected',
+  VISITOR_CHECKED_IN: 'visitor.checked_in',
+  COMPLAINT_ASSIGNED: 'complaint.assigned',
+  COMPLAINT_STATUS_CHANGED: 'complaint.status_changed',
+  NOTICE_PUBLISHED: 'notice.published',
+  DOCUMENT_GENERATED: 'document.generated',
 } as const;
 
 export type NotificationEventKey =

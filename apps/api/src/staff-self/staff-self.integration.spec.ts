@@ -22,6 +22,9 @@ import { LeaveRequestsService } from '../leave/leave-requests.service';
 import { LeaveTypesService } from '../leave/leave-types.service';
 import { StaffContextService } from './staff-context.service';
 import { StaffSelfService } from './staff-self.service';
+import { FeatureFlagsService } from '../common/features/feature-flags.service';
+import { ConfigService } from '@nestjs/config';
+import { FEATURES_CONFIG_KEY, FeaturesConfig } from '../config/features.configuration';
 import { parseAttendanceDate } from '../attendance/utils/attendance-date.util';
 import { getLocalDateString } from '../dashboard/utils/dashboard-date.util';
 
@@ -136,7 +139,9 @@ describeIfDatabase('Staff self-service integration', () => {
       });
     }
 
-    const attendanceService = new AttendanceService(prisma as unknown as PrismaService);
+    const attendanceService = new AttendanceService(prisma as unknown as PrismaService, {
+      get: () => ({ accessSecret: 'test-secret-with-enough-length' }),
+    } as never);
     const staffContextService = new StaffContextService(prisma as unknown as PrismaService);
     const leaveApprovalIntegration = new LeaveApprovalIntegrationService();
     const approvalEntityIntegration = new ApprovalEntityIntegrationService(leaveApprovalIntegration);
@@ -167,6 +172,13 @@ describeIfDatabase('Staff self-service integration', () => {
       approvalActionsService,
     );
 
+    const featureFlagsService = new FeatureFlagsService({
+      get: (key: string) =>
+        key === FEATURES_CONFIG_KEY
+          ? ({ attendanceEnabled: true } satisfies FeaturesConfig)
+          : undefined,
+    } as ConfigService);
+
     staffSelfService = new StaffSelfService(
       prisma as unknown as PrismaService,
       staffContextService,
@@ -175,6 +187,7 @@ describeIfDatabase('Staff self-service integration', () => {
       leaveRequestsService,
       leaveTypesService,
       approvalRequestsService,
+      featureFlagsService,
     );
 
     permissionsGuard = new PermissionsGuard(
@@ -251,7 +264,7 @@ describeIfDatabase('Staff self-service integration', () => {
   it('returns dashboard data scoped to authenticated staff', async () => {
     const dashboard = await staffSelfService.getDashboard(actor(staffUserAId));
     expect(dashboard.staff.id).toBe(staffAId);
-    expect(dashboard.todayAttendance.status).toBe('PRESENT');
+    expect(dashboard.todayAttendance?.status).toBe('PRESENT');
     expect(dashboard.leaveBalances.length).toBeGreaterThan(0);
   });
 

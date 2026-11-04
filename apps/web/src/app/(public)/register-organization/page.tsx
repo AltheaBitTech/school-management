@@ -1,82 +1,71 @@
 'use client';
 
-import { useState } from 'react';
+import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 import Link from 'next/link';
+import { useState } from 'react';
 import { RegisterOrganizationForm } from '@/components/RegisterOrganizationForm';
+import { AuthMarketingLayout } from '@/components/layout/AuthMarketingLayout';
+
+function SuccessState() {
+  return (
+    <Stack spacing={3} sx={{ textAlign: 'center' }}>
+      <CheckCircleOutlined sx={{ fontSize: 64, color: 'success.main', mx: 'auto' }} />
+      <Stack spacing={1}>
+        <Typography variant="h5" fontWeight={700}>
+          Application Submitted
+        </Typography>
+        <Typography color="text.secondary" variant="body2">
+          Thank you for registering your school with CampusOps. We&apos;ve received your registration request.
+        </Typography>
+        <Typography color="text.secondary" variant="body2">
+          Our team will review your application and send you an email at the provided address with next steps.
+          This usually takes 1–2 business days.
+        </Typography>
+      </Stack>
+
+      <Alert severity="info" sx={{ textAlign: 'left' }}>
+        Check your inbox for a confirmation message with instructions to set up your school administrator account after
+        approval.
+      </Alert>
+
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="center" sx={{ pt: 1 }}>
+        <Button component={Link} href="/" variant="outlined">
+          Back to Home
+        </Button>
+        <Button component={Link} href="/login" variant="contained">
+          Sign In
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
 
 export default function RegisterOrganizationPage() {
   const [submitted, setSubmitted] = useState(false);
-  const [requestId, setRequestId] = useState('');
 
-  const handleSuccess = (id: string) => {
-    setRequestId(id);
+  const handleSuccess = () => {
     setSubmitted(true);
   };
 
-  if (submitted) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-16">
-        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-8 text-center space-y-6">
-          <div className="text-5xl">✓</div>
-          <h1 className="text-3xl font-bold text-green-700">Application Submitted</h1>
-
-          <div className="space-y-3 text-gray-700">
-            <p>
-              Thank you for registering your school with CampusOps. We&apos;ve received your registration request.
-            </p>
-            <p>
-              Our team will review your application and send you an email at the provided address with next steps.
-              This usually takes 1-2 business days.
-            </p>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded p-4 my-6">
-            <p className="text-sm text-gray-600">
-              <strong>Request ID:</strong>
-            </p>
-            <p className="text-lg font-mono font-bold text-blue-600 mt-2">{requestId}</p>
-            <p className="text-xs text-gray-500 mt-3">
-              Save this ID for your records.
-            </p>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded p-4">
-            <p className="text-sm text-blue-800">
-              Keep an eye on your email inbox. You&apos;ll receive a confirmation message with instructions on how to set up your school administrator account once we approve your registration.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Link
-              href="/"
-              className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-50 transition"
-            >
-              ← Back to Home
-            </Link>
-            <Link
-              href="/login"
-              className="px-6 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700 transition"
-            >
-              Go to Sign In
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <div className="space-y-6 mb-8">
-        <h1 className="text-3xl font-bold">Register Your School</h1>
-        <p className="text-gray-600">
-          Fill in the details below. Our team will review your application and contact you within 1-2 business days.
-        </p>
-      </div>
-
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <RegisterOrganizationForm onSuccess={handleSuccess} />
-      </div>
-    </div>
+    <AuthMarketingLayout maxWidth={640}>
+      {!submitted ? (
+        <>
+          <Typography variant="h4" component="h1" sx={{ mb: 0.75 }}>
+            Register Your School
+          </Typography>
+          <Typography color="text.secondary" variant="body2" sx={{ mb: 3 }}>
+            Fill in the details below. Our team will review your application and contact you within 1–2 business days.
+          </Typography>
+          <RegisterOrganizationForm onSuccess={handleSuccess} />
+        </>
+      ) : (
+        <SuccessState />
+      )}
+    </AuthMarketingLayout>
   );
 }

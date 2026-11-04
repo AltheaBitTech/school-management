@@ -24,6 +24,7 @@ describeIfDatabase('Password reset integration', () => {
   let authService: AuthService;
   let organizationId: string;
   let userId: string;
+  let roleId: string;
   let organizationCode: string;
   let email: string;
   let originalPassword: string;
@@ -100,13 +101,27 @@ describeIfDatabase('Password reset integration', () => {
       },
     });
     userId = user.id;
+
+    const role = await prisma.role.create({
+      data: {
+        organizationId,
+        code: 'SCHOOL_ADMIN',
+        name: 'School Admin',
+      },
+    });
+    roleId = role.id;
+    await prisma.userRole.create({
+      data: { userId, roleId },
+    });
   });
 
   afterAll(async () => {
     await prisma.passwordResetToken.deleteMany({ where: { userId } });
     await prisma.refreshSession.deleteMany({ where: { userId } });
     await prisma.auditLog.deleteMany({ where: { organizationId } });
+    await prisma.userRole.deleteMany({ where: { userId } });
     await prisma.user.deleteMany({ where: { id: userId } });
+    await prisma.role.deleteMany({ where: { id: roleId } });
     await prisma.organization.deleteMany({ where: { id: organizationId } });
     await prisma.$disconnect();
   });
@@ -121,11 +136,9 @@ describeIfDatabase('Password reset integration', () => {
 
   it('returns the same generic response for unknown email', async () => {
     const known = await passwordResetService.requestPasswordReset({
-      organizationCode,
       email,
     });
     const unknown = await passwordResetService.requestPasswordReset({
-      organizationCode,
       email: `unknown-${Date.now()}@example.com`,
     });
 
@@ -135,13 +148,16 @@ describeIfDatabase('Password reset integration', () => {
 
   it('supports forgot password, reset password, and login with new password', async () => {
     lastEmailText = undefined;
-    await passwordResetService.requestPasswordReset({ organizationCode, email });
+    await passwordResetService.requestPasswordReset({ email });
     const token = extractTokenFromEmail(lastEmailText);
 
     const loginBeforeReset = await authService.login(
-      { organizationCode, email, password: originalPassword },
+      { email, password: originalPassword },
       {},
     );
+    if (!('accessToken' in loginBeforeReset)) {
+      throw new Error('Expected a single-role login session');
+    }
     expect(loginBeforeReset.accessToken).toBeDefined();
 
     const resetResult = await passwordResetService.resetPassword({
@@ -155,13 +171,16 @@ describeIfDatabase('Password reset integration', () => {
     ).rejects.toBeDefined();
 
     await expect(
-      authService.login({ organizationCode, email, password: originalPassword }, {}),
+      authService.login({ email, password: originalPassword }, {}),
     ).rejects.toBeDefined();
 
     const loginAfterReset = await authService.login(
-      { organizationCode, email, password: 'UpdatedPassword123!' },
+      { email, password: 'UpdatedPassword123!' },
       {},
     );
+    if (!('accessToken' in loginAfterReset)) {
+      throw new Error('Expected a single-role login session');
+    }
     expect(loginAfterReset.accessToken).toBeDefined();
 
     await expect(

@@ -9,13 +9,16 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import EventOutlined from '@mui/icons-material/EventOutlined';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   EVENT_STATUSES,
   EVENT_TYPES,
@@ -33,6 +36,7 @@ import {
 import { getCurrentOrganization } from '@/lib/organizations/organizations-client';
 
 export default function EventsPage() {
+  const canCreate = useCan('event.create');
   const [events, setEvents] = useState<CampusEvent[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [status, setStatus] = useState<EventStatus | ''>('');
@@ -94,17 +98,18 @@ export default function EventsPage() {
   if (isForbidden) return <ForbiddenState />;
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Events"
-        description="Plan school events in a date-aware operational calendar."
-        actions={
-          <Button component={Link} href="/events/new" variant="contained">
+    <ListPageShell
+      title="Events"
+      description="Plan school events in a date-aware operational calendar."
+      icon={EventOutlined}
+      actions={
+        canCreate ? (
+          <Button component={Link} href="/events/new" variant="contained" startIcon={<AddOutlined />}>
             New event
           </Button>
-        }
-      />
-
+        ) : undefined
+      }
+      filters={
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} flexWrap="wrap" useFlexGap>
         <TextField select label="Status" value={status} onChange={(event) => setStatus(event.target.value as EventStatus | '')} sx={{ minWidth: 170 }}>
           <MenuItem value="">All statuses</MenuItem>
@@ -121,14 +126,29 @@ export default function EventsPage() {
         <TextField label="From" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
         <TextField label="To" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} />
       </Stack>
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      }
+    >
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
       {venueError ? <Alert severity="warning">{venueError}. Venue filtering is unavailable.</Alert> : null}
-      {isLoading ? (
-        <LoadingState label="Loading events" />
-      ) : events.length === 0 ? (
-        <EmptyState message="No events match the selected filters." />
-      ) : (
+      {isLoading ? <LoadingState label="Loading events" columnCount={5} /> : null}
+      {!isLoading && events.length === 0 ? (
+        <EmptyState
+          icon={EventOutlined}
+          message={
+            canCreate
+              ? 'No events match the selected filters.'
+              : 'No events match the selected filters. Creating an event is not part of this role.'
+          }
+          action={
+            canCreate ? (
+              <Button component={Link} href="/events/new" variant="contained" startIcon={<AddOutlined />}>
+                New event
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : null}
+      {!isLoading && events.length > 0 ? (
         <AppTable aria-label="Events">
           <TableHead>
             <TableRow>
@@ -157,7 +177,7 @@ export default function EventsPage() {
             ))}
           </TableBody>
         </AppTable>
-      )}
-    </Stack>
+      ) : null}
+    </ListPageShell>
   );
 }

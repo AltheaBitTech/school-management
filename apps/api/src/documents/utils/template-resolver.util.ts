@@ -65,6 +65,32 @@ function buildTemplateVariables(context: TemplateResolutionContext): Record<stri
   };
 }
 
+export function renderStoredTemplate(
+  content: string,
+  variables: Record<string, string>,
+): { title: string; body: string } | null {
+  try {
+    const parsed = parseDocumentTemplateContent(content);
+    return {
+      title: replaceAllowedVariables(parsed.title, variables),
+      body: replaceAllowedVariables(parsed.body, variables),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function findUnknownPlaceholders(text: string): string[] {
+  const unknown = new Set<string>();
+  for (const match of text.matchAll(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g)) {
+    const name = match[1] ?? '';
+    if (!(ALLOWED_TEMPLATE_VARIABLES as readonly string[]).includes(name)) {
+      unknown.add(name);
+    }
+  }
+  return [...unknown];
+}
+
 function replaceAllowedVariables(
   input: string,
   variables: Record<string, string>,

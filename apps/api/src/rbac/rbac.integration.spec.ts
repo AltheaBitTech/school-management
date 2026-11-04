@@ -127,10 +127,16 @@ describeIfDatabase('RBAC integration', () => {
   });
 
   it('resolves permissions from current database state for the authenticated organization', async () => {
-    const permissions = await permissionsService.getEffectivePermissions(userAId, orgAId);
+    const permissions = await permissionsService.getEffectivePermissions(
+      userAId,
+      orgAId,
+      schoolAdminRoleAId,
+    );
 
-    expect(permissions.some((permission) => permission.startsWith('staff.view'))).toBe(true);
-    expect(permissions.some((permission) => permission.startsWith('complaint.view'))).toBe(false);
+    expect((permissions ?? []).some((permission) => permission.startsWith('staff.view'))).toBe(true);
+    expect((permissions ?? []).some((permission) => permission.startsWith('complaint.view'))).toBe(
+      false,
+    );
   });
 
   it('denies permission guard access when permission is missing', async () => {
@@ -140,6 +146,7 @@ describeIfDatabase('RBAC integration', () => {
         organizationId: orgAId,
         sessionId: 'session-1',
         email: 'user-a@example.com',
+        activeRoleId: schoolAdminRoleAId,
       },
     };
 
@@ -164,6 +171,7 @@ describeIfDatabase('RBAC integration', () => {
         organizationId: orgAId,
         sessionId: 'session-1',
         email: 'user-a@example.com',
+        activeRoleId: schoolAdminRoleAId,
       },
     };
 

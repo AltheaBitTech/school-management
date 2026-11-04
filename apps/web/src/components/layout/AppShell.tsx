@@ -1,5 +1,32 @@
 'use client';
 
+import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
+import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
+import ApprovalOutlined from '@mui/icons-material/ApprovalOutlined';
+import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
+import BarChartOutlined from '@mui/icons-material/BarChartOutlined';
+import BuildOutlined from '@mui/icons-material/BuildOutlined';
+import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
+import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
+import DashboardOutlined from '@mui/icons-material/DashboardOutlined';
+import DomainAddOutlined from '@mui/icons-material/DomainAddOutlined';
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
+import DirectionsBusOutlined from '@mui/icons-material/DirectionsBusOutlined';
+import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
+import HomeOutlined from '@mui/icons-material/HomeOutlined';
+import HowToRegOutlined from '@mui/icons-material/HowToRegOutlined';
+import ImageOutlined from '@mui/icons-material/ImageOutlined';
+import InventoryOutlined from '@mui/icons-material/InventoryOutlined';
+import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
+import ManageSearchOutlined from '@mui/icons-material/ManageSearchOutlined';
+import MenuIcon from '@mui/icons-material/Menu';
+import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined';
+import PersonOutlined from '@mui/icons-material/PersonOutlined';
+import QrCodeScannerOutlined from '@mui/icons-material/QrCodeScannerOutlined';
+import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
+import SchoolOutlined from '@mui/icons-material/SchoolOutlined';
+import TimelapseOutlined from '@mui/icons-material/TimelapseOutlined';
 import AppBar from '@mui/material/AppBar';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
@@ -12,8 +39,8 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Stack from '@mui/material/Stack';
-import SvgIcon from '@mui/material/SvgIcon';
 import Toolbar from '@mui/material/Toolbar';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -22,8 +49,16 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { NotificationMenu } from '@/components/notifications/NotificationMenu';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
-import { isStaffSelfServiceUser } from '@/lib/auth/routing';
+import type { AuthUser } from '@/lib/auth/auth-client';
+import {
+  hasPermission,
+  isParentSelfServiceUser,
+  isStaffSelfServiceUser,
+  isStudentSelfServiceUser,
+} from '@/lib/auth/routing';
+import { getUserDisplayName, getUserInitials, getUserRoleLabel } from '@/lib/auth/user-display';
 import { isPlatformOrganization } from '@/lib/navigation/platform';
+import { isAttendanceEnabled } from '@/lib/features/feature-flags';
 import { hasAnyReportPermission } from '@/lib/reports/reports-catalog';
 
 const DRAWER_WIDTH = 268;
@@ -31,7 +66,10 @@ const DRAWER_WIDTH = 268;
 interface NavItem {
   href: string;
   label: string;
+  icon: React.ElementType;
   match?: 'exact' | 'prefix';
+  requiredPermission?: string;
+  requiredAnyPermissions?: string[];
 }
 
 interface NavGroup {
@@ -43,67 +81,248 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'People',
     items: [
-      { href: '/staff', label: 'Staff' },
-      { href: '/students', label: 'Students' },
-      { href: '/departments', label: 'Departments' },
-      { href: '/attendance', label: 'Attendance' },
+      { href: '/staff', label: 'Staff', icon: PeopleAltOutlined, requiredPermission: 'staff.view' },
+      { href: '/students', label: 'Students', icon: SchoolOutlined, requiredPermission: 'student.view' },
+      {
+        href: '/departments',
+        label: 'Departments',
+        icon: AccountTreeOutlined,
+        requiredPermission: 'department.view',
+      },
     ],
   },
   {
     title: 'Workflows',
     items: [
-      { href: '/leave', label: 'Leave' },
-      { href: '/approvals', label: 'Approvals' },
-      { href: '/complaints', label: 'Complaints' },
+      { href: '/leave', label: 'Leave', icon: EventAvailableOutlined, requiredPermission: 'leave.view' },
+      {
+        href: '/attendance',
+        label: 'Attendance',
+        icon: FactCheckOutlined,
+        requiredPermission: 'attendance.view',
+      },
+      {
+        href: '/attendance/scan',
+        label: 'Scan attendance',
+        icon: QrCodeScannerOutlined,
+        requiredPermission: 'attendance.mark',
+      },
+      {
+        href: '/calendar',
+        label: 'Calendar',
+        icon: CalendarMonthOutlined,
+        requiredAnyPermissions: [
+          'dashboard.view',
+          'leave.view',
+          'staff.self.leave.view',
+          'event.view',
+        ],
+      },
+      { href: '/approvals', label: 'Approvals', icon: ApprovalOutlined, requiredPermission: 'approval.view' },
+      {
+        href: '/approvals/requests',
+        label: 'Requests',
+        icon: ApprovalOutlined,
+        requiredPermission: 'approval.submit',
+      },
+      { href: '/complaints', label: 'Complaints', icon: BuildOutlined, requiredPermission: 'complaint.view' },
     ],
   },
   {
     title: 'Campus',
     items: [
-      { href: '/visitors', label: 'Visitors' },
-      { href: '/notices', label: 'Notices' },
-      { href: '/events', label: 'Events' },
-      { href: '/assets', label: 'Assets' },
+      { href: '/visitors', label: 'Visitors', icon: BadgeOutlined, requiredPermission: 'visitor.view' },
+      { href: '/notices', label: 'Notices', icon: AnnouncementOutlined, requiredPermission: 'notice.view' },
+      { href: '/events', label: 'Events', icon: CalendarMonthOutlined, requiredPermission: 'event.view' },
+      { href: '/assets', label: 'Assets', icon: InventoryOutlined, requiredPermission: 'asset.view' },
+      { href: '/transport', label: 'Transport', icon: DirectionsBusOutlined, requiredPermission: 'transport.view' },
     ],
   },
   {
     title: 'Finance & records',
     items: [
-      { href: '/fees', label: 'Fees' },
-      { href: '/documents', label: 'Documents' },
+      { href: '/fees', label: 'Fees', icon: ReceiptLongOutlined, requiredPermission: 'fee.view' },
+      { href: '/documents', label: 'Documents', icon: DescriptionOutlined, requiredPermission: 'document.view' },
+      { href: '/audit', label: 'Audit log', icon: ManageSearchOutlined, requiredPermission: 'audit.view' },
+      {
+        href: '/settings/logo',
+        label: 'School logo',
+        icon: ImageOutlined,
+        requiredPermission: 'organization.settings.update',
+      },
+      {
+        href: '/settings/documents',
+        label: 'ID cards',
+        icon: BadgeOutlined,
+        requiredPermission: 'organization.settings.update',
+      },
     ],
   },
 ];
 
-const REPORTS_NAV_ITEM: NavItem = { href: '/reports', label: 'Reports', match: 'prefix' };
+const REPORTS_NAV_ITEM: NavItem = {
+  href: '/reports',
+  label: 'Reports',
+  icon: BarChartOutlined,
+  match: 'prefix',
+};
 
 const PLATFORM_NAV_GROUP: NavGroup = {
   title: 'Platform',
-  items: [{ href: '/admin/registrations', label: 'Registration requests' }],
-};
-
-const STAFF_SELF_NAV_GROUP: NavGroup = {
-  title: 'My workspace',
   items: [
-    { href: '/staff/dashboard', label: 'My dashboard', match: 'exact' },
-    { href: '/staff/attendance', label: 'My attendance' },
-    { href: '/staff/leave', label: 'My leave' },
+    {
+      href: '/organizations/new',
+      label: 'Create school',
+      icon: DomainAddOutlined,
+      requiredPermission: 'platform.organization.create',
+    },
+    {
+      href: '/admin/registrations',
+      label: 'Registration requests',
+      icon: HowToRegOutlined,
+      requiredPermission: 'platform.organization.registration.approve',
+    },
+    {
+      href: '/admin/subscriptions',
+      label: 'Subscriptions',
+      icon: ReceiptLongOutlined,
+      requiredPermission: 'platform.subscription.manage',
+    },
   ],
 };
 
-function MenuIcon(): React.ReactNode {
-  return (
-    <SvgIcon>
-      <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
-    </SvgIcon>
-  );
+function buildStaffSelfNavGroup(permissions: string[] | undefined): NavGroup {
+  const items: NavItem[] = [
+    { href: '/staff/dashboard', label: 'My dashboard', icon: DashboardOutlined, match: 'exact' },
+    { href: '/staff/attendance', label: 'My attendance', icon: CheckCircleOutlined },
+    { href: '/staff/leave', label: 'My leave', icon: TimelapseOutlined },
+  ];
+
+  if (hasPermission(permissions, 'complaint.view')) {
+    items.push({ href: '/complaints', label: 'Complaints', icon: BuildOutlined });
+  }
+  if (hasPermission(permissions, 'notice.view')) {
+    items.push({ href: '/notices', label: 'Notices', icon: AnnouncementOutlined });
+  }
+  if (hasPermission(permissions, 'event.view')) {
+    items.push({ href: '/events', label: 'Events', icon: CalendarMonthOutlined });
+  }
+  if (
+    hasPermission(permissions, 'staff.self.leave.view') ||
+    hasPermission(permissions, 'event.view')
+  ) {
+    items.push({ href: '/calendar', label: 'Calendar', icon: CalendarMonthOutlined });
+  }
+
+  return { title: 'My workspace', items };
 }
+
+const PARENT_NAV_GROUP: NavGroup = {
+  title: 'Parent',
+  items: [
+    { href: '/parent', label: 'My children', icon: SchoolOutlined, requiredPermission: 'parent.portal.view' },
+    { href: '/notices', label: 'Notices', icon: AnnouncementOutlined, requiredPermission: 'notice.view' },
+  ],
+};
+
+const STUDENT_SELF_NAV_GROUP: NavGroup = {
+  title: 'My Portal',
+  items: [
+    {
+      href: '/student/profile',
+      label: 'My Profile',
+      icon: PersonOutlined,
+      requiredPermission: 'student.self.view',
+    },
+    {
+      href: '/student/fees',
+      label: 'My Fees',
+      icon: ReceiptLongOutlined,
+      requiredPermission: 'student.self.fee.view',
+    },
+    {
+      href: '/notices',
+      label: 'Notices',
+      icon: AnnouncementOutlined,
+      requiredPermission: 'notice.view',
+    },
+    {
+      href: '/events',
+      label: 'Events',
+      icon: CalendarMonthOutlined,
+      requiredPermission: 'event.view',
+    },
+  ],
+};
 
 function isNavItemActive(pathname: string, item: NavItem): boolean {
   if (item.match === 'exact' || item.href === '/') {
     return pathname === item.href;
   }
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+function isAttendanceNavHref(href: string): boolean {
+  return href === '/attendance' || href.startsWith('/attendance/') || href === '/staff/attendance';
+}
+
+function isNavItemVisible(item: NavItem, permissions: string[] | undefined): boolean {
+  if (!isAttendanceEnabled() && isAttendanceNavHref(item.href)) {
+    return false;
+  }
+
+  if (item.requiredAnyPermissions?.length) {
+    return item.requiredAnyPermissions.some((code) => hasPermission(permissions, code));
+  }
+  if (!item.requiredPermission) {
+    return true;
+  }
+  if (item.href === '/reports') {
+    return hasAnyReportPermission(permissions);
+  }
+  return hasPermission(permissions, item.requiredPermission);
+}
+
+function filterNavGroups(groups: NavGroup[], permissions: string[] | undefined): NavGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => isNavItemVisible(item, permissions)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+function navItemButtonSx(isActive: boolean) {
+  return {
+    mx: 1.25,
+    my: 0.25,
+    borderRadius: 2,
+    color: 'sidebar.text',
+    px: 1.5,
+    transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease',
+    '&:focus-visible': {
+      outline: '2px solid',
+      outlineColor: 'sidebar.activeBorder',
+      outlineOffset: 2,
+    },
+    '& .MuiListItemIcon-root': {
+      color: 'sidebar.textMuted',
+      minWidth: 36,
+    },
+    '&.Mui-selected': {
+      bgcolor: 'rgba(232, 195, 106, 0.18)',
+      color: '#f6e7b4',
+      '& .MuiListItemIcon-root': {
+        color: '#e8c36a',
+      },
+      '&:hover': {
+        bgcolor: 'rgba(232, 195, 106, 0.26)',
+      },
+    },
+    '&:hover': {
+      bgcolor: 'sidebar.hover',
+    },
+  };
 }
 
 interface AppShellProps {
@@ -118,15 +337,25 @@ export function AppShell({ children }: AppShellProps) {
   const { isReady, isAuthenticated, user, signOut } = useAuthSession();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isStaffNav = isStaffSelfServiceUser(user?.permissions);
+  const isStudentNav = isStudentSelfServiceUser(user?.permissions);
+  const isParentNav = isParentSelfServiceUser(user?.permissions);
   const isPlatformOrg = isPlatformOrganization(user?.organization?.code);
   const isPublicMarketingHome = pathname === '/' && isReady && !isAuthenticated;
   const navGroups = useMemo(() => {
     if (isStaffNav) {
-      return [STAFF_SELF_NAV_GROUP];
+      return [buildStaffSelfNavGroup(user?.permissions)];
+    }
+
+    if (isStudentNav) {
+      return filterNavGroups([STUDENT_SELF_NAV_GROUP], user?.permissions);
+    }
+
+    if (isParentNav) {
+      return filterNavGroups([PARENT_NAV_GROUP], user?.permissions);
     }
 
     if (isPlatformOrg) {
-      return [PLATFORM_NAV_GROUP];
+      return filterNavGroups([PLATFORM_NAV_GROUP], user?.permissions);
     }
 
     const groups = NAV_GROUPS.map((group) => {
@@ -141,15 +370,33 @@ export function AppShell({ children }: AppShellProps) {
       return { ...group, items };
     });
 
-    return groups;
-  }, [isStaffNav, isPlatformOrg, user?.permissions]);
-  const homeHref = isStaffNav ? '/staff/dashboard' : '/';
-  const homeLabel = isStaffNav ? 'My dashboard' : 'Home';
+    return filterNavGroups(groups, user?.permissions);
+  }, [isStaffNav, isStudentNav, isParentNav, isPlatformOrg, user?.permissions]);
+  const homeHref = isStaffNav
+    ? '/staff/dashboard'
+    : isStudentNav
+      ? '/student/profile'
+      : isParentNav
+        ? '/parent'
+        : '/';
+  const homeLabel = isStaffNav
+    ? 'My dashboard'
+    : isStudentNav
+      ? 'My profile'
+      : isParentNav
+        ? 'My children'
+        : 'Home';
+  const HomeNavIcon = isStaffNav ? DashboardOutlined : isStudentNav ? PersonOutlined : HomeOutlined;
   const appBarTitle = isPlatformOrg
     ? 'CampusOps platform'
     : isStaffNav
       ? 'Staff self-service'
-      : 'School operations';
+      : isStudentNav
+        ? 'Student portal'
+        : 'School operations';
+
+  const displayName = user ? getUserDisplayName(user) : '';
+  const roleLabel = user ? getUserRoleLabel(user) : '';
 
   function handleNavClick(): void {
     setMobileOpen(false);
@@ -160,82 +407,128 @@ export function AppShell({ children }: AppShellProps) {
     router.push('/login');
   }
 
+  function renderSidebarUser(userContext: AuthUser): React.ReactNode {
+    const name = getUserDisplayName(userContext);
+    const role = getUserRoleLabel(userContext);
+
+    return (
+      <Box sx={{ px: 2, py: 2, borderTop: 1, borderColor: 'rgba(255,255,255,0.12)' }}>
+        <Typography variant="body2" noWrap sx={{ color: '#ffffff', fontWeight: 600 }}>
+          {name}
+        </Typography>
+        <Typography variant="caption" noWrap sx={{ color: 'sidebar.textSection', display: 'block', mb: 1 }}>
+          Signed in as {role}
+        </Typography>
+        <Button
+          onClick={() => void handleSignOut()}
+          size="small"
+          startIcon={<LogoutOutlined fontSize="small" />}
+          sx={{
+            color: 'sidebar.text',
+            justifyContent: 'flex-start',
+            px: 0,
+            minWidth: 0,
+            '&:hover': { bgcolor: 'transparent', color: '#ffffff' },
+          }}
+        >
+          Sign out
+        </Button>
+      </Box>
+    );
+  }
+
   const drawer = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar sx={{ px: 2.5 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        bgcolor: 'sidebar.main',
+        color: 'sidebar.text',
+      }}
+    >
+      <Toolbar sx={{ px: 2.5, gap: 1 }}>
+        <SchoolOutlined sx={{ color: '#ffffff' }} />
         <Typography
           variant="h6"
           component={Link}
           href={homeHref}
           onClick={handleNavClick}
-          sx={{ color: 'primary.main', textDecoration: 'none', fontWeight: 700 }}
+          sx={{ color: '#ffffff', textDecoration: 'none', fontWeight: 700 }}
         >
           CampusOps
         </Typography>
       </Toolbar>
-      <Divider />
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)' }} />
       <Box sx={{ overflowY: 'auto', py: 1.5, flex: 1 }}>
-        {!isStaffNav ? (
-          <List disablePadding>
-            <ListItemButton
-              component={Link}
-              href={homeHref}
-              selected={pathname === homeHref}
-              onClick={handleNavClick}
-              sx={{ mx: 1, borderRadius: 1 }}
-            >
-              <ListItemIcon sx={{ minWidth: 36 }}>
-                <SvgIcon fontSize="small">
-                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-                </SvgIcon>
-              </ListItemIcon>
-              <ListItemText primary={homeLabel} primaryTypographyProps={{ fontWeight: 600 }} />
-            </ListItemButton>
-          </List>
-        ) : null}
+        <List disablePadding>
+          <ListItemButton
+            component={Link}
+            href={homeHref}
+            selected={pathname === homeHref}
+            onClick={handleNavClick}
+            sx={navItemButtonSx(pathname === homeHref)}
+          >
+            <ListItemIcon>
+              <HomeNavIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary={homeLabel} primaryTypographyProps={{ fontWeight: 600 }} />
+          </ListItemButton>
+        </List>
         {navGroups.map((group) => (
           <Box key={group.title} sx={{ mt: 1.5 }}>
             <Typography
               variant="overline"
-              sx={{ px: 3, color: 'text.secondary', letterSpacing: '0.08em' }}
+              sx={{ px: 3, color: 'sidebar.textSection', letterSpacing: '0.08em', display: 'block' }}
             >
               {group.title}
             </Typography>
             <List disablePadding>
-              {group.items.map((item) => (
-                <ListItemButton
-                  key={item.href}
-                  component={Link}
-                  href={item.href}
-                  selected={isNavItemActive(pathname, item)}
-                  onClick={handleNavClick}
-                  sx={{ mx: 1, borderRadius: 1 }}
-                >
-                  <ListItemText primary={item.label} />
-                </ListItemButton>
-              ))}
+              {group.items.map((item) => {
+                const ItemIcon = item.icon;
+                const isActive = isNavItemActive(pathname, item);
+                return (
+                  <ListItemButton
+                    key={item.href}
+                    component={Link}
+                    href={item.href}
+                    selected={isActive}
+                    onClick={handleNavClick}
+                    sx={navItemButtonSx(isActive)}
+                  >
+                    <ListItemIcon>
+                      <ItemIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                );
+              })}
             </List>
           </Box>
         ))}
       </Box>
+      {isReady && isAuthenticated && user ? renderSidebarUser(user) : null}
     </Box>
   );
 
   if (isPublicMarketingHome) {
     return (
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <AppBar position="sticky" color="inherit" elevation={0}>
           <Toolbar sx={{ gap: 1, maxWidth: 1280, mx: 'auto', width: '100%' }}>
-            <Typography
-              variant="h6"
-              component={Link}
-              href="/"
-              sx={{ color: 'primary.main', textDecoration: 'none', fontWeight: 700, flexGrow: 1 }}
-            >
-              CampusOps
-            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ flexGrow: 1 }}>
+              <SchoolOutlined color="primary" />
+              <Typography
+                variant="h6"
+                component={Link}
+                href="/"
+                sx={{ color: 'text.primary', textDecoration: 'none', fontWeight: 700 }}
+              >
+                CampusOps
+              </Typography>
+            </Stack>
             <Button component={Link} href="/register-organization" size="small">
-              Register school
+              Register Your School
             </Button>
             <Button component={Link} href="/login" variant="contained" size="small">
               Sign in
@@ -254,8 +547,6 @@ export function AppShell({ children }: AppShellProps) {
         color="inherit"
         elevation={0}
         sx={{
-          borderBottom: 1,
-          borderColor: 'divider',
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           ml: { md: `${DRAWER_WIDTH}px` },
         }}
@@ -271,27 +562,35 @@ export function AppShell({ children }: AppShellProps) {
               <MenuIcon />
             </IconButton>
           ) : null}
-          <Typography variant="subtitle1" noWrap sx={{ flexGrow: 1 }}>
+          <Typography
+            variant="overline"
+            noWrap
+            sx={{ flexGrow: 1, color: 'text.secondary', letterSpacing: '0.08em' }}
+          >
             {appBarTitle}
           </Typography>
           <NotificationMenu />
           {isReady && isAuthenticated && user ? (
             <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: 0.5 }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 14 }}>
-                {user.email.slice(0, 1).toUpperCase()}
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark', fontSize: 13 }}>
+                {getUserInitials(displayName)}
               </Avatar>
               <Box sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 0, maxWidth: 220 }}>
                 <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
-                  {user.email}
+                  {displayName}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" noWrap>
-                  {user.organization?.name ?? 'CampusOps'}
-                  {user.organization?.code ? ` · code: ${user.organization.code}` : ''}
+                  {roleLabel}
+                  {!isPlatformOrg && user?.organization?.code
+                    ? ` · ${user.organization.code}`
+                    : ''}
                 </Typography>
               </Box>
-              <Button onClick={() => void handleSignOut()} size="small">
-                Sign out
-              </Button>
+              <Tooltip title="Sign out">
+                <IconButton aria-label="Sign out" onClick={() => void handleSignOut()} size="small">
+                  <LogoutOutlined fontSize="small" />
+                </IconButton>
+              </Tooltip>
             </Stack>
           ) : null}
           {isReady && !isAuthenticated ? (
@@ -310,7 +609,11 @@ export function AppShell({ children }: AppShellProps) {
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
+            '& .MuiDrawer-paper': {
+              width: DRAWER_WIDTH,
+              boxSizing: 'border-box',
+              borderRight: 'none',
+            },
           }}
         >
           {drawer}
@@ -320,7 +623,11 @@ export function AppShell({ children }: AppShellProps) {
           open
           sx={{
             display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
+            '& .MuiDrawer-paper': {
+              width: DRAWER_WIDTH,
+              boxSizing: 'border-box',
+              borderRight: 'none',
+            },
           }}
         >
           {drawer}
@@ -336,7 +643,14 @@ export function AppShell({ children }: AppShellProps) {
         }}
       >
         <Toolbar />
-        <Box sx={{ px: { xs: 2, sm: 3, lg: 4 }, py: { xs: 2.5, sm: 3.5 }, maxWidth: 1280, mx: 'auto' }}>
+        <Box
+          sx={{
+            px: { xs: 2, sm: 3, lg: 4 },
+            py: { xs: 2.5, sm: 4 },
+            maxWidth: isStudentNav ? 720 : 1280,
+            mx: 'auto',
+          }}
+        >
           {children}
         </Box>
       </Box>

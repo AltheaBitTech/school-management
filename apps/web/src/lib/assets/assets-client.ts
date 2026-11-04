@@ -24,6 +24,14 @@ export interface AssetStaffSummary {
   displayName?: string | null;
 }
 
+export interface AssetStudentSummary {
+  id: string;
+  studentCode: string;
+  firstName: string;
+  lastName: string;
+  displayName?: string | null;
+}
+
 export interface AssetUserSummary {
   id: string;
   email: string;
@@ -103,6 +111,7 @@ export interface Asset {
   departmentId?: string | null;
   location?: string | null;
   assignedStaffId?: string | null;
+  assignedStudentId?: string | null;
   status: AssetStatus;
   retiredAt?: string | null;
   retirementReason?: string | null;
@@ -112,6 +121,7 @@ export interface Asset {
   category?: AssetCategorySummary;
   department?: AssetDepartmentSummary | null;
   assignedStaff?: AssetStaffSummary | null;
+  assignedStudent?: AssetStudentSummary | null;
   createdBy?: AssetUserSummary;
   maintenances?: AssetMaintenance[];
   transfers?: AssetTransfer[];
@@ -149,6 +159,8 @@ export async function listAssets(params?: {
   categoryId?: string;
   departmentId?: string;
   assignedStaffId?: string;
+  assignedStudentId?: string;
+  warrantyAlert?: boolean;
   search?: string;
 }): Promise<PaginatedAssetsResponse> {
   const searchParams = new URLSearchParams();
@@ -158,6 +170,8 @@ export async function listAssets(params?: {
   if (params?.categoryId) searchParams.set('categoryId', params.categoryId);
   if (params?.departmentId) searchParams.set('departmentId', params.departmentId);
   if (params?.assignedStaffId) searchParams.set('assignedStaffId', params.assignedStaffId);
+  if (params?.assignedStudentId) searchParams.set('assignedStudentId', params.assignedStudentId);
+  if (params?.warrantyAlert) searchParams.set('warrantyAlert', 'true');
   if (params?.search) searchParams.set('search', params.search);
 
   const query = searchParams.toString();
@@ -216,7 +230,10 @@ export async function updateAsset(
   return response.data;
 }
 
-export async function assignAsset(id: string, payload: { staffId: string }): Promise<Asset> {
+export async function assignAsset(
+  id: string,
+  payload: { staffId?: string; studentId?: string },
+): Promise<Asset> {
   const response = await apiClient.post<AssetResponse>(`/assets/${id}/assign`, payload, {
     auth: true,
   });
@@ -345,6 +362,14 @@ export function getAssetStaffDisplayName(staff: AssetStaffSummary): string {
   }
 
   return `${staff.firstName} ${staff.lastName}`.trim();
+}
+
+export function getAssetStudentDisplayName(student: AssetStudentSummary): string {
+  if (student.displayName?.trim()) {
+    return student.displayName.trim();
+  }
+
+  return `${student.firstName} ${student.lastName}`.trim();
 }
 
 export function isWarrantyActive(asset: Asset): boolean {

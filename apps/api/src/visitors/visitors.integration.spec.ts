@@ -16,6 +16,8 @@ import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { VisitorNotificationService } from './visitor-notification.service';
 import { VisitorsService } from './visitors.service';
 
 const describeIfDatabase = process.env.RUN_DB_TESTS === 'true' ? describe : describe.skip;
@@ -132,7 +134,19 @@ describeIfDatabase('Visitors integration', () => {
     offboardedStaffAId = offboardedStaff.id;
     inactiveStaffAId = inactiveStaff.id;
 
-    visitorsService = new VisitorsService(prisma as unknown as PrismaService);
+    const emailProvider = { sendEmail: jest.fn().mockResolvedValue(undefined) };
+    const notificationsService = new NotificationsService(
+      prisma as unknown as PrismaService,
+      emailProvider,
+    );
+    const visitorNotificationService = new VisitorNotificationService(
+      prisma as unknown as PrismaService,
+      notificationsService,
+    );
+    visitorsService = new VisitorsService(
+      prisma as unknown as PrismaService,
+      visitorNotificationService,
+    );
     permissionsService = new PermissionsService(prisma as unknown as PrismaService);
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
   });
@@ -214,7 +228,7 @@ describeIfDatabase('Visitors integration', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('lists visitors within a tenant and defaults to checked-in visitors', async () => {
+  it('lists visitors within a tenant when status is omitted (all statuses)', async () => {
     const created = await visitorsService.create(orgAId, actorA, {
       ...basePayload,
       name: 'Listed Visitor',
@@ -223,7 +237,6 @@ describeIfDatabase('Visitors integration', () => {
 
     const listed = await visitorsService.list(orgAId, { page: 1, pageSize: 10 });
     expect(listed.data.some((item) => item.id === created.id)).toBe(true);
-    expect(listed.data.every((item) => item.status === VisitorStatus.CHECKED_IN)).toBe(true);
   });
 
   it('returns correct pagination metadata and page-limited results', async () => {
@@ -250,7 +263,7 @@ describeIfDatabase('Visitors integration', () => {
     expect(listed.data).toHaveLength(10);
   });
 
-  it('treats whitespace-only search as no search while preserving default status filter', async () => {
+  it('treats whitespace-only search as no search and includes all statuses', async () => {
     const checkedOut = await visitorsService.create(orgAId, actorA, {
       ...basePayload,
       name: `Whitespace filter checked out ${Date.now()}`,
@@ -271,12 +284,27 @@ describeIfDatabase('Visitors integration', () => {
       search: '   ',
     });
 
-    expect(withWhitespaceSearch.data.every((item) => item.status === VisitorStatus.CHECKED_IN)).toBe(
-      true,
-    );
-    expect(withoutSearch.data.every((item) => item.status === VisitorStatus.CHECKED_IN)).toBe(true);
-    expect(withWhitespaceSearch.data.some((item) => item.id === checkedOut.id)).toBe(false);
+    expect(withWhitespaceSearch.data.some((item) => item.id === checkedOut.id)).toBe(true);
     expect(withWhitespaceSearch.data.some((item) => item.id === checkedIn.id)).toBe(true);
+    expect(withoutSearch.data.some((item) => item.id === checkedOut.id)).toBe(true);
+  });
+
+  it('filters by status when query.status is provided', async () => {
+    const checkedOut = await visitorsService.create(orgAId, actorA, {
+      ...basePayload,
+      name: `Status filter checked out ${Date.now()}`,
+      hostStaffId: staffAId,
+    });
+    await visitorsService.checkOut(orgAId, checkedOut.id, actorA);
+
+    const listed = await visitorsService.list(orgAId, {
+      page: 1,
+      pageSize: 50,
+      status: VisitorStatus.CHECKED_IN,
+    });
+
+    expect(listed.data.every((item) => item.status === VisitorStatus.CHECKED_IN)).toBe(true);
+    expect(listed.data.some((item) => item.id === checkedOut.id)).toBe(false);
   });
 
   it('blocks cross-tenant list access by scoping results', async () => {

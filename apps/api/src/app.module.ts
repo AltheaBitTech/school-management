@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
@@ -27,6 +27,7 @@ import { FeesReportsModule } from './reports/fees/fees-reports.module';
 import { ComplaintsReportsModule } from './reports/complaints/complaints-reports.module';
 import { VisitorsReportsModule } from './reports/visitors/visitors-reports.module';
 import { EventReportsModule } from './reports/events/event-reports.module';
+import { AuditActorInterceptor } from './audit/audit-actor.interceptor';
 import { AuditModule } from './audit/audit.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FeesModule } from './fees/fees.module';
@@ -34,11 +35,20 @@ import { RbacModule } from './rbac/rbac.module';
 import { OrganizationRegistrationsModule } from './organization-registrations/organization-registrations.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { CalendarModule } from './calendar/calendar.module';
 import { StaffSelfModule } from './staff-self/staff-self.module';
+import { StudentSelfModule } from './student-self/student-self.module';
+import { CronModule } from './cron/cron.module';
+import { FeaturesModule } from './common/features/features.module';
+import { OperationalRequestsModule } from './operational-requests/operational-requests.module';
+import { ParentSelfModule } from './parent-self/parent-self.module';
+import { TransportModule } from './transport/transport.module';
+import { PlatformModule } from './platform/platform.module';
 
 @Module({
   imports: [
     AppConfigModule,
+    FeaturesModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60_000,
@@ -52,7 +62,9 @@ import { StaffSelfModule } from './staff-self/staff-self.module';
     OrganizationRegistrationsModule,
     OnboardingModule,
     DashboardModule,
+    CalendarModule,
     StaffSelfModule,
+    StudentSelfModule,
     OrganizationsModule,
     DepartmentsModule,
     StaffModule,
@@ -74,6 +86,11 @@ import { StaffSelfModule } from './staff-self/staff-self.module';
     ComplaintsReportsModule,
     VisitorsReportsModule,
     AuditModule,
+    CronModule,
+    OperationalRequestsModule,
+    ParentSelfModule,
+    TransportModule,
+    PlatformModule,
     NotificationsModule,
     FeesModule,
     RbacModule,
@@ -82,6 +99,10 @@ import { StaffSelfModule } from './staff-self/staff-self.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditActorInterceptor,
     },
   ],
 })

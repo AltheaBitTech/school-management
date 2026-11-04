@@ -41,10 +41,15 @@ describe('StaffSelfService', () => {
     actionToDto: jest.fn(),
   };
 
+  const featureFlagsService = {
+    isAttendanceEnabled: jest.fn().mockReturnValue(true),
+  };
+
   let service: StaffSelfService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    featureFlagsService.isAttendanceEnabled.mockReturnValue(true);
     service = new StaffSelfService(
       prisma as never,
       staffContextService as never,
@@ -53,6 +58,7 @@ describe('StaffSelfService', () => {
       leaveRequestsService as never,
       leaveTypesService as never,
       approvalRequestsService as never,
+      featureFlagsService as never,
     );
 
     staffContextService.resolveStaffProfile.mockResolvedValue({
@@ -78,7 +84,34 @@ describe('StaffSelfService', () => {
 
     expect(summary.staff.id).toBe(staffId);
     expect(summary.unreadNotificationCount).toBe(2);
+    expect(summary.todayAttendance?.date).toBeDefined();
+    expect(prisma.staffAttendance.findFirst).toHaveBeenCalled();
     expect(staffContextService.resolveStaffProfile).toHaveBeenCalledWith(user);
+  });
+
+  it('omits todayAttendance and skips attendance lookup when feature is disabled', async () => {
+    featureFlagsService.isAttendanceEnabled.mockReturnValue(false);
+
+    const summary = await service.getDashboard(user as never);
+
+    expect(summary.todayAttendance).toBeUndefined();
+    expect(prisma.staffAttendance.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('includes todayAttendance when feature is enabled', async () => {
+    prisma.staffAttendance.findFirst.mockResolvedValue({
+      status: 'PRESENT',
+      checkInAt: new Date('2026-09-26T09:00:00.000Z'),
+      checkOutAt: null,
+    });
+
+    const summary = await service.getDashboard(user as never);
+
+    expect(summary.todayAttendance).toMatchObject({
+      status: 'PRESENT',
+      checkInAt: '2026-09-26T09:00:00.000Z',
+    });
+    expect(prisma.staffAttendance.findFirst).toHaveBeenCalled();
   });
 
   it('scopes attendance list to resolved staff id', async () => {

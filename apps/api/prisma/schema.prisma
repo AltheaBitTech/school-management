@@ -98,6 +98,8 @@ enum NoticeAudienceType {
   ENTIRE_SCHOOL
   STAFF
   DEPARTMENT
+  STUDENT
+  PARENT
 }
 
 enum VisitorStatus {
@@ -164,10 +166,18 @@ enum FeePaymentMethod {
 
 enum DocumentType {
   BONAFIDE_CERTIFICATE
+  CHARACTER_CERTIFICATE
+  EXPERIENCE_LETTER
+  SALARY_CERTIFICATE
+  VISITOR_PASS
+  STUDENT_ID_CARD
+  STAFF_ID_CARD
 }
 
 enum DocumentOwnerType {
   STUDENT
+  STAFF
+  VISITOR
 }
 
 enum GeneratedDocumentStatus {
@@ -176,6 +186,9 @@ enum GeneratedDocumentStatus {
 
 enum ApprovalEntityType {
   LEAVE
+  MAINTENANCE
+  PURCHASE
+  BUDGET
 }
 
 enum ApprovalRequestStatus {
@@ -240,7 +253,9 @@ model Organization {
   complaintHistories ComplaintHistory[]
   notices     Notice[]
   noticeAudiences NoticeAudience[]
+  noticeAttachments NoticeAttachment[]
   noticeReads NoticeRead[]
+  complaintAttachments ComplaintAttachment[]
   visitors    Visitor[]
   visitorHistories VisitorHistory[]
   assetCategories AssetCategory[]
@@ -264,14 +279,22 @@ model Organization {
   feePayments FeePayment[]
   registrationRequests OrganizationRegistrationRequest[]
   passwordResetTokens PasswordResetToken[]
+  operationalRequests OperationalRequest[]
+  parentStudentLinks ParentStudentLink[]
+  subscription OrganizationSubscription?
+  transportRoutes TransportRoute[]
+  transportStops TransportStop[]
+  transportVehicles TransportVehicle[]
+  transportAssignments StudentTransportAssignment[]
 
   @@index([status])
 }
 
 model OrganizationRegistrationRequest {
-  id               String   @id @default(uuid()) @db.Uuid
-  organizationName String
-  contactEmail     String   @unique
+  id                        String   @id @default(uuid()) @db.Uuid
+  organizationName          String
+  preferredOrganizationCode String?
+  contactEmail              String   @unique
   contactFirstName String
   contactLastName  String
   contactPhone     String?  @unique
@@ -307,10 +330,12 @@ model OrganizationSettings {
   notificationDefaults   Json?
   documentSettings       Json?
   operationalPreferences Json?
+  logoFileId             String?  @db.Uuid
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  logoFile     File?        @relation("OrganizationLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
 }
 
 model Venue {
@@ -388,6 +413,7 @@ model User {
   userRoles       UserRole[]
   refreshSessions RefreshSession[]
   staffProfile    Staff?
+  studentProfile  Student?
   correctedAttendance StaffAttendance[] @relation("AttendanceCorrectedBy")
   decidedLeaveRequests LeaveRequest[] @relation("LeaveRequestDecidedBy")
   createdComplaints Complaint[] @relation("ComplaintCreatedBy")
@@ -412,8 +438,11 @@ model User {
   recordedFeePayments FeePayment[] @relation("FeePaymentCreatedBy")
   approvedRegistrations OrganizationRegistrationRequest[] @relation("ApprovedBy")
   passwordResetTokens PasswordResetToken[]
+  submittedOperationalRequests OperationalRequest[] @relation("OperationalRequestSubmittedBy")
+  parentStudentLinks ParentStudentLink[] @relation("ParentStudentLinkParent")
 
   @@unique([organizationId, email])
+  @@unique([email])
   @@index([organizationId, status])
 }
 
@@ -429,6 +458,7 @@ model Role {
   rolePermissions RolePermission[]
   userRoles       UserRole[]
   approvalLevels  ApprovalLevel[] @relation("ApprovalLevelRole")
+  refreshSessions RefreshSession[]
 
   /// Organization-scoped uniqueness. Platform roles (organizationId = null) also rely on
   /// manual SQL index Role_platform_code_key — see prisma/MIGRATION-NOTES.md.
@@ -483,14 +513,17 @@ model RefreshSession {
   userAgent           String?
   ipAddress           String?
   lastUsedAt          DateTime?
+  activeRoleId        String?   @db.Uuid
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user       User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  activeRole Role? @relation(fields: [activeRoleId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([expiresAt])
   @@index([userId, revokedAt])
+  @@index([activeRoleId])
 }
 
 model PasswordResetToken {
@@ -561,6 +594,7 @@ model Staff {
   assignedComplaints Complaint[]
   hostedVisitors     Visitor[] @relation("VisitorHost")
   assignedAssets     Asset[] @relation("AssetAssignedStaff")
+  drivenVehicles     TransportVehicle[] @relation("TransportVehicleDriver")
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId, employeeCode])
@@ -690,9 +724,13 @@ model File {
 
   organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   createdBy        User          @relation("FileCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  staffPhotos      Staff[]       @relation("StaffPhoto")
-  leaveAttachments LeaveRequest[] @relation("LeaveAttachment")
-  generatedDocuments GeneratedDocument[]
+  staffPhotos           Staff[]              @relation("StaffPhoto")
+  leaveAttachments      LeaveRequest[]     @relation("LeaveAttachment")
+  generatedDocuments    GeneratedDocument[]
+  complaintAttachments  ComplaintAttachment[]
+  noticeAttachments     NoticeAttachment[]
+  visitorPhotos         Visitor[]            @relation("VisitorPhoto")
+  organizationLogos     OrganizationSettings[] @relation("OrganizationLogo")
 
   @@index([organizationId, createdAt])
   @@index([organizationId, id])
@@ -701,22 +739,34 @@ model File {
 model Student {
   id             String        @id @default(uuid()) @db.Uuid
   organizationId String        @db.Uuid
+  userId         String?       @unique @db.Uuid
   studentCode    String
   firstName      String
   lastName       String
   displayName    String?
   dateOfBirth    DateTime?     @db.Date
   className      String?
+  studentClass   String?       @map("class")
+  section        String?
+  rollNumber     String?
+  guardianName   String?
+  guardianPhone  String?
+  academicYear   String?
   status         StudentStatus @default(ACTIVE)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  studentFees  StudentFee[]
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  studentFees      StudentFee[]
+  assignedAssets   Asset[]      @relation("AssetAssignedStudent")
+  parentLinks      ParentStudentLink[]
+  transportAssignments StudentTransportAssignment[]
 
   @@unique([organizationId, studentCode])
   @@index([organizationId, status])
   @@index([organizationId, lastName])
+  @@index([organizationId, studentClass])
 }
 
 model DocumentTemplate {
@@ -781,8 +831,9 @@ model Complaint {
 
   organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   createdBy       User               @relation("ComplaintCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  assignedToStaff Staff?             @relation(fields: [assignedToStaffId], references: [id], onDelete: Restrict)
+  assignedToStaff Staff?                 @relation(fields: [assignedToStaffId], references: [id], onDelete: Restrict)
   history         ComplaintHistory[]
+  attachments     ComplaintAttachment[]
 
   @@unique([organizationId, complaintCode])
   @@index([organizationId, status])
@@ -826,6 +877,7 @@ model Notice {
   createdBy    User             @relation("NoticeCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   audiences    NoticeAudience[]
   reads        NoticeRead[]
+  attachments  NoticeAttachment[]
 
   @@index([organizationId, status])
   @@index([organizationId, publishedAt])
@@ -847,6 +899,36 @@ model NoticeAudience {
 
   @@index([organizationId, noticeId])
   @@index([organizationId, departmentId])
+}
+
+model NoticeAttachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  noticeId       String   @db.Uuid
+  fileId         String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  notice       Notice       @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  file         File         @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@unique([noticeId, fileId])
+  @@index([organizationId, noticeId])
+}
+
+model ComplaintAttachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  complaintId    String   @db.Uuid
+  fileId         String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  complaint    Complaint    @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  file         File         @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@unique([complaintId, fileId])
+  @@index([organizationId, complaintId])
 }
 
 model NoticeRead {
@@ -881,6 +963,7 @@ model Visitor {
   checkOutAt       DateTime?
   status           VisitorStatus
   remarks          String?
+  photoFileId      String?       @db.Uuid
   createdByUserId  String        @db.Uuid
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -888,6 +971,7 @@ model Visitor {
   organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   hostStaff     Staff            @relation("VisitorHost", fields: [hostStaffId], references: [id], onDelete: Restrict)
   createdBy     User             @relation("VisitorCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  photoFile     File?            @relation("VisitorPhoto", fields: [photoFileId], references: [id], onDelete: SetNull)
   history       VisitorHistory[]
 
   @@unique([organizationId, visitorCode])
@@ -945,8 +1029,9 @@ model Asset {
   warrantyEndDate  DateTime?   @db.Date
   departmentId     String?     @db.Uuid
   location         String?
-  assignedStaffId  String?     @db.Uuid
-  status           AssetStatus
+  assignedStaffId    String?     @db.Uuid
+  assignedStudentId  String?     @db.Uuid
+  status             AssetStatus
   retiredAt        DateTime?
   retirementReason String?
   createdByUserId  String      @db.Uuid
@@ -956,8 +1041,9 @@ model Asset {
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   category       AssetCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   department     Department?         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  assignedStaff  Staff?              @relation("AssetAssignedStaff", fields: [assignedStaffId], references: [id], onDelete: Restrict)
-  createdBy      User                @relation("AssetCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  assignedStaff    Staff?              @relation("AssetAssignedStaff", fields: [assignedStaffId], references: [id], onDelete: Restrict)
+  assignedStudent  Student?            @relation("AssetAssignedStudent", fields: [assignedStudentId], references: [id], onDelete: SetNull)
+  createdBy        User                @relation("AssetCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   maintenances   AssetMaintenance[]
   transfers      AssetTransfer[]
   history        AssetHistory[]
@@ -970,6 +1056,7 @@ model Asset {
   @@index([organizationId, categoryId])
   @@index([organizationId, departmentId])
   @@index([organizationId, assignedStaffId])
+  @@index([organizationId, assignedStudentId])
   @@index([organizationId, serialNumber])
   @@index([organizationId, barcode])
   @@index([organizationId, createdAt])
@@ -1111,6 +1198,41 @@ model ApprovalAction {
   @@index([approvalRequestId, createdAt])
 }
 
+model OperationalRequest {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @db.Uuid
+  requestType    ApprovalEntityType
+  title          String
+  description    String
+  amount         Decimal?              @db.Decimal(12, 2)
+  status         ApprovalRequestStatus @default(PENDING)
+  submittedById  String                @db.Uuid
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  submittedBy  User         @relation("OperationalRequestSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([organizationId, requestType])
+}
+
+model ParentStudentLink {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  parentUserId   String   @db.Uuid
+  studentId      String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  parent       User         @relation("ParentStudentLinkParent", fields: [parentUserId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentUserId, studentId])
+  @@index([organizationId, parentUserId])
+  @@index([organizationId, studentId])
+}
+
 model AuditLog {
   id             String   @id @default(uuid()) @db.Uuid
   organizationId String   @db.Uuid
@@ -1154,16 +1276,19 @@ model Notification {
 }
 
 model FeeStructure {
-  id             String             @id @default(uuid()) @db.Uuid
-  organizationId String             @db.Uuid
-  name           String
-  description    String?
-  amount         Decimal            @db.Decimal(12, 2)
-  periodStart    DateTime           @db.Date
-  periodEnd      DateTime           @db.Date
-  status         FeeStructureStatus @default(ACTIVE)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id               String             @id @default(uuid()) @db.Uuid
+  organizationId   String             @db.Uuid
+  name             String
+  description      String?
+  amount           Decimal            @db.Decimal(12, 2)
+  periodStart      DateTime           @db.Date
+  periodEnd        DateTime           @db.Date
+  installmentLabel String?
+  dueDate          DateTime?          @db.Date
+  academicYear     String?
+  status           FeeStructureStatus @default(ACTIVE)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   studentFees  StudentFee[]
@@ -1211,4 +1336,113 @@ model FeePayment {
 
   @@index([organizationId, studentFeeId])
   @@index([organizationId, paymentDate])
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  CANCELLED
+}
+
+model Plan {
+  id           String   @id @default(uuid()) @db.Uuid
+  code         String   @unique
+  name         String
+  studentLimit Int
+  staffLimit   Int
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions OrganizationSubscription[]
+}
+
+model OrganizationSubscription {
+  id                 String             @id @default(uuid()) @db.Uuid
+  organizationId     String             @unique @db.Uuid
+  planId             String             @db.Uuid
+  status             SubscriptionStatus @default(TRIAL)
+  currentPeriodStart DateTime           @default(now())
+  currentPeriodEnd   DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Restrict)
+}
+
+model TransportRoute {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  code           String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  stops        TransportStop[]
+  assignments  StudentTransportAssignment[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, active])
+}
+
+model TransportStop {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @db.Uuid
+  routeId        String  @db.Uuid
+  name           String
+  sequence       Int
+  address        String?
+  pickupTime     String?
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  route        TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  assignments  StudentTransportAssignment[]
+
+  @@unique([routeId, sequence])
+  @@index([organizationId, routeId])
+}
+
+model TransportVehicle {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String   @db.Uuid
+  registrationNumber String
+  vehicleType        String
+  capacity           Int
+  driverStaffId      String?  @db.Uuid
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  driver       Staff?       @relation("TransportVehicleDriver", fields: [driverStaffId], references: [id], onDelete: SetNull)
+  assignments  StudentTransportAssignment[]
+
+  @@unique([organizationId, registrationNumber])
+  @@index([organizationId, active])
+}
+
+model StudentTransportAssignment {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  studentId      String    @db.Uuid
+  routeId        String    @db.Uuid
+  stopId         String    @db.Uuid
+  vehicleId      String?   @db.Uuid
+  effectiveFrom  DateTime  @db.Date
+  effectiveTo    DateTime? @db.Date
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  student      Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  route        TransportRoute   @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  stop         TransportStop    @relation(fields: [stopId], references: [id], onDelete: Restrict)
+  vehicle      TransportVehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, studentId])
+  @@index([organizationId, routeId])
+  @@index([organizationId, vehicleId])
 }

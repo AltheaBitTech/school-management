@@ -8,10 +8,11 @@ import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
 import SvgIcon from '@mui/material/SvgIcon';
 import Typography from '@mui/material/Typography';
+import BarChartOutlined from '@mui/icons-material/BarChartOutlined';
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { EmptyState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
 import {
   getVisibleReports,
@@ -41,21 +42,22 @@ export default function ReportsHubPage() {
   const hasReports = sections.length > 0;
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Reports"
-        description="Operational reports for your school. Open a report to filter by date, department, status, and other criteria supported by that module."
-      />
-
-      {!isReady ? (
-        <Typography color="text.secondary">Loading available reports…</Typography>
-      ) : null}
+    <ListPageShell
+      title="Reports"
+      description="Operational reports for your school. Open a report to filter by date, department, status, and other criteria supported by that module."
+      icon={BarChartOutlined}
+    >
+      {!isReady ? <LoadingState label="Loading available reports" columnCount={3} /> : null}
 
       {isReady && !hasReports ? (
-        <EmptyState message="No reports are available for your account. Contact your school administrator if you need access." />
+        <EmptyState
+          icon={BarChartOutlined}
+          message="No reports are available for your account. Contact your school administrator if you need access."
+        />
       ) : null}
 
-      {sections.map((section) => (
+      {isReady && hasReports
+        ? sections.map((section) => (
         <Box key={section.group}>
           <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
             {section.label}
@@ -96,7 +98,8 @@ export default function ReportsHubPage() {
             ))}
           </Box>
         </Box>
-      ))}
-    </Stack>
+      ))
+        : null}
+    </ListPageShell>
   );
 }

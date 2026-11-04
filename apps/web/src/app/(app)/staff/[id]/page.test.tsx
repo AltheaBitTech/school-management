@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import StaffDetailPage from '@/app/(app)/staff/[id]/page';
 import { ApiError } from '@/lib/api/client';
+import { renderWithAppProviders } from '@/test/render-app';
 
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -12,11 +13,19 @@ vi.mock('next/link', () => ({
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'staff-1' }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock('@/lib/attendance/attendance-client', () => ({
   listAttendance: vi.fn().mockResolvedValue({ data: [] }),
   formatAttendanceStatus: (status: string) => status,
+}));
+
+vi.mock('@/lib/leave/leave-client', () => ({
+  listLeaveBalances: vi.fn().mockResolvedValue({ data: [] }),
+  listLeaveRequests: vi.fn().mockResolvedValue({ data: [] }),
+  listLeaveTypes: vi.fn().mockResolvedValue({ data: [] }),
+  formatLeaveStatus: (status: string) => status.replace(/_/g, ' '),
 }));
 
 vi.mock('@/lib/rbac/roles-client', () => ({
@@ -27,6 +36,8 @@ vi.mock('@/lib/staff/staff-client', () => ({
   getStaff: vi.fn(),
   getStaffDisplayName: (staff: { firstName: string; lastName: string }) =>
     `${staff.firstName} ${staff.lastName}`,
+  getStaffInitials: (staff: { firstName: string; lastName: string }) =>
+    `${staff.firstName[0] ?? ''}${staff.lastName[0] ?? ''}`.toUpperCase(),
   deactivateStaff: vi.fn(),
   provisionStaffLogin: vi.fn(),
 }));
@@ -58,64 +69,64 @@ describe('StaffDetailPage', () => {
     ]);
   });
 
-  it('shows Create Login when userId is null', async () => {
-    render(<StaffDetailPage />);
+  it('shows Send Invite when userId is null', async () => {
+    renderWithAppProviders(<StaffDetailPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Rajesh Kumar')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('button', { name: 'Create Login' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send invite/i })).toBeInTheDocument();
     expect(screen.getByText('Not provisioned')).toBeInTheDocument();
   });
 
-  it('hides Create Login when login is already linked', async () => {
+  it('hides Send Invite when login is already linked', async () => {
     vi.mocked(getStaff).mockResolvedValue({
       ...baseStaff,
       userId: 'user-1',
     });
 
-    render(<StaffDetailPage />);
+    renderWithAppProviders(<StaffDetailPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Linked')).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole('button', { name: 'Create Login' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /send invite/i })).not.toBeInTheDocument();
   });
 
   it('provisions login successfully from the dialog', async () => {
     vi.mocked(provisionStaffLogin).mockResolvedValue({
       staff: { ...baseStaff, userId: 'user-1' },
       loginEmail: 'rajesh.kumar@example.com',
+      inviteUrl: 'https://app.example/reset-password?token=abc&isInvite=true',
+      inviteExpiresAt: '2024-01-02T00:00:00.000Z',
     });
 
-    render(<StaffDetailPage />);
+    renderWithAppProviders(<StaffDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Create Login' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send invite/i })).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getAllByRole('button', { name: 'Create Login' })[0]!);
+      fireEvent.click(screen.getAllByRole('button', { name: /send invite/i })[0]!);
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Create Login' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Send login invite' })).toBeInTheDocument();
     });
 
-    const passwordInput = document.querySelector('input[type="password"]');
-    expect(passwordInput).toBeTruthy();
-    fireEvent.change(passwordInput!, { target: { value: 'TemporaryPass123!' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create Login' }));
+    expect(document.querySelector('input[type="password"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /send invite/i }));
 
     await waitFor(() => {
       expect(provisionStaffLogin).toHaveBeenCalledWith('staff-1', {
         email: 'rajesh.kumar@example.com',
-        password: 'TemporaryPass123!',
         roleId: 'role-1',
       });
-      expect(screen.getByText(/Login account created for rajesh.kumar@example.com/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Login created for Rajesh Kumar/i })).toBeInTheDocument();
+      expect(screen.getByDisplayValue('https://app.example/reset-password?token=abc&isInvite=true')).toBeInTheDocument();
     });
   });
 
@@ -124,24 +135,21 @@ describe('StaffDetailPage', () => {
       new ApiError('A user with this email already exists in the organization', 409),
     );
 
-    render(<StaffDetailPage />);
+    renderWithAppProviders(<StaffDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Create Login' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send invite/i })).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getAllByRole('button', { name: 'Create Login' })[0]!);
+      fireEvent.click(screen.getAllByRole('button', { name: /send invite/i })[0]!);
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Create Login' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Send login invite' })).toBeInTheDocument();
     });
 
-    const passwordInput = document.querySelector('input[type="password"]');
-    expect(passwordInput).toBeTruthy();
-    fireEvent.change(passwordInput!, { target: { value: 'TemporaryPass123!' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create Login' }));
+    fireEvent.click(screen.getByRole('button', { name: /send invite/i }));
 
     await waitFor(() => {
       expect(
@@ -153,7 +161,7 @@ describe('StaffDetailPage', () => {
   it('shows forbidden state when staff detail cannot be loaded', async () => {
     vi.mocked(getStaff).mockRejectedValue(new ApiError('Forbidden', 403));
 
-    render(<StaffDetailPage />);
+    renderWithAppProviders(<StaffDetailPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/do not have permission/i)).toBeInTheDocument();
@@ -163,14 +171,14 @@ describe('StaffDetailPage', () => {
   it('shows role loading error state in the dialog', async () => {
     vi.mocked(listOrganizationRoles).mockRejectedValue(new ApiError('Forbidden', 403));
 
-    render(<StaffDetailPage />);
+    renderWithAppProviders(<StaffDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Create Login' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send invite/i })).toBeInTheDocument();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getAllByRole('button', { name: 'Create Login' })[0]!);
+      fireEvent.click(screen.getAllByRole('button', { name: /send invite/i })[0]!);
     });
 
     await waitFor(() => {

@@ -1,5 +1,6 @@
 'use client';
 
+import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -19,6 +20,8 @@ import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { ReportExportCsvButton } from '@/components/ui/ReportExportCsvButton';
+import { ReportFilterPanel } from '@/components/ui/ReportFilterPanel';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { formatCurrency, listFeeStructures, type FeeStructure } from '@/lib/fees/fees-client';
 import { isFeeReportForbiddenError } from '@/lib/reports/fee-report-errors';
@@ -121,15 +124,25 @@ export default function FeesReportPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
+        icon={ReceiptLongOutlined}
         title="Fees report"
         description={
           dateScope === 'ASSIGNED'
             ? 'Date filters apply to student fee assignment (createdAt) in the organization timezone. Amounts use the same outstanding rules as Fees.'
             : 'Date filters apply to fee payment dates (FeePayment.paymentDate). Collection metrics count payments recorded in the selected period.'
         }
+        actions={
+          <ReportExportCsvButton
+            exportPath="/reports/fees/export.csv"
+            queryParams={queryParams}
+            filename="fees-report.csv"
+            rowCount={report?.data.length ?? 0}
+            onError={setErrorMessage}
+          />
+        }
       />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} flexWrap="wrap">
+      <ReportFilterPanel>
         <TextField
           select
           label="Date scope"
@@ -199,7 +212,7 @@ export default function FeesReportPage() {
             </MenuItem>
           ))}
         </TextField>
-      </Stack>
+      </ReportFilterPanel>
 
       {filterError ? <Alert severity="warning">{filterError}</Alert> : null}
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}

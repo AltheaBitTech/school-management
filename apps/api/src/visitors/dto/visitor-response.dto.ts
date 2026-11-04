@@ -81,6 +81,9 @@ export class VisitorDto {
   @ApiPropertyOptional({ nullable: true })
   remarks?: string | null;
 
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  photoFileId?: string | null;
+
   @ApiProperty({ format: 'uuid' })
   createdByUserId!: string;
 

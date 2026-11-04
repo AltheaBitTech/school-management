@@ -42,7 +42,6 @@ export default function OnboardingPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
-  const [staffPassword, setStaffPassword] = useState('');
   const [roleId, setRoleId] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -109,13 +108,12 @@ export default function OnboardingPage() {
         employeeCode,
         firstName,
         lastName,
-        email: staffEmail || undefined,
+        email: staffEmail.trim(),
       });
 
-      if (staffEmail && staffPassword && roleId) {
+      if (staffEmail.trim() && roleId) {
         await provisionStaffLogin(staff.id, {
-          email: staffEmail,
-          password: staffPassword,
+          email: staffEmail.trim(),
           roleId,
         });
       }
@@ -125,7 +123,6 @@ export default function OnboardingPage() {
       setFirstName('');
       setLastName('');
       setStaffEmail('');
-      setStaffPassword('');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to add staff member');
     } finally {
@@ -232,17 +229,12 @@ export default function OnboardingPage() {
                   fullWidth
                 />
                 <TextField
-                  label="Login email"
+                  label="Work email *"
                   type="email"
                   value={staffEmail}
                   onChange={(event) => setStaffEmail(event.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Temporary password"
-                  type="password"
-                  value={staffPassword}
-                  onChange={(event) => setStaffPassword(event.target.value)}
+                  required
+                  helperText="Used to send the login invite"
                   fullWidth
                 />
                 <TextField

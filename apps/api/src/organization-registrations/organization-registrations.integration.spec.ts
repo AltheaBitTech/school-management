@@ -266,7 +266,7 @@ describeIfDatabase('Organization registrations integration', () => {
       platformAdminUserId,
     );
 
-    expect(approval.organizationCode).toMatch(/^school-[a-z0-9]+$/);
+    expect(approval.organizationCode).toBe('onboarding-test-school');
     expect(approval.completeSignupUrl).toContain(registration.id);
     expect(approval.completeSignupUrl).toContain(approval.organizationCode);
 
@@ -282,12 +282,14 @@ describeIfDatabase('Organization registrations integration', () => {
 
     const loginResult = await authService.login(
       {
-        organizationCode: approval.organizationCode,
         email: contactEmail,
         password: 'NewSchoolAdmin123!',
       },
       {},
     );
+    if (!('user' in loginResult)) {
+      throw new Error('Expected a single-role login session');
+    }
     expect(loginResult.user.organizationId).toBe(approval.organizationId);
 
     const auditLogs = await prisma.auditLog.findMany({

@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import NewVisitorPage from '@/app/(app)/visitors/new/page';
 import { ApiError } from '@/lib/api/client';
+import { renderWithAppProviders } from '@/test/render-app';
 
 const push = vi.fn();
 
@@ -16,28 +17,18 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-vi.mock('@/lib/staff/staff-client', () => ({
-  listStaff: vi.fn().mockResolvedValue({
-    data: [
-      {
-        id: 'staff-1',
-        organizationId: 'org-1',
-        employeeCode: 'EMP-1',
-        firstName: 'Host',
-        lastName: 'Staff',
-        employmentStatus: 'ACTIVE',
-        createdAt: '2026-09-01T00:00:00.000Z',
-        updatedAt: '2026-09-01T00:00:00.000Z',
-      },
-    ],
-    meta: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
-  }),
-  getStaffDisplayName: (staff: { firstName: string; lastName: string }) =>
-    `${staff.firstName} ${staff.lastName}`,
-}));
-
 vi.mock('@/lib/visitors/visitors-client', () => ({
   createVisitor: vi.fn(),
+  listVisitorHostStaff: vi.fn().mockResolvedValue([
+    {
+      id: 'staff-1',
+      employeeCode: 'EMP-1',
+      firstName: 'Host',
+      lastName: 'Staff',
+    },
+  ]),
+  getVisitorHostStaffDisplayName: (staff: { firstName: string; lastName: string }) =>
+    `${staff.firstName} ${staff.lastName}`,
 }));
 
 import { createVisitor } from '@/lib/visitors/visitors-client';
@@ -49,7 +40,7 @@ describe('NewVisitorPage', () => {
   });
 
   it('requires core fields before submit', () => {
-    render(<NewVisitorPage />);
+    renderWithAppProviders(<NewVisitorPage />);
     expect(screen.getByRole('textbox', { name: 'Visitor name' })).toBeRequired();
     expect(screen.getByRole('textbox', { name: 'Mobile' })).toBeRequired();
     expect(screen.getByRole('textbox', { name: 'Purpose' })).toBeRequired();
@@ -71,7 +62,7 @@ describe('NewVisitorPage', () => {
       updatedAt: '2026-09-16T10:00:00.000Z',
     });
 
-    render(<NewVisitorPage />);
+    renderWithAppProviders(<NewVisitorPage />);
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Visitor name' }), {
       target: { value: 'Ramesh Kumar' },
@@ -85,7 +76,7 @@ describe('NewVisitorPage', () => {
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Host staff' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Host Staff' }));
 
-    fireEvent.click(screen.getByRole('button', { name: /Register & Check In/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Register & check in/i }));
 
     await waitFor(() => {
       expect(createVisitor).toHaveBeenCalledWith(
@@ -103,7 +94,7 @@ describe('NewVisitorPage', () => {
   it('shows a forbidden state on 403 responses', async () => {
     vi.mocked(createVisitor).mockRejectedValue(new ApiError('Forbidden', 403));
 
-    render(<NewVisitorPage />);
+    renderWithAppProviders(<NewVisitorPage />);
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Visitor name' }), {
       target: { value: 'Ramesh Kumar' },
@@ -116,7 +107,7 @@ describe('NewVisitorPage', () => {
     });
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Host staff' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Host Staff' }));
-    fireEvent.click(screen.getByRole('button', { name: /Register & Check In/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Register & check in/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Access denied')).toBeInTheDocument();

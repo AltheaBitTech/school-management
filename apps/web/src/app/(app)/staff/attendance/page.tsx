@@ -1,6 +1,8 @@
 'use client';
 
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -8,11 +10,15 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import { useEffect, useState } from 'react';
+import { AttendanceFeatureGate } from '@/components/features/AttendanceFeatureGate';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
-import { ApiError } from '@/lib/api/client';
+import { ApiError, apiClient } from '@/lib/api/client';
+import Paper from '@mui/material/Paper';
+import Skeleton from '@mui/material/Skeleton';
+import Typography from '@mui/material/Typography';
 import { formatAttendanceStatus } from '@/lib/attendance/attendance-client';
 import {
   formatAttendanceTime,
@@ -20,7 +26,7 @@ import {
   type StaffSelfAttendanceRecord,
 } from '@/lib/staff-self/staff-self-client';
 
-export default function StaffAttendancePage() {
+function StaffAttendancePageContent() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [records, setRecords] = useState<StaffSelfAttendanceRecord[]>([]);
@@ -71,9 +77,11 @@ export default function StaffAttendancePage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader title="My attendance" description="Your attendance history for the selected period." />
-
+    <ListPageShell
+      title="My attendance"
+      description="Your attendance history for the selected period."
+      icon={FactCheckOutlined}
+      filters={
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
         <TextField
           label="From date"
@@ -92,13 +100,15 @@ export default function StaffAttendancePage() {
           fullWidth
         />
       </Stack>
-
+      }
+    >
+      <MyAttendanceQr />
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {isLoading ? (
         <LoadingState label="Loading attendance…" />
       ) : records.length === 0 ? (
-        <EmptyState message="No attendance records for this period." />
+        <EmptyState icon={FactCheckOutlined} message="No attendance records for this period." />
       ) : (
         <AppTable>
           <TableHead>
@@ -128,6 +138,45 @@ export default function StaffAttendancePage() {
           </TableBody>
         </AppTable>
       )}
-    </Stack>
+    </ListPageShell>
+  );
+}
+
+export default function StaffAttendancePage() {
+  return (
+    <AttendanceFeatureGate>
+      <StaffAttendancePageContent />
+    </AttendanceFeatureGate>
+  );
+}
+
+function MyAttendanceQr() {
+  const [qr, setQr] = useState<{ qrCodeDataUrl: string; expiresAt: string } | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void apiClient
+      .get<{ data: { qrCodeDataUrl: string; expiresAt: string } }>('/me/attendance-qr', { auth: true })
+      .then((response) => setQr(response.data))
+      .catch(() => setMessage('Your attendance QR is available after your staff profile is linked.'));
+  }, []);
+
+  if (message) {
+    return <Alert severity="info">{message}</Alert>;
+  }
+  if (!qr) {
+    return <Skeleton variant="rounded" height={172} aria-label="Loading your attendance QR" />;
+  }
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+      <Box component="img" src={qr.qrCodeDataUrl} alt="Your attendance QR code" sx={{ width: 140, height: 140 }} />
+      <Stack spacing={0.5}>
+        <Typography variant="h6">My QR</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Show this at the desk. It expires {new Date(qr.expiresAt).toLocaleString()}.
+        </Typography>
+      </Stack>
+    </Paper>
   );
 }

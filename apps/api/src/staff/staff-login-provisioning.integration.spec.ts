@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
@@ -12,6 +13,7 @@ import { RefreshSessionService } from '../auth/services/refresh-session.service'
 import { TokenService } from '../auth/services/token.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { CONFIGURATION_KEY } from '../config/configuration';
 import { AUTH_CONFIG_KEY } from '../config/auth.configuration';
 import { PermissionsService } from '../permissions/permissions.service';
 import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions';
@@ -112,14 +114,6 @@ describeIfDatabase('Staff login provisioning integration', () => {
       permissionsService,
       auditService,
     );
-    staffLoginProvisioningService = new StaffLoginProvisioningService(
-      prisma as unknown as PrismaService,
-      passwordService,
-      rolesService,
-      auditService,
-    );
-    const departmentsService = new DepartmentsService(prisma as unknown as PrismaService);
-    staffService = new StaffService(prisma as unknown as PrismaService, departmentsService);
 
     const configService = {
       get: (key: string) => {
@@ -130,10 +124,23 @@ describeIfDatabase('Staff login provisioning integration', () => {
             refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
           };
         }
+        if (key === CONFIGURATION_KEY) {
+          return { corsOrigin: 'http://localhost:3000' };
+        }
 
         return undefined;
       },
     };
+
+    staffLoginProvisioningService = new StaffLoginProvisioningService(
+      prisma as unknown as PrismaService,
+      rolesService,
+      auditService,
+      configService as unknown as ConfigService,
+    );
+    const departmentsService = new DepartmentsService(prisma as unknown as PrismaService);
+    staffService = new StaffService(prisma as unknown as PrismaService, departmentsService);
+
     const jwtService = new JwtService({});
     const tokenService = new TokenService(
       jwtService,
@@ -161,6 +168,9 @@ describeIfDatabase('Staff login provisioning integration', () => {
       where: { user: { organizationId: { in: [orgAId, orgBId] } } },
     });
     await prisma.staff.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
+    await prisma.passwordResetToken.deleteMany({
+      where: { user: { organizationId: { in: [orgAId, orgBId] } } },
+    });
     await prisma.user.deleteMany({ where: { organizationId: { in: [orgAId, orgBId] } } });
     await prisma.rolePermission.deleteMany({
       where: { role: { organizationId: { in: [orgAId, orgBId] } } },
@@ -170,7 +180,7 @@ describeIfDatabase('Staff login provisioning integration', () => {
     await prisma.$disconnect();
   });
 
-  it('provisions login, links staff, assigns role, audits, and authenticates', async () => {
+  it('provisions login, links staff, assigns role, audits, and returns invite link', async () => {
     const staff = await staffService.create(orgAId, {
       employeeCode: 'provision-001',
       firstName: 'Rajesh',
@@ -178,65 +188,35 @@ describeIfDatabase('Staff login provisioning integration', () => {
       email: 'rajesh.kumar@example.com',
     });
 
-    const password = 'TemporaryPass123!';
     const result = await staffLoginProvisioningService.provisionLogin(
       adminActor,
       staff.id,
       {
         email: 'rajesh.kumar@example.com',
-        password,
         roleId: schoolAdminRoleAId,
       },
       { requestId: 'req-provision-1' },
     );
 
     expect(result.loginEmail).toBe('rajesh.kumar@example.com');
+    expect(result.inviteUrl).toContain('isInvite=true');
     expect(result.staff.userId).toBeDefined();
-
-    const linkedStaff = await prisma.staff.findFirst({
-      where: { id: staff.id, organizationId: orgAId },
-    });
-    expect(linkedStaff?.userId).toBe(result.staff.userId);
 
     const createdUser = await prisma.user.findUnique({
       where: { id: result.staff.userId! },
     });
     expect(createdUser?.email).toBe('rajesh.kumar@example.com');
-    expect(createdUser?.passwordHash).toBeDefined();
-    expect(createdUser?.passwordHash).not.toBe(password);
+    expect(createdUser?.passwordHash).toBeNull();
 
-    const userRole = await prisma.userRole.findFirst({
-      where: { userId: createdUser!.id, roleId: schoolAdminRoleAId },
-    });
-    expect(userRole).not.toBeNull();
-
-    const userCreatedAudit = await prisma.auditLog.findFirst({
-      where: {
-        organizationId: orgAId,
-        entityId: createdUser!.id,
-        action: AUDIT_ACTIONS.USER_CREATED,
-      },
-    });
-    expect(userCreatedAudit).not.toBeNull();
-
-    const roleAssignedAudit = await prisma.auditLog.findFirst({
-      where: {
-        organizationId: orgAId,
-        entityId: createdUser!.id,
-        action: AUDIT_ACTIONS.USER_ROLE_ASSIGNED,
-      },
-    });
-    expect(roleAssignedAudit).not.toBeNull();
-
-    const loginResult = await authService.login(
-      {
-        organizationCode: orgACode,
-        email: 'rajesh.kumar@example.com',
-        password,
-      },
-      {},
-    );
-    expect(loginResult.user.organizationId).toBe(orgAId);
+    await expect(
+      authService.login(
+        {
+          email: 'rajesh.kumar@example.com',
+          password: 'TemporaryPass123!',
+        },
+        {},
+      ),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('rejects duplicate provisioning for the same staff member', async () => {
@@ -244,18 +224,17 @@ describeIfDatabase('Staff login provisioning integration', () => {
       employeeCode: 'provision-dup',
       firstName: 'Dup',
       lastName: 'Staff',
+      email: `dup-staff-${Date.now()}@example.com`,
     });
 
     await staffLoginProvisioningService.provisionLogin(adminActor, staff.id, {
       email: `dup-staff-${Date.now()}@example.com`,
-      password: 'TemporaryPass123!',
       roleId: schoolAdminRoleAId,
     });
 
     await expect(
       staffLoginProvisioningService.provisionLogin(adminActor, staff.id, {
         email: `dup-staff-2-${Date.now()}@example.com`,
-        password: 'TemporaryPass123!',
         roleId: schoolAdminRoleAId,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
@@ -266,12 +245,12 @@ describeIfDatabase('Staff login provisioning integration', () => {
       employeeCode: 'cross-provision',
       firstName: 'Cross',
       lastName: 'Tenant',
+      email: `cross-${Date.now()}@example.com`,
     });
 
     await expect(
       staffLoginProvisioningService.provisionLogin(adminActor, staffB.id, {
         email: `cross-${Date.now()}@example.com`,
-        password: 'TemporaryPass123!',
         roleId: schoolAdminRoleBId,
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
@@ -282,12 +261,12 @@ describeIfDatabase('Staff login provisioning integration', () => {
       employeeCode: 'platform-role-staff',
       firstName: 'Platform',
       lastName: 'Blocked',
+      email: `platform-blocked-${Date.now()}@example.com`,
     });
 
     await expect(
       staffLoginProvisioningService.provisionLogin(adminActor, staff.id, {
-        email: `platform-blocked-${Date.now()}@example.com`,
-        password: 'TemporaryPass123!',
+        email: staff.email!,
         roleId: platformRoleId,
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -298,12 +277,12 @@ describeIfDatabase('Staff login provisioning integration', () => {
       employeeCode: 'cross-role-staff',
       firstName: 'Cross',
       lastName: 'Role',
+      email: `cross-role-${Date.now()}@example.com`,
     });
 
     await expect(
       staffLoginProvisioningService.provisionLogin(adminActor, staff.id, {
-        email: `cross-role-${Date.now()}@example.com`,
-        password: 'TemporaryPass123!',
+        email: staff.email!,
         roleId: schoolAdminRoleBId,
       }),
     ).rejects.toMatchObject({

@@ -12,6 +12,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { FeeStructuresService } from './fee-structures.service';
+import { PaymentReceiptPdfService } from './services/payment-receipt-pdf.service';
 import { StudentFeesService } from './student-fees.service';
 
 describe('StudentFeesService', () => {
@@ -38,6 +39,9 @@ describe('StudentFeesService', () => {
       firstName: 'Asha',
       lastName: 'Patel',
       displayName: null,
+      className: null,
+      studentClass: null,
+      section: null,
     },
     feeStructure: {
       id: 'structure-1',
@@ -98,6 +102,7 @@ describe('StudentFeesService', () => {
       prisma,
       feeStructuresService as unknown as FeeStructuresService,
       auditService as unknown as AuditService,
+      { generate: jest.fn() } as unknown as PaymentReceiptPdfService,
     );
   });
 

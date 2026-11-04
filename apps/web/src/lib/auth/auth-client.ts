@@ -1,24 +1,56 @@
 import { ApiError } from '@/lib/api/client';
 import { getApiV1BaseUrl } from '@/lib/api/config';
-import { clearAccessToken, getAccessToken, setAccessToken } from '@/lib/auth/session';
+import { clearAccessToken, getAccessToken, setAccessExpiry, setAccessToken } from '@/lib/auth/session';
 
 export interface AuthUser {
   id: string;
   email: string;
   organizationId: string;
   permissions?: string[];
+  features?: {
+    attendanceEnabled: boolean;
+  };
   organization?: {
     id: string;
     name: string;
     code: string;
     status: string;
   };
+  staff?: {
+    firstName: string;
+    lastName: string;
+    displayName?: string | null;
+  };
+  role?: {
+    name: string;
+    code?: string;
+  };
+  studentId?: string;
 }
 
 export interface AuthSession {
   accessToken: string;
   expiresIn: number;
   user: AuthUser;
+}
+
+export interface LoginRoleOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface LoginContextSelection {
+  contextSelectionRequired: true;
+  selectionToken: string;
+  expiresIn: number;
+  roles: LoginRoleOption[];
+}
+
+export type LoginResult = AuthSession | LoginContextSelection;
+
+export function isAuthSession(result: LoginResult): result is AuthSession {
+  return 'accessToken' in result && typeof result.accessToken === 'string' && result.accessToken.length > 0;
 }
 
 interface AuthResponse {
@@ -58,16 +90,34 @@ async function authRequest<T>(path: string, init: RequestInit = {}): Promise<T> 
 }
 
 export async function login(input: {
-  organizationCode: string;
   email: string;
   password: string;
+}): Promise<LoginResult> {
+  const response = await authRequest<{ data: LoginResult }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+
+  if (!isAuthSession(response.data)) {
+    return response.data;
+  }
+
+  setAccessToken(response.data.accessToken);
+  setAccessExpiry(response.data.expiresIn);
+  return response.data;
+}
+
+export async function selectLoginContext(input: {
+  selectionToken: string;
+  roleId: string;
 }): Promise<AuthSession> {
-  const response = await authRequest<AuthResponse>('/auth/login', {
+  const response = await authRequest<AuthResponse>('/auth/login/context', {
     method: 'POST',
     body: JSON.stringify(input),
   });
 
   setAccessToken(response.data.accessToken);
+  setAccessExpiry(response.data.expiresIn);
   return response.data;
 }
 
@@ -77,6 +127,7 @@ export async function refreshSession(): Promise<AuthSession> {
   });
 
   setAccessToken(response.data.accessToken);
+  setAccessExpiry(response.data.expiresIn);
   return response.data;
 }
 
@@ -96,7 +147,6 @@ export function isForbiddenError(error: unknown): boolean {
 }
 
 export async function requestPasswordReset(input: {
-  organizationCode: string;
   email: string;
 }): Promise<{ message: string }> {
   return authRequest<{ message: string }>('/auth/forgot-password', {

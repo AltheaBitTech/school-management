@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -7,6 +8,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { OrganizationStatus, UserStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
@@ -14,13 +16,23 @@ import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.cons
 import { AppConfig, CONFIGURATION_KEY } from '../config/configuration';
 import { primaryFrontendOrigin } from '../config/cors.util';
 import { PrismaService } from '../prisma/prisma.service';
-import { ensureSchoolAdminRole } from '../roles/organization-role-seed.util';
+import { ensureAllOrganizationRoles, getOrganizationRoleByCode } from '../roles/organization-role-seed.util';
+import { ORGANIZATION_ROLE_CODES } from '../permissions/constants/system-roles';
 import { ensureDefaultAssetCategories } from '../assets/utils/asset-category-seed.util';
 import { ensureDefaultDocumentTemplates } from '../documents/utils/document-template-seed.util';
-import { ensureDefaultLeaveApprovalWorkflow } from '../approvals/utils/approval-workflow-seed.util';
+import {
+  ensureDefaultLeaveApprovalWorkflow,
+  ensureDefaultOperationalApprovalWorkflows,
+} from '../approvals/utils/approval-workflow-seed.util';
 import { EMAIL_PROVIDER, EmailProvider } from '../notifications/providers/email-provider.interface';
 import { PLATFORM_ORGANIZATION_CODE } from '../organizations/constants/organization.constants';
-import { generateUniqueOrganizationCode } from '../organizations/utils/organization-code.util';
+import {
+  generateUniqueOrganizationCodeFromName,
+  isValidOrganizationCode,
+  normalizeOrganizationCode,
+  pickAvailableOrganizationCode,
+} from '../organizations/utils/organization-code.util';
+import { SuggestOrganizationCodeResponseDto } from './dto/suggest-organization-code-response.dto';
 import { CreateOrganizationRegistrationRequestDto } from './dto/create-organization-registration-request.dto';
 import { OrganizationRegistrationResponseDto } from './dto/organization-registration-response.dto';
 import { ApproveOrganizationRegistrationResponseDto } from './dto/approve-organization-registration-response.dto';
@@ -79,14 +91,58 @@ export class OrganizationRegistrationsService {
       });
     }
 
+    const normalizedPhone = dto.contactPhone.trim();
+
+    const existingByPhone = await this.prisma.organizationRegistrationRequest.findUnique({
+      where: { contactPhone: normalizedPhone },
+    });
+
+    if (existingByPhone && existingByPhone.id !== existingRequest?.id) {
+      if (existingByPhone.status === 'PENDING') {
+        throw new ConflictException({
+          code: 'REGISTRATION_PHONE_ALREADY_PENDING',
+          message:
+            'A registration request already exists for this phone number. Check your email for updates or use a different number.',
+        });
+      }
+
+      if (existingByPhone.status === 'REJECTED' || existingByPhone.status === 'APPROVED') {
+        await this.prisma.organizationRegistrationRequest.delete({
+          where: { id: existingByPhone.id },
+        });
+      }
+    }
+
+    const preferredOrganizationCode = dto.preferredOrganizationCode
+      ? normalizeOrganizationCode(dto.preferredOrganizationCode)
+      : null;
+
+    if (preferredOrganizationCode && !isValidOrganizationCode(preferredOrganizationCode)) {
+      throw new BadRequestException({
+        code: 'INVALID_ORGANIZATION_CODE',
+        message: 'School code must be 3-64 characters of lowercase letters, numbers, or hyphens',
+      });
+    }
+
+    if (
+      preferredOrganizationCode &&
+      (await this.isOrganizationCodeReserved(preferredOrganizationCode))
+    ) {
+      throw new ConflictException({
+        code: 'ORGANIZATION_CODE_UNAVAILABLE',
+        message: 'This school code is already taken. Choose another code.',
+      });
+    }
+
     try {
       const request = await this.prisma.organizationRegistrationRequest.create({
         data: {
           organizationName: dto.organizationName,
+          preferredOrganizationCode,
           contactEmail: normalizedEmail,
           contactFirstName: dto.contactFirstName,
           contactLastName: dto.contactLastName,
-          contactPhone: dto.contactPhone,
+          contactPhone: normalizedPhone,
           address: dto.address,
           city: dto.city,
           state: dto.state,
@@ -101,7 +157,32 @@ export class OrganizationRegistrationsService {
         createdAt: request.createdAt,
         message: 'Registration request submitted successfully. We will review and contact you within 1-2 business days.',
       };
-    } catch {
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const target = error.meta?.target;
+        const fields = Array.isArray(target)
+          ? target
+          : typeof target === 'string'
+            ? [target]
+            : [];
+        if (fields.some((field) => field === 'contactEmail' || field.includes('contactEmail'))) {
+          throw new ConflictException({
+            code: 'EMAIL_ALREADY_REGISTERED',
+            message: 'A registration request with this email already exists.',
+          });
+        }
+        if (fields.some((field) => field === 'contactPhone' || field.includes('contactPhone'))) {
+          throw new ConflictException({
+            code: 'REGISTRATION_PHONE_ALREADY_PENDING',
+            message: 'A registration request with this phone number already exists.',
+          });
+        }
+      }
+
+      this.logger.error(
+        error instanceof Error ? error.message : 'Unknown registration error',
+        error instanceof Error ? error.stack : undefined,
+      );
       throw new InternalServerErrorException('Failed to submit registration request');
     }
   }
@@ -180,13 +261,12 @@ export class OrganizationRegistrationsService {
 
     try {
       result = await this.prisma.$transaction(async (tx) => {
-      const code = await generateUniqueOrganizationCode(async (candidate) => {
-        const existing = await tx.organization.findUnique({
-          where: { code: candidate },
-          select: { id: true },
-        });
-        return Boolean(existing);
-      });
+      const code = await generateUniqueOrganizationCodeFromName(
+        registration.organizationName,
+        registration.preferredOrganizationCode,
+        async (candidate) =>
+          this.isOrganizationCodeReserved(candidate, registrationId, tx),
+      );
 
       const organization = await tx.organization.create({
         data: {
@@ -203,6 +283,13 @@ export class OrganizationRegistrationsService {
         },
       });
 
+      const trialPlan = await tx.plan.findUnique({ where: { code: 'TRIAL' } });
+      if (trialPlan) {
+        await tx.organizationSubscription.create({
+          data: { organizationId: organization.id, planId: trialPlan.id, status: 'TRIAL' },
+        });
+      }
+
       const adminUser = await tx.user.create({
         data: {
           organizationId: organization.id,
@@ -212,7 +299,12 @@ export class OrganizationRegistrationsService {
         },
       });
 
-      const schoolAdminRole = await ensureSchoolAdminRole(tx, organization.id);
+      await ensureAllOrganizationRoles(tx, organization.id);
+      const schoolAdminRole = await getOrganizationRoleByCode(
+        tx,
+        organization.id,
+        ORGANIZATION_ROLE_CODES.SCHOOL_ADMIN,
+      );
       await tx.userRole.create({
         data: {
           userId: adminUser.id,
@@ -223,6 +315,7 @@ export class OrganizationRegistrationsService {
       await ensureDefaultAssetCategories(tx, organization.id);
       await ensureDefaultDocumentTemplates(tx, organization.id, adminUser.id);
       await ensureDefaultLeaveApprovalWorkflow(tx, organization.id);
+      await ensureDefaultOperationalApprovalWorkflows(tx, organization.id);
 
       await tx.organizationRegistrationRequest.update({
         where: { id: registrationId },
@@ -345,6 +438,66 @@ export class OrganizationRegistrationsService {
     }
 
     return updated;
+  }
+
+  async suggestOrganizationCode(
+    organizationName: string,
+    preferredCode?: string,
+  ): Promise<SuggestOrganizationCodeResponseDto> {
+    const trimmedName = organizationName.trim();
+    if (trimmedName.length < 3) {
+      throw new BadRequestException({
+        code: 'INVALID_ORGANIZATION_NAME',
+        message: 'School name must be at least 3 characters to suggest a code',
+      });
+    }
+
+    const preferred = preferredCode?.trim()
+      ? normalizeOrganizationCode(preferredCode)
+      : undefined;
+
+    if (preferred && !isValidOrganizationCode(preferred)) {
+      throw new BadRequestException({
+        code: 'INVALID_ORGANIZATION_CODE',
+        message: 'School code must be 3-64 characters of lowercase letters, numbers, or hyphens',
+      });
+    }
+
+    const result = await pickAvailableOrganizationCode(
+      trimmedName,
+      preferred ?? null,
+      (candidate) => this.isOrganizationCodeReserved(candidate),
+    );
+
+    return result;
+  }
+
+  private async isOrganizationCodeReserved(
+    code: string,
+    excludeRegistrationId?: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<boolean> {
+    const client = tx ?? this.prisma;
+    const normalized = normalizeOrganizationCode(code);
+
+    const existingOrg = await client.organization.findUnique({
+      where: { code: normalized },
+      select: { id: true },
+    });
+    if (existingOrg) {
+      return true;
+    }
+
+    const pending = await client.organizationRegistrationRequest.findFirst({
+      where: {
+        preferredOrganizationCode: normalized,
+        status: 'PENDING',
+        ...(excludeRegistrationId ? { id: { not: excludeRegistrationId } } : {}),
+      },
+      select: { id: true },
+    });
+
+    return Boolean(pending);
   }
 
   private buildCompleteSignupUrl(

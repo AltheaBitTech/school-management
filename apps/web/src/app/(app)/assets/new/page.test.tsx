@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderWithAppProviders } from '@/test/render-app';
 import NewAssetPage from '@/app/(app)/assets/new/page';
 import { ApiError } from '@/lib/api/client';
 
@@ -59,7 +60,7 @@ describe('NewAssetPage', () => {
   });
 
   it('requires core fields before submit', async () => {
-    render(<NewAssetPage />);
+    renderWithAppProviders(<NewAssetPage />);
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: 'Category' })).toBeInTheDocument();
     });
@@ -79,7 +80,7 @@ describe('NewAssetPage', () => {
       updatedAt: '2026-09-16T10:00:00.000Z',
     });
 
-    render(<NewAssetPage />);
+    renderWithAppProviders(<NewAssetPage />);
 
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: 'Category' })).toBeInTheDocument();
@@ -106,7 +107,7 @@ describe('NewAssetPage', () => {
   it('shows a forbidden state on 403 responses', async () => {
     vi.mocked(createAsset).mockRejectedValue(new ApiError('Forbidden', 403));
 
-    render(<NewAssetPage />);
+    renderWithAppProviders(<NewAssetPage />);
 
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: 'Category' })).toBeInTheDocument();

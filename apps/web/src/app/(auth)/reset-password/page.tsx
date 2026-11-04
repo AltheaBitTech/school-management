@@ -4,23 +4,46 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
-import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
+import { AuthPageCard } from '@/components/auth/AuthPageCard';
 import { resetPassword } from '@/lib/auth/auth-client';
 
-function ResetPasswordForm() {
+function InviteRecoveryHelp() {
+  return (
+    <Alert severity="info">
+      <Typography variant="body2" component="span">
+        Invite link expired or not working? Use{' '}
+        <Typography
+          component={Link}
+          href="/forgot-password"
+          variant="body2"
+          sx={{ fontWeight: 600 }}
+        >
+          Forgot password
+        </Typography>{' '}
+        with your account email to get a new set-password link (valid for 60 minutes).
+      </Typography>
+    </Alert>
+  );
+}
+
+function ResetPasswordForm({ isInvite }: { isInvite: boolean }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = (searchParams.get('token') ?? '').trim().match(/^[A-Za-z0-9_-]+/)?.[0] ?? '';
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const showInviteRecovery =
+    isInvite || errorMessage?.toLowerCase().includes('invalid or expired');
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -48,6 +71,12 @@ function ResetPasswordForm() {
         token,
         newPassword: password,
       });
+
+      if (isInvite) {
+        router.replace('/login?passwordSet=1');
+        return;
+      }
+
       setSuccessMessage(response.message);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to reset password');
@@ -57,94 +86,116 @@ function ResetPasswordForm() {
   }
 
   if (!token) {
-    return <Alert severity="error">Invalid or missing reset link.</Alert>;
+    return (
+      <Stack spacing={2}>
+        <Alert severity="error">Invalid or missing reset link.</Alert>
+        <InviteRecoveryHelp />
+      </Stack>
+    );
   }
 
   if (successMessage) {
     return (
       <Stack spacing={2}>
         <Alert severity="success">{successMessage}</Alert>
-        <Button component={Link} href="/login" variant="contained" fullWidth>
+        <Button component={Link} href="/login" variant="contained" size="large" fullWidth>
           Go to sign in
         </Button>
       </Stack>
     );
   }
 
+  const submitLabel = isInvite
+    ? isSubmitting
+      ? 'Setting password…'
+      : 'Set password & sign in'
+    : isSubmitting
+      ? 'Resetting…'
+      : 'Reset password';
+
   return (
     <Box component="form" onSubmit={handleSubmit}>
       <Stack spacing={2}>
+        {isInvite ? <InviteRecoveryHelp /> : null}
+
         <TextField
           label="New password"
           name="password"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
+          helperText="Minimum 8 characters"
           required
           fullWidth
-        />
+                  />
         <TextField
           label="Confirm password"
           name="confirmPassword"
           type="password"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
+          helperText="Re-enter your new password"
           required
           fullWidth
-        />
+                  />
 
         {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
-        <Button type="submit" variant="contained" disabled={isSubmitting} fullWidth>
-          {isSubmitting ? 'Resetting…' : 'Reset password'}
+        {showInviteRecovery && !isInvite && errorMessage ? (
+          <InviteRecoveryHelp />
+        ) : null}
+
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          disabled={isSubmitting}
+          fullWidth
+          startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : undefined}
+        >
+          {submitLabel}
         </Button>
+        <Box sx={{ textAlign: 'center' }}>
+          <Button component={Link} href="/login" variant="text">
+            Back to sign in
+          </Button>
+        </Box>
       </Stack>
     </Box>
   );
 }
 
+function ResetPasswordPageContent() {
+  const searchParams = useSearchParams();
+  const isInvite = searchParams.get('isInvite') === 'true';
+
+  return (
+    <AuthPageCard
+      title={isInvite ? 'Welcome to CampusOps!' : 'Reset password'}
+      description={
+        isInvite
+          ? 'Set your password to activate your account and get started.'
+          : 'Choose a new password for your account.'
+      }
+      footerLink={{ href: '/', label: 'Back to home' }}
+    >
+      <ResetPasswordForm isInvite={isInvite} />
+    </AuthPageCard>
+  );
+}
+
 export default function ResetPasswordPage() {
   return (
-    <Box
-      component="main"
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        px: 2,
-        py: 6,
-        bgcolor: 'background.default',
-      }}
+    <Suspense
+      fallback={
+        <AuthPageCard title="Reset password" description="Loading…" footerLink={{ href: '/', label: 'Back to home' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+            <CircularProgress aria-label="Loading reset form" />
+          </Box>
+        </AuthPageCard>
+      }
     >
-      <Paper variant="outlined" sx={{ width: '100%', maxWidth: 440, mx: 'auto', p: { xs: 3, sm: 4 } }}>
-        <Stack spacing={3}>
-          <Stack spacing={0.75}>
-            <Typography variant="h5" component="p" color="primary" sx={{ fontWeight: 700 }}>
-              CampusOps
-            </Typography>
-            <Typography variant="h4" component="h1">
-              Reset password
-            </Typography>
-            <Typography color="text.secondary">
-              Choose a new password for your account.
-            </Typography>
-          </Stack>
-
-          <Suspense
-            fallback={
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                <CircularProgress aria-label="Loading reset form" />
-              </Box>
-            }
-          >
-            <ResetPasswordForm />
-          </Suspense>
-
-          <Button component={Link} href="/login" variant="text">
-            Back to sign in
-          </Button>
-        </Stack>
-      </Paper>
-    </Box>
+      <ResetPasswordPageContent />
+    </Suspense>
   );
 }

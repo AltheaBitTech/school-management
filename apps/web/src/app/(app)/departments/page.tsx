@@ -8,13 +8,18 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import { SubmitButton } from '@/components/forms/SubmitButton';
 import { FormEvent, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
 import { FormActions, FormSection } from '@/components/ui/FormSection';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   createDepartment,
   listDepartments,
@@ -23,6 +28,9 @@ import {
 } from '@/lib/departments/departments-client';
 
 export default function DepartmentsPage() {
+  const canCreate = useCan('department.create');
+  const canUpdate = useCan('department.update');
+  const { showSuccess } = useAppSnackbar();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -65,6 +73,7 @@ export default function DepartmentsPage() {
       await createDepartment({ name, code });
       setName('');
       setCode('');
+      showSuccess('Department created');
       await loadDepartments();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to create department');
@@ -81,6 +90,7 @@ export default function DepartmentsPage() {
       await updateDepartment(departmentId, { name: editingName });
       setEditingId(null);
       setEditingName('');
+      showSuccess('Department updated');
       await loadDepartments();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to update department');
@@ -94,13 +104,12 @@ export default function DepartmentsPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Departments"
-        description="Maintain the departments used for staff assignment."
-      />
-
-      <FormSection title="Create department">
+    <ListPageShell
+      title="Departments"
+      description="Maintain the departments used for staff assignment."
+      icon={AccountTreeOutlined}
+    >
+      {canCreate ? <FormSection title="Create department">
         <Stack spacing={2} component="form" onSubmit={handleCreate}>
           <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} required fullWidth />
           <TextField
@@ -112,19 +121,26 @@ export default function DepartmentsPage() {
             fullWidth
           />
           <FormActions>
-            <Button type="submit" variant="contained" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating…' : 'Create department'}
-            </Button>
+            <SubmitButton
+              isSubmitting={isSubmitting}
+              submittingLabel="Creating…"
+              startIcon={!isSubmitting ? <AddOutlined /> : undefined}
+            >
+              Create department
+            </SubmitButton>
           </FormActions>
         </Stack>
-      </FormSection>
+      </FormSection> : null}
 
-      {isLoading ? <LoadingState label="Loading departments" /> : null}
+      {isLoading ? <LoadingState label="Loading departments" columnCount={4} /> : null}
 
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && departments.length === 0 ? (
-        <EmptyState message="No departments yet. Create one to assign staff members." />
+        <EmptyState
+          icon={AccountTreeOutlined}
+          message="No departments yet. Create one to assign staff members."
+        />
       ) : null}
 
       {!isLoading && departments.length > 0 ? (
@@ -165,7 +181,7 @@ export default function DepartmentsPage() {
                           Cancel
                         </Button>
                       </Stack>
-                    ) : (
+                    ) : canUpdate ? (
                       <Button
                         size="small"
                         onClick={() => {
@@ -175,6 +191,8 @@ export default function DepartmentsPage() {
                       >
                         Edit
                       </Button>
+                    ) : (
+                      '—'
                     )}
                   </TableCell>
                 </TableRow>
@@ -182,6 +200,6 @@ export default function DepartmentsPage() {
             </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

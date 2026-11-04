@@ -1,5 +1,6 @@
 'use client';
 
+import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -24,6 +25,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { PageHeader } from '@/components/ui/PageHeader';
 import {
   assignAsset,
   completeAssetMaintenance,
@@ -34,6 +36,7 @@ import {
   formatMaintenanceType,
   getAsset,
   getAssetStaffDisplayName,
+  getAssetStudentDisplayName,
   isWarrantyActive,
   MAINTENANCE_TYPES,
   retireAsset,
@@ -44,8 +47,10 @@ import {
   type MaintenanceType,
 } from '@/lib/assets/assets-client';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
+import { listStudents, type Student } from '@/lib/students/students-client';
 
 function statusColor(
   status: Asset['status'],
@@ -65,11 +70,17 @@ function statusColor(
 }
 
 export default function AssetDetailPage() {
+  const allowUpdate = useCan('asset.update');
+  const allowAssign = useCan('asset.assign');
+  const allowTransfer = useCan('asset.transfer');
+  const allowMaintenance = useCan('asset.maintenance');
+  const allowRetire = useCan('asset.retire');
   const params = useParams<{ id: string }>();
   const assetId = params.id;
 
   const [asset, setAsset] = useState<Asset | null>(null);
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isForbidden, setIsForbidden] = useState(false);
@@ -78,7 +89,9 @@ export default function AssetDetailPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isActing, setIsActing] = useState(false);
 
+  const [assignTarget, setAssignTarget] = useState<'staff' | 'student'>('staff');
   const [assignStaffId, setAssignStaffId] = useState('');
+  const [assignStudentId, setAssignStudentId] = useState('');
 
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [transferDepartmentId, setTransferDepartmentId] = useState('');
@@ -108,7 +121,7 @@ export default function AssetDetailPage() {
       setIsNotFound(false);
 
       try {
-        const [data, staffResponse, departmentResponse] = await Promise.all([
+        const [data, staffResponse, studentResponse, departmentResponse] = await Promise.all([
           getAsset(assetId),
           listStaff({
             page: 1,
@@ -117,11 +130,13 @@ export default function AssetDetailPage() {
             sortOrder: 'asc',
             employmentStatus: 'ACTIVE',
           }),
+          listStudents({ page: 1, pageSize: 100, status: 'ACTIVE' }),
           listDepartments({ page: 1, pageSize: 100, status: 'ACTIVE' }),
         ]);
         if (!cancelled) {
           setAsset(data);
           setStaff(staffResponse.data);
+          setStudents(studentResponse.data);
           setDepartments(departmentResponse.data);
         }
       } catch (error) {
@@ -163,7 +178,13 @@ export default function AssetDetailPage() {
   }
 
   async function handleAssign(): Promise<void> {
-    if (!asset || !assignStaffId) {
+    if (!asset) {
+      return;
+    }
+    if (assignTarget === 'staff' && !assignStaffId) {
+      return;
+    }
+    if (assignTarget === 'student' && !assignStudentId) {
       return;
     }
 
@@ -172,9 +193,15 @@ export default function AssetDetailPage() {
     setSuccessMessage(null);
 
     try {
-      await assignAsset(asset.id, { staffId: assignStaffId });
+      await assignAsset(
+        asset.id,
+        assignTarget === 'staff'
+          ? { staffId: assignStaffId }
+          : { studentId: assignStudentId },
+      );
       await reloadAsset();
       setAssignStaffId('');
+      setAssignStudentId('');
       setSuccessMessage('Asset assigned.');
     } catch (error) {
       await handleActionError(error);
@@ -316,34 +343,32 @@ export default function AssetDetailPage() {
 
   if (isLoading || !asset) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-        <CircularProgress aria-label="Loading asset" />
-      </Box>
+      <Stack spacing={3}>
+        <PageHeader title="Asset" description="Loading this asset." icon={Inventory2Outlined} />
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress aria-label="Loading asset" />
+        </Box>
+      </Stack>
     );
   }
 
   const activeMaintenance = asset.maintenances?.find((entry) => !entry.completedAt);
-  const canAssign = asset.status === 'AVAILABLE' || asset.status === 'ASSIGNED';
-  const canUnassign = asset.status === 'ASSIGNED';
-  const canTransfer = asset.status === 'AVAILABLE' || asset.status === 'ASSIGNED';
-  const canStartMaintenance = asset.status === 'AVAILABLE' || asset.status === 'ASSIGNED';
-  const canCompleteMaintenance = asset.status === 'UNDER_MAINTENANCE' && Boolean(activeMaintenance);
-  const canRetire = asset.status !== 'RETIRED';
+  const canAssign = allowAssign && (asset.status === 'AVAILABLE' || asset.status === 'ASSIGNED');
+  const canUnassign = allowAssign && asset.status === 'ASSIGNED';
+  const canTransfer = allowTransfer && (asset.status === 'AVAILABLE' || asset.status === 'ASSIGNED');
+  const canStartMaintenance = allowMaintenance && (asset.status === 'AVAILABLE' || asset.status === 'ASSIGNED');
+  const canCompleteMaintenance = allowMaintenance && asset.status === 'UNDER_MAINTENANCE' && Boolean(activeMaintenance);
+  const canRetire = allowRetire && asset.status !== 'RETIRED';
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            {asset.name}
-          </Typography>
-          <Typography color="text.secondary">
-            {asset.assetCode}
-            {asset.category ? ` · ${asset.category.name}` : ''}
-          </Typography>
-        </Box>
+      <PageHeader
+        title={asset.name}
+        description={`${asset.assetCode}${asset.category ? ` · ${asset.category.name}` : ''}`}
+        icon={Inventory2Outlined}
+        actions={
         <Stack direction="row" spacing={1}>
-          {asset.status !== 'RETIRED' ? (
+          {allowUpdate && asset.status !== 'RETIRED' ? (
             <Button component={Link} href={`/assets/${asset.id}/edit`} variant="outlined">
               Edit
             </Button>
@@ -352,7 +377,8 @@ export default function AssetDetailPage() {
             Back to list
           </Button>
         </Stack>
-      </Stack>
+        }
+      />
 
       {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
@@ -396,6 +422,12 @@ export default function AssetDetailPage() {
             Assigned staff:{' '}
             {asset.assignedStaff
               ? getAssetStaffDisplayName(asset.assignedStaff)
+              : '—'}
+          </Typography>
+          <Typography>
+            Assigned student:{' '}
+            {asset.assignedStudent
+              ? getAssetStudentDisplayName(asset.assignedStudent)
               : '—'}
           </Typography>
         </Stack>
@@ -516,22 +548,56 @@ export default function AssetDetailPage() {
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
                 <TextField
                   select
-                  label="Assign to staff"
-                  value={assignStaffId}
-                  onChange={(event) => setAssignStaffId(event.target.value)}
-                  sx={{ minWidth: 240 }}
+                  label="Assign to"
+                  value={assignTarget}
+                  onChange={(event) =>
+                    setAssignTarget(event.target.value as 'staff' | 'student')
+                  }
+                  sx={{ minWidth: 140 }}
                   size="small"
                 >
-                  <MenuItem value="">Select staff</MenuItem>
-                  {staff.map((member) => (
-                    <MenuItem key={member.id} value={member.id}>
-                      {getStaffDisplayName(member)}
-                    </MenuItem>
-                  ))}
+                  <MenuItem value="staff">Staff</MenuItem>
+                  <MenuItem value="student">Student</MenuItem>
                 </TextField>
+                {assignTarget === 'staff' ? (
+                  <TextField
+                    select
+                    label="Staff member"
+                    value={assignStaffId}
+                    onChange={(event) => setAssignStaffId(event.target.value)}
+                    sx={{ minWidth: 240 }}
+                    size="small"
+                  >
+                    <MenuItem value="">Select staff</MenuItem>
+                    {staff.map((member) => (
+                      <MenuItem key={member.id} value={member.id}>
+                        {getStaffDisplayName(member)}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                ) : (
+                  <TextField
+                    select
+                    label="Student"
+                    value={assignStudentId}
+                    onChange={(event) => setAssignStudentId(event.target.value)}
+                    sx={{ minWidth: 240 }}
+                    size="small"
+                  >
+                    <MenuItem value="">Select student</MenuItem>
+                    {students.map((student) => (
+                      <MenuItem key={student.id} value={student.id}>
+                        {student.studentCode} — {student.firstName} {student.lastName}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
                 <Button
                   variant="contained"
-                  disabled={isActing || !assignStaffId}
+                  disabled={
+                    isActing ||
+                    (assignTarget === 'staff' ? !assignStaffId : !assignStudentId)
+                  }
                   onClick={handleAssign}
                 >
                   {isActing ? 'Assigning…' : 'Assign'}

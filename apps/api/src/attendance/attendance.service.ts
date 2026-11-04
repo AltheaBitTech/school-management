@@ -4,7 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EmploymentStatus, Prisma, StaffAttendance } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { AttendanceStatus, EmploymentStatus, Prisma, StaffAttendance } from '@prisma/client';
+import QRCode from 'qrcode';
+import { AUTH_CONFIG_KEY, type AuthConfig } from '../config/auth.configuration';
+import { getLocalDateString } from '../dashboard/utils/dashboard-date.util';
 import { buildPaginationMeta } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { ATTENDANCE_ERROR_CODES } from './constants/attendance.constants';
@@ -17,6 +21,7 @@ import {
   parseAttendanceDate,
   parseOptionalDateTime,
 } from './utils/attendance-date.util';
+import { createAttendanceQrToken, verifyAttendanceQrToken } from './utils/attendance-qr.util';
 
 type AttendanceWithStaff = StaffAttendance & {
   staff: {
@@ -42,7 +47,151 @@ const staffSelect = {
 
 @Injectable()
 export class AttendanceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async issueQr(organizationId: string, staffId: string) {
+    await this.assertStaffEligibleForMarking(organizationId, staffId);
+    const secret = this.accessSecret();
+    const issued = createAttendanceQrToken({ staffId, organizationId }, secret);
+    const qrCodeDataUrl = await QRCode.toDataURL(issued.token, { margin: 1, width: 280 });
+    return { qrCodeDataUrl, expiresAt: issued.expiresAt };
+  }
+
+  async scan(
+    organizationId: string,
+    input: { token?: string; employeeCode?: string },
+  ) {
+    const staff = input.token
+      ? await this.staffFromToken(organizationId, input.token)
+      : await this.staffFromEmployeeCode(organizationId, input.employeeCode);
+
+    const settings = await this.prisma.organizationSettings.findUnique({
+      where: { organizationId },
+      select: { timezone: true },
+    });
+    const attendanceDate = parseAttendanceDate(getLocalDateString(settings?.timezone ?? 'UTC'));
+    const existing = await this.prisma.staffAttendance.findUnique({
+      where: {
+        organizationId_staffId_attendanceDate: {
+          organizationId,
+          staffId: staff.id,
+          attendanceDate,
+        },
+      },
+      include: { staff: { select: staffSelect } },
+    });
+
+    if (existing?.checkInAt && existing.checkOutAt) {
+      throw new BadRequestException({
+        code: ATTENDANCE_ERROR_CODES.DUPLICATE_ATTENDANCE,
+        message: 'This staff member is already checked in and out today.',
+      });
+    }
+
+    const now = new Date();
+    const saved = existing
+      ? await this.prisma.staffAttendance.update({
+          where: { id: existing.id },
+          data: { checkOutAt: now },
+          include: { staff: { select: staffSelect } },
+        })
+      : await this.prisma.staffAttendance.create({
+          data: {
+            organizationId,
+            staffId: staff.id,
+            attendanceDate,
+            status: AttendanceStatus.PRESENT,
+            checkInAt: now,
+          },
+          include: { staff: { select: staffSelect } },
+        });
+
+    const action = existing ? 'CHECK_OUT' : 'CHECK_IN';
+    return {
+      staffName: saved.staff.displayName?.trim() || `${saved.staff.firstName} ${saved.staff.lastName}`.trim(),
+      employeeCode: saved.staff.employeeCode,
+      action,
+      checkInAt: saved.checkInAt?.toISOString() ?? null,
+      checkOutAt: saved.checkOutAt?.toISOString() ?? null,
+    };
+  }
+
+  private accessSecret(): string {
+    const auth = this.configService.get<AuthConfig>(AUTH_CONFIG_KEY);
+    if (!auth?.accessSecret) {
+      throw new BadRequestException({
+        code: ATTENDANCE_ERROR_CODES.INVALID_ATTENDANCE_DATE,
+        message: 'Attendance QR is not configured',
+      });
+    }
+    return auth.accessSecret;
+  }
+
+  private async staffFromToken(organizationId: string, token: string) {
+    let payload: { staffId: string; organizationId: string };
+    try {
+      payload = verifyAttendanceQrToken(token, this.accessSecret());
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'INVALID';
+      throw new BadRequestException({
+        code: ATTENDANCE_ERROR_CODES.INVALID_ATTENDANCE_DATE,
+        message: reason === 'EXPIRED' ? 'This QR code has expired. Ask the staff member to refresh it.' : 'This QR code is not valid.',
+      });
+    }
+
+    if (payload.organizationId !== organizationId) {
+      throw new NotFoundException({
+        code: ATTENDANCE_ERROR_CODES.INVALID_STAFF,
+        message: 'Staff member not found',
+      });
+    }
+
+    const staff = await this.prisma.staff.findFirst({
+      where: { id: payload.staffId, organizationId },
+    });
+    if (!staff) {
+      throw new NotFoundException({
+        code: ATTENDANCE_ERROR_CODES.INVALID_STAFF,
+        message: 'Staff member not found',
+      });
+    }
+    if (staff.employmentStatus === EmploymentStatus.OFFBOARDED) {
+      throw new BadRequestException({
+        code: ATTENDANCE_ERROR_CODES.STAFF_NOT_ELIGIBLE,
+        message: 'Attendance cannot be marked for offboarded staff',
+      });
+    }
+    return staff;
+  }
+
+  private async staffFromEmployeeCode(organizationId: string, employeeCode?: string) {
+    const code = employeeCode?.trim();
+    if (!code) {
+      throw new BadRequestException({
+        code: ATTENDANCE_ERROR_CODES.INVALID_STAFF,
+        message: 'Scan a QR code or enter an employee code.',
+      });
+    }
+    const staff = await this.prisma.staff.findFirst({
+      where: { organizationId, employeeCode: code },
+    });
+    if (!staff) {
+      throw new NotFoundException({
+        code: ATTENDANCE_ERROR_CODES.INVALID_STAFF,
+        message: 'No staff member uses that employee code.',
+      });
+    }
+    if (staff.employmentStatus === EmploymentStatus.OFFBOARDED) {
+      throw new BadRequestException({
+        code: ATTENDANCE_ERROR_CODES.STAFF_NOT_ELIGIBLE,
+        message: 'Attendance cannot be marked for offboarded staff',
+      });
+    }
+    return staff;
+  }
 
   async create(organizationId: string, dto: CreateAttendanceDto): Promise<AttendanceWithStaff> {
     const attendanceDate = parseAttendanceDate(dto.attendanceDate);

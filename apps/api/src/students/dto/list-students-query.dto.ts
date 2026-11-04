@@ -14,4 +14,16 @@ export class ListStudentsQueryDto extends PaginationQueryDto {
   @IsString()
   @MaxLength(100)
   search?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by class (studentClass field)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  studentClass?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by section' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  section?: string;
 }

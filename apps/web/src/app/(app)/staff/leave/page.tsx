@@ -1,5 +1,7 @@
 'use client';
 
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -13,8 +15,8 @@ import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { AppTable, EmptyState, LoadingState, TableIconLink } from '@/components/ui/AppTable';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import { formatLeaveStatus, type LeaveRequest } from '@/lib/leave/leave-client';
@@ -59,16 +61,16 @@ export default function StaffLeavePage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="My leave"
-        description="Balances and leave request history."
-        actions={
-          <Button component={Link} href="/staff/leave/new" variant="contained">
-            Submit leave
-          </Button>
-        }
-      />
+    <ListPageShell
+      title="My leave"
+      description="Balances and leave request history."
+      icon={EventAvailableOutlined}
+      actions={
+        <Button component={Link} href="/staff/leave/new" variant="contained" startIcon={<AddOutlined />}>
+          Submit leave
+        </Button>
+      }
+    >
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
@@ -91,7 +93,15 @@ export default function StaffLeavePage() {
       </Card>
 
       {requests.length === 0 ? (
-        <EmptyState message="No leave requests yet." />
+        <EmptyState
+          icon={EventAvailableOutlined}
+          message="No leave requests yet."
+          action={
+            <Button component={Link} href="/staff/leave/new" variant="contained" startIcon={<AddOutlined />}>
+              Submit leave
+            </Button>
+          }
+        />
       ) : (
         <AppTable>
           <TableHead>
@@ -114,15 +124,13 @@ export default function StaffLeavePage() {
                   />
                 </TableCell>
                 <TableCell align="right">
-                  <Button component={Link} href={`/staff/leave/${request.id}`} size="small">
-                    View
-                  </Button>
+                  <TableIconLink href={`/staff/leave/${request.id}`} label="View leave request" />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </AppTable>
       )}
-    </Stack>
+    </ListPageShell>
   );
 }

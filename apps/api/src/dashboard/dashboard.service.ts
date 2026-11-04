@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   ApprovalRequestStatus,
+  AssetStatus,
   AttendanceStatus,
   EmploymentStatus,
   LeaveRequestStatus,
@@ -17,6 +18,7 @@ import {
 import { PLATFORM_ORGANIZATION_CODE } from '../organizations/constants/organization.constants';
 import { PermissionsService } from '../permissions/permissions.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { FeatureFlagsService } from '../common/features/feature-flags.service';
 import { parseAttendanceDate } from '../attendance/utils/attendance-date.util';
 import {
   DASHBOARD_ERROR_CODES,
@@ -25,6 +27,10 @@ import {
   UPCOMING_EVENT_STATUSES,
   UPCOMING_EVENTS_LIMIT,
 } from './constants/dashboard.constants';
+import {
+  ASSET_ALERT_PREVIEW_LIMIT,
+  ASSET_WARRANTY_ALERT_WINDOW_DAYS,
+} from './constants/asset-alert.constants';
 import {
   getGreetingPeriod,
   getLocalDateString,
@@ -78,6 +84,18 @@ export interface DashboardSummary {
       publishedAt: string | null;
     }> | null;
     unreadNotifications: number | null;
+    assetAlerts: {
+      total: number;
+      expired: number;
+      expiringSoon: number;
+      items: Array<{
+        id: string;
+        assetCode: string;
+        name: string;
+        warrantyEndDate: string;
+        alertType: 'expired' | 'expiring_soon';
+      }>;
+    } | null;
   };
 }
 
@@ -86,6 +104,7 @@ export class DashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissionsService: PermissionsService,
+    private readonly featureFlagsService: FeatureFlagsService,
   ) {}
 
   async getSummary(user: AuthenticatedUser): Promise<DashboardSummary> {
@@ -94,7 +113,11 @@ export class DashboardService {
         where: { id: user.organizationId },
         include: { settings: true },
       }),
-      this.permissionsService.getEffectivePermissions(user.userId, user.organizationId),
+      this.permissionsService.getEffectivePermissions(
+        user.userId,
+        user.organizationId,
+        user.activeRoleId ?? '',
+      ).then((permissions) => permissions ?? []),
     ]);
 
     if (!organization) {
@@ -128,10 +151,11 @@ export class DashboardService {
       upcomingEvents,
       recentNotices,
       unreadNotifications,
+      assetAlerts,
     ] = await Promise.all([
       has('student.view') ? this.countActiveStudents(user.organizationId) : Promise.resolve(null),
       has('staff.view') ? this.countActiveStaff(user.organizationId) : Promise.resolve(null),
-      has('attendance.view')
+      has('attendance.view') && this.featureFlagsService.isAttendanceEnabled()
         ? this.getTodayAttendanceSummary(user.organizationId, localDate)
         : Promise.resolve(null),
       has('fee.view') ? this.getOutstandingFeesSummary(user.organizationId) : Promise.resolve(null),
@@ -144,6 +168,7 @@ export class DashboardService {
       has('event.view') ? this.getUpcomingEvents(user.organizationId) : Promise.resolve(null),
       has('notice.view') ? this.getRecentNotices(user.organizationId) : Promise.resolve(null),
       this.countUnreadNotifications(user.organizationId, user.userId),
+      has('asset.view') ? this.getAssetAlertsSummary(user.organizationId) : Promise.resolve(null),
     ]);
 
     return {
@@ -168,7 +193,57 @@ export class DashboardService {
         upcomingEvents,
         recentNotices,
         unreadNotifications,
+        assetAlerts,
       },
+    };
+  }
+
+  private async getAssetAlertsSummary(organizationId: string) {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const windowEnd = new Date(today);
+    windowEnd.setUTCDate(windowEnd.getUTCDate() + ASSET_WARRANTY_ALERT_WINDOW_DAYS);
+
+    const assets = await this.prisma.asset.findMany({
+      where: {
+        organizationId,
+        status: { not: AssetStatus.RETIRED },
+        warrantyEndDate: { not: null, lte: windowEnd },
+      },
+      select: {
+        id: true,
+        assetCode: true,
+        name: true,
+        warrantyEndDate: true,
+      },
+      orderBy: [{ warrantyEndDate: 'asc' }],
+      take: 100,
+    });
+
+    let expired = 0;
+    let expiringSoon = 0;
+    const items = assets.map((asset) => {
+      const warrantyEndDate = asset.warrantyEndDate!;
+      const isExpired = warrantyEndDate < today;
+      if (isExpired) {
+        expired += 1;
+      } else {
+        expiringSoon += 1;
+      }
+      return {
+        id: asset.id,
+        assetCode: asset.assetCode,
+        name: asset.name,
+        warrantyEndDate: warrantyEndDate.toISOString().slice(0, 10),
+        alertType: isExpired ? ('expired' as const) : ('expiring_soon' as const),
+      };
+    });
+
+    return {
+      total: items.length,
+      expired,
+      expiringSoon,
+      items: items.slice(0, ASSET_ALERT_PREVIEW_LIMIT),
     };
   }
 

@@ -1,7 +1,10 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TableBody from '@mui/material/TableBody';
@@ -9,17 +12,27 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import UploadFileOutlined from '@mui/icons-material/UploadFileOutlined';
+import SchoolOutlined from '@mui/icons-material/SchoolOutlined';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { StudentImportDialog } from '@/app/(app)/students/StudentImportDialog';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { AppTable, EmptyState, LoadingState, TableIconLink } from '@/components/ui/AppTable';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useCan } from '@/lib/auth/use-can';
 import {
   formatStudentDate,
   formatStudentStatus,
+  formatStudentClassLabel,
   getStudentDisplayName,
+  getStudentInitials,
   listStudents,
   STUDENT_STATUSES,
   type Student,
@@ -27,12 +40,19 @@ import {
 } from '@/lib/students/students-client';
 
 export default function StudentsPage() {
+  const canCreate = useCan('student.create');
+  const theme = useTheme();
+  const isCompact = useMediaQuery(theme.breakpoints.down('md'));
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StudentStatus | ''>('');
+  const [classFilter, setClassFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +68,8 @@ export default function StudentsPage() {
           pageSize: 100,
           search: search.trim() || undefined,
           status: statusFilter || undefined,
+          studentClass: classFilter.trim() || undefined,
+          section: sectionFilter.trim() || undefined,
         });
         if (!cancelled) {
           setStudents(response.data);
@@ -73,24 +95,37 @@ export default function StudentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, statusFilter]);
+  }, [search, statusFilter, classFilter, sectionFilter, refreshKey]);
 
   if (isForbidden) {
     return <ForbiddenState />;
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Students"
-        description="Manage students and enrollment information."
-        actions={
-          <Button component={Link} href="/students/new" variant="contained">
-            Add student
-          </Button>
-        }
-      />
-
+    <>
+    <ListPageShell
+      title="Students"
+      description="Manage students and enrollment information."
+      icon={SchoolOutlined}
+      actions={
+        <Stack direction="row" spacing={1}>
+          {canCreate ? (
+            <Button
+              variant="outlined"
+              startIcon={<UploadFileOutlined />}
+              onClick={() => setImportDialogOpen(true)}
+            >
+              Import CSV
+            </Button>
+          ) : null}
+          {canCreate ? (
+            <Button component={Link} href="/students/new" variant="contained" startIcon={<AddOutlined />}>
+              Add student
+            </Button>
+          ) : null}
+        </Stack>
+      }
+      filters={
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap" useFlexGap>
         <TextField
           label="Search students"
@@ -98,6 +133,20 @@ export default function StudentsPage() {
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Name, student code, or class"
           sx={{ minWidth: { sm: 280 }, flex: 1 }}
+        />
+        <TextField
+          label="Class filter"
+          value={classFilter}
+          onChange={(event) => setClassFilter(event.target.value)}
+          placeholder="e.g. Grade 8"
+          sx={{ minWidth: 180 }}
+        />
+        <TextField
+          label="Section"
+          value={sectionFilter}
+          onChange={(event) => setSectionFilter(event.target.value)}
+          placeholder="e.g. A"
+          sx={{ minWidth: 140 }}
         />
         <TextField
           select
@@ -114,22 +163,69 @@ export default function StudentsPage() {
           ))}
         </TextField>
       </Stack>
+      }
+    >
+      {isLoading ? <LoadingState label="Loading students" columnCount={7} /> : null}
 
-      {isLoading ? <LoadingState label="Loading students" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && students.length === 0 ? (
-        <EmptyState message="No students found. Add a student to begin using document generation." />
+        <EmptyState
+          icon={SchoolOutlined}
+          message={
+            canCreate
+              ? 'No students found. Add a student to begin using document generation.'
+              : 'No students found.'
+          }
+          action={
+            canCreate ? (
+              <Button component={Link} href="/students/new" variant="contained" startIcon={<AddOutlined />}>
+                Add student
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
 
-      {!isLoading && students.length > 0 ? (
+      {!isLoading && students.length > 0 && isCompact ? (
+        <Stack spacing={1.5} aria-label="Students">
+          {students.map((student) => (
+            <Card key={student.id} variant="outlined">
+              <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar sx={{ bgcolor: 'primary.dark', width: 40, height: 40, fontSize: 14 }}>
+                    {getStudentInitials(student)}
+                  </Avatar>
+                  <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="subtitle2" noWrap>
+                      {getStudentDisplayName(student)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {student.studentCode}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {formatStudentClassLabel(student)}
+                    </Typography>
+                  </Stack>
+                  <Stack spacing={0.5} alignItems="flex-end">
+                    <StatusChip status={student.status} label={formatStudentStatus(student.status)} />
+                    <TableIconLink href={`/students/${student.id}`} label="View student" />
+                  </Stack>
+                </Stack>
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      ) : null}
+
+      {!isLoading && students.length > 0 && !isCompact ? (
         <AppTable aria-label="Students">
           <TableHead>
             <TableRow>
-              <TableCell>Student code</TableCell>
-              <TableCell>Name</TableCell>
+              <TableCell>Student</TableCell>
               <TableCell>Class</TableCell>
+              <TableCell>Section</TableCell>
+              <TableCell>Roll</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Created</TableCell>
               <TableCell align="right">Actions</TableCell>
@@ -138,23 +234,43 @@ export default function StudentsPage() {
           <TableBody>
             {students.map((student) => (
               <TableRow key={student.id} hover>
-                <TableCell>{student.studentCode}</TableCell>
-                <TableCell>{getStudentDisplayName(student)}</TableCell>
-                <TableCell>{student.className || '—'}</TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Avatar sx={{ bgcolor: 'primary.dark', width: 36, height: 36, fontSize: 13 }}>
+                      {getStudentInitials(student)}
+                    </Avatar>
+                    <Stack spacing={0}>
+                      <Typography variant="body2" fontWeight={600}>
+                        {getStudentDisplayName(student)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {student.studentCode}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </TableCell>
+                <TableCell>{formatStudentClassLabel(student)}</TableCell>
+                <TableCell>{student.section?.trim() || '—'}</TableCell>
+                <TableCell>{student.rollNumber?.trim() || '—'}</TableCell>
                 <TableCell>
                   <StatusChip status={student.status} label={formatStudentStatus(student.status)} />
                 </TableCell>
                 <TableCell>{formatStudentDate(student.createdAt)}</TableCell>
                 <TableCell align="right">
-                  <Button component={Link} href={`/students/${student.id}`} size="small">
-                    View
-                  </Button>
+                  <TableIconLink href={`/students/${student.id}`} label="View student" />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
+
+      <StudentImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImported={() => setRefreshKey((value) => value + 1)}
+      />
+    </>
   );
 }

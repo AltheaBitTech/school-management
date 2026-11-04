@@ -1,27 +1,35 @@
 'use client';
 
+import EventBusyOutlined from '@mui/icons-material/EventBusyOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { FormSection } from '@/components/ui/FormSection';
+import { ListPageShell } from '@/components/ui/ListPageShell';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { requiredText } from '@/lib/forms/field-rules';
 import { createLeaveType, listLeaveTypes, updateLeaveType, type LeaveType } from '@/lib/leave/leave-client';
 
 export default function LeaveTypesPage() {
+  const { showSuccess } = useAppSnackbar();
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [deactivateTarget, setDeactivateTarget] = useState<LeaveType | null>(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -52,6 +60,13 @@ export default function LeaveTypesPage() {
 
   async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    const nextNameError = requiredText(name, 'Name', 2);
+    const nextCodeError = requiredText(code, 'Code', 2);
+    setNameError(nextNameError);
+    setCodeError(nextCodeError);
+    if (nextNameError || nextCodeError) {
+      return;
+    }
     setIsSubmitting(true);
     setErrorMessage(null);
 
@@ -59,6 +74,7 @@ export default function LeaveTypesPage() {
       await createLeaveType({ name, code, requiresReason: true, tracksBalance: true });
       setName('');
       setCode('');
+      showSuccess('Leave type created');
       await loadLeaveTypes();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to create leave type');
@@ -67,12 +83,17 @@ export default function LeaveTypesPage() {
     }
   }
 
-  async function handleDeactivate(leaveType: LeaveType): Promise<void> {
+  async function handleDeactivateConfirmed(): Promise<void> {
+    if (!deactivateTarget) {
+      return;
+    }
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      await updateLeaveType(leaveType.id, { active: false });
+      await updateLeaveType(deactivateTarget.id, { active: false });
+      showSuccess('Leave type deactivated');
+      setDeactivateTarget(null);
       await loadLeaveTypes();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to deactivate leave type');
@@ -86,46 +107,53 @@ export default function LeaveTypesPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          Leave types
-        </Typography>
-        <Typography color="text.secondary">
-          Configure the leave categories available in your organization.
-        </Typography>
+    <ListPageShell
+      title="Leave types"
+      description="Configure the leave categories available in your organization."
+      icon={EventBusyOutlined}
+      actions={
+        <Button component={Link} href="/leave" variant="text">
+          Back to leave requests
+        </Button>
+      }
+    >
+
+      <Box component="form" onSubmit={handleCreate}>
+        <FormSection title="Create leave type" description="Name and code used on leave requests.">
+          <TextField
+            label="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => setNameError(requiredText(name, 'Name', 2))}
+            error={Boolean(nameError)}
+            helperText={nameError ?? 'Shown on leave requests'}
+            required
+          />
+          <TextField
+            label="Code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            onBlur={() => setCodeError(requiredText(code, 'Code', 2))}
+            error={Boolean(codeError)}
+            helperText={codeError ?? 'Lowercase letters, numbers, or hyphens'}
+            required
+          />
+          <Button type="submit" variant="contained" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating…' : 'Create leave type'}
+          </Button>
+        </FormSection>
       </Box>
 
-      <Stack spacing={2} component="form" onSubmit={handleCreate} maxWidth="sm">
-        <Typography variant="h6">Create leave type</Typography>
-        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
-        <TextField
-          label="Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          required
-          helperText="Lowercase letters, numbers, or hyphens"
-        />
-        <Button type="submit" variant="contained" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating…' : 'Create leave type'}
-        </Button>
-      </Stack>
-
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress aria-label="Loading leave types" />
-        </Box>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading leave types" columnCount={4} /> : null}
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
       {!isLoading && leaveTypes.length === 0 ? (
-        <Alert severity="info">No leave types configured yet.</Alert>
+        <EmptyState icon={EventBusyOutlined} message="No leave types configured yet. Add one above." />
       ) : null}
 
       {!isLoading && leaveTypes.length > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table>
+        <AppTable minWidth={640} aria-label="Leave types">
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
@@ -136,13 +164,15 @@ export default function LeaveTypesPage() {
             </TableHead>
             <TableBody>
               {leaveTypes.map((leaveType) => (
-                <TableRow key={leaveType.id}>
+                <TableRow key={leaveType.id} hover>
                   <TableCell>{leaveType.name}</TableCell>
                   <TableCell>{leaveType.code}</TableCell>
-                  <TableCell>{leaveType.active ? 'Active' : 'Inactive'}</TableCell>
+                  <TableCell>
+                    <StatusChip status={leaveType.active ? 'ACTIVE' : 'INACTIVE'} />
+                  </TableCell>
                   <TableCell align="right">
                     {leaveType.active ? (
-                      <Button size="small" onClick={() => void handleDeactivate(leaveType)} disabled={isSubmitting}>
+                      <Button size="small" onClick={() => setDeactivateTarget(leaveType)} disabled={isSubmitting}>
                         Deactivate
                       </Button>
                     ) : (
@@ -152,13 +182,23 @@ export default function LeaveTypesPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </Box>
+        </AppTable>
       ) : null}
 
-      <Button component={Link} href="/leave">
-        Back to leave requests
-      </Button>
-    </Stack>
+      <ConfirmDialog
+        open={Boolean(deactivateTarget)}
+        title="Deactivate leave type?"
+        description={
+          deactivateTarget
+            ? `${deactivateTarget.name} will no longer be available for new leave requests.`
+            : ''
+        }
+        confirmLabel="Deactivate"
+        confirmColor="warning"
+        isConfirming={isSubmitting}
+        onCancel={() => setDeactivateTarget(null)}
+        onConfirm={() => void handleDeactivateConfirmed()}
+      />
+    </ListPageShell>
   );
 }

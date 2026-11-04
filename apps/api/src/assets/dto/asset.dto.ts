@@ -155,9 +155,15 @@ export class UpdateAssetDto {
 }
 
 export class AssignAssetDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
   @IsUUID()
-  staffId!: string;
+  staffId?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  studentId?: string;
 }
 
 export class TransferAssetDto {

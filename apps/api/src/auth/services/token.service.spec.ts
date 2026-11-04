@@ -50,6 +50,7 @@ describe('TokenService', () => {
         sub: 'user-1',
         organizationId: 'org-1',
         sessionId: 'session-1',
+        purpose: 'access',
       },
       {
         secret: 'test-secret',

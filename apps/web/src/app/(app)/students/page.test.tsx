@@ -1,8 +1,9 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import StudentsPage from '@/app/(app)/students/page';
 import { ApiError } from '@/lib/api/client';
+import { renderWithAppProviders } from '@/test/render-app';
 
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -15,7 +16,13 @@ vi.mock('@/lib/students/students-client', () => ({
   getStudentDisplayName: (student: { firstName: string; lastName: string }) =>
     `${student.firstName} ${student.lastName}`,
   formatStudentStatus: (status: string) => (status === 'ACTIVE' ? 'Active' : 'Inactive'),
+  formatStudentClassLabel: (student: { className?: string | null }) => student.className ?? '—',
   formatStudentDate: () => 'Sep 17, 2026',
+  getStudentInitials: () => 'RK',
+  downloadStudentImportSampleCsv: vi.fn(),
+  downloadStudentImportGuidePdf: vi.fn(),
+  previewStudentsCsv: vi.fn(),
+  importStudentsCsv: vi.fn(),
   STUDENT_STATUSES: ['ACTIVE', 'INACTIVE'],
 }));
 
@@ -28,7 +35,7 @@ describe('StudentsPage', () => {
 
   it('shows a loading state while students are being fetched', () => {
     vi.mocked(listStudents).mockReturnValue(new Promise(() => undefined));
-    render(<StudentsPage />);
+    renderWithAppProviders(<StudentsPage />);
     expect(screen.getByLabelText('Loading students')).toBeInTheDocument();
   });
 
@@ -49,7 +56,7 @@ describe('StudentsPage', () => {
       meta: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
     });
 
-    render(<StudentsPage />);
+    renderWithAppProviders(<StudentsPage />);
 
     await waitFor(() => {
       expect(screen.getByText('adm-001')).toBeInTheDocument();
@@ -65,7 +72,7 @@ describe('StudentsPage', () => {
       meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 },
     });
 
-    render(<StudentsPage />);
+    renderWithAppProviders(<StudentsPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/No students found/i)).toBeInTheDocument();
@@ -75,7 +82,7 @@ describe('StudentsPage', () => {
   it('shows an error state when the API fails', async () => {
     vi.mocked(listStudents).mockRejectedValue(new Error('Network error'));
 
-    render(<StudentsPage />);
+    renderWithAppProviders(<StudentsPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Network error')).toBeInTheDocument();
@@ -85,7 +92,7 @@ describe('StudentsPage', () => {
   it('shows a forbidden state on 403 responses', async () => {
     vi.mocked(listStudents).mockRejectedValue(new ApiError('Forbidden', 403));
 
-    render(<StudentsPage />);
+    renderWithAppProviders(<StudentsPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Access denied')).toBeInTheDocument();
@@ -98,7 +105,7 @@ describe('StudentsPage', () => {
       meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 },
     });
 
-    render(<StudentsPage />);
+    renderWithAppProviders(<StudentsPage />);
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Search students' }), {
       target: { value: 'ravi' },

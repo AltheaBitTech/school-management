@@ -82,6 +82,7 @@ describe('OrganizationRegistrationsService', () => {
       const mockRequest = {
         id: 'test-id',
         organizationName: 'Test School',
+        preferredOrganizationCode: null,
         contactEmail: 'principal@test.edu',
         contactFirstName: 'John',
         contactLastName: 'Doe',
@@ -135,6 +136,38 @@ describe('OrganizationRegistrationsService', () => {
       await expect(service.submitRegistrationRequest(validDto)).rejects.toThrow(ConflictException);
     });
 
+    it('should reject if a pending registration request already exists for this phone', async () => {
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.organizationRegistrationRequest, 'findUnique')
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'phone-request-id', status: 'PENDING' } as never);
+
+      await expect(service.submitRegistrationRequest(validDto)).rejects.toMatchObject({
+        response: { code: 'REGISTRATION_PHONE_ALREADY_PENDING' },
+      });
+    });
+
+    it('should remove a prior approved request with the same phone when submitting a new email', async () => {
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.organizationRegistrationRequest, 'findUnique')
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'old-phone-request', status: 'APPROVED' } as never);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'delete').mockResolvedValue({} as never);
+      jest.spyOn(prismaService.organizationRegistrationRequest, 'create').mockResolvedValue({
+        id: 'new-id',
+        status: 'PENDING',
+        createdAt: new Date(),
+      } as never);
+
+      await service.submitRegistrationRequest(validDto);
+
+      expect(prismaService.organizationRegistrationRequest.delete).toHaveBeenCalledWith({
+        where: { id: 'old-phone-request' },
+      });
+    });
+
     it('should normalize email to lowercase and trim whitespace', async () => {
       const dtoWithWhitespace = {
         ...validDto,
@@ -146,6 +179,7 @@ describe('OrganizationRegistrationsService', () => {
       jest.spyOn(prismaService.organizationRegistrationRequest, 'create').mockResolvedValue({
         id: 'test-id',
         organizationName: 'Test School',
+        preferredOrganizationCode: null,
         contactEmail: 'principal@test.edu',
         contactFirstName: 'John',
         contactLastName: 'Doe',
@@ -186,6 +220,7 @@ describe('OrganizationRegistrationsService', () => {
       jest.spyOn(prismaService.organizationRegistrationRequest, 'create').mockResolvedValue({
         id: 'test-id',
         organizationName: 'Test School',
+        preferredOrganizationCode: null,
         contactEmail: 'principal@test.edu',
         contactFirstName: 'John',
         contactLastName: 'Doe',
@@ -289,6 +324,7 @@ describe('OrganizationRegistrationsService', () => {
         status: 'APPROVED',
         organizationId: 'org-id',
         organizationName: 'Test School',
+        preferredOrganizationCode: null,
         contactEmail: 'principal@test.edu',
         organization: { code: 'school-abc123' },
       } as never);

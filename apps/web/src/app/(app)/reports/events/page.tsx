@@ -1,5 +1,6 @@
 'use client';
 
+import EventOutlined from '@mui/icons-material/EventOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
@@ -15,8 +16,11 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { ChangeEvent } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { ReportExportCsvButton } from '@/components/ui/ReportExportCsvButton';
+import { ReportFilterPanel } from '@/components/ui/ReportFilterPanel';
 import {
   EVENT_STATUSES,
   EVENT_TYPES,
@@ -47,6 +51,19 @@ export default function EventReportPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [venueError, setVenueError] = useState<string | null>(null);
 
+  const queryParams = useMemo(
+    () => ({
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
+      type: type || undefined,
+      status: status || undefined,
+      venueId: venueId || undefined,
+      page,
+      pageSize: 25,
+    }),
+    [fromDate, page, status, toDate, type, venueId],
+  );
+
   useEffect(() => {
     void Promise.all([listVenues({ active: true }), getCurrentOrganization()])
       .then(([venueResponse, organization]) => {
@@ -63,15 +80,7 @@ export default function EventReportPage() {
       setErrorMessage(null);
       setIsForbidden(false);
       try {
-        const response = await getEventReport({
-          fromDate: fromDate || undefined,
-          toDate: toDate || undefined,
-          type: type || undefined,
-          status: status || undefined,
-          venueId: venueId || undefined,
-          page,
-          pageSize: 25,
-        });
+        const response = await getEventReport(queryParams);
         if (!cancelled) setReport(response);
       } catch (error) {
         if (cancelled) return;
@@ -83,7 +92,7 @@ export default function EventReportPage() {
     }
     void load();
     return () => { cancelled = true; };
-  }, [fromDate, page, status, toDate, type, venueId]);
+  }, [queryParams]);
 
   function updateFilter(setter: (value: string) => void) {
     return (event: ChangeEvent<HTMLInputElement>) => {
@@ -96,12 +105,22 @@ export default function EventReportPage() {
 
   return (
     <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" component="h1">Event operations report</Typography>
-        <Typography color="text.secondary">Review tenant-scoped event activity and status totals.</Typography>
-      </Box>
+      <PageHeader
+        icon={EventOutlined}
+        title="Event operations report"
+        description="Review tenant-scoped event activity and status totals."
+        actions={
+          <ReportExportCsvButton
+            exportPath="/reports/events/export.csv"
+            queryParams={queryParams}
+            filename="events-report.csv"
+            rowCount={report?.data.length ?? 0}
+            onError={setErrorMessage}
+          />
+        }
+      />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+      <ReportFilterPanel>
         <TextField label="From" type="date" value={fromDate} onChange={updateFilter(setFromDate)} InputLabelProps={{ shrink: true }} />
         <TextField label="To" type="date" value={toDate} onChange={updateFilter(setToDate)} InputLabelProps={{ shrink: true }} />
         <TextField select label="Type" value={type} onChange={updateFilter((value) => setType(value as EventType | ''))} sx={{ minWidth: 170 }}>
@@ -116,7 +135,7 @@ export default function EventReportPage() {
           <MenuItem value="">All venues</MenuItem>
           {venues.map((venue) => <MenuItem key={venue.id} value={venue.id}>{venue.name}</MenuItem>)}
         </TextField>
-      </Stack>
+      </ReportFilterPanel>
 
       {venueError && <Alert severity="warning">{venueError}. Venue filtering is unavailable.</Alert>}
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}

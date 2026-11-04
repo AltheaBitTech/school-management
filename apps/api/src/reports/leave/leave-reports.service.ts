@@ -11,6 +11,8 @@ import {
 import { PLATFORM_ORGANIZATION_CODE } from '../../organizations/constants/organization.constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LEAVE_REPORT_ERROR_CODES } from './constants/leave-report.constants';
+import { buildCsv } from '../common/csv-export.util';
+import { MAX_REPORT_CSV_EXPORT_ROWS } from '../common/max-export-rows';
 import { LeaveReportQueryDto } from './dto/leave-report-query.dto';
 
 const recordSelect = {
@@ -338,5 +340,37 @@ export class LeaveReportsService {
       submittedAt: record.submittedAt.toISOString(),
       decidedAt: record.decidedAt?.toISOString() ?? null,
     };
+  }
+
+  async exportCsv(organizationId: string, query: LeaveReportQueryDto): Promise<string> {
+    const report = await this.generate(organizationId, {
+      ...query,
+      page: 1,
+      pageSize: MAX_REPORT_CSV_EXPORT_ROWS,
+    });
+    return buildCsv(
+      [
+        'Employee code',
+        'Staff name',
+        'Department',
+        'Leave type',
+        'Start',
+        'End',
+        'Duration',
+        'Status',
+        'Submitted at',
+      ],
+      report.data.map((row) => [
+        row.employeeCode,
+        row.staffName,
+        row.departmentName,
+        row.leaveTypeName,
+        row.startDate,
+        row.endDate,
+        row.duration,
+        row.status,
+        row.submittedAt,
+      ]),
+    );
   }
 }

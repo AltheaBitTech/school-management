@@ -115,10 +115,12 @@ export class RolesService {
     targetUser: User,
     role: Role,
   ): Promise<void> {
-    const actorPermissions = await this.permissionsService.getEffectivePermissions(
-      actor.userId,
-      actor.organizationId,
-    );
+    const actorPermissions =
+      (await this.permissionsService.getEffectivePermissions(
+        actor.userId,
+        actor.organizationId,
+        actor.activeRoleId ?? '',
+      )) ?? [];
 
     if (role.organizationId === null) {
       if (!actorPermissions.includes('platform.role.assign')) {

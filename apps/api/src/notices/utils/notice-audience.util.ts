@@ -5,14 +5,19 @@ export interface NoticeAudienceRow {
   departmentId: string | null;
 }
 
-export interface StaffAudienceContext {
+export interface NoticeRecipientAudienceContext {
   hasStaffProfile: boolean;
+  hasStudentProfile: boolean;
+  hasParentLink: boolean;
   departmentId: string | null;
 }
 
+/** @deprecated Use NoticeRecipientAudienceContext */
+export type StaffAudienceContext = NoticeRecipientAudienceContext;
+
 export function userMatchesAudiences(
   audiences: NoticeAudienceRow[],
-  context: StaffAudienceContext,
+  context: NoticeRecipientAudienceContext,
 ): boolean {
   return audiences.some((audience) => {
     if (audience.audienceType === NoticeAudienceType.ENTIRE_SCHOOL) {
@@ -21,6 +26,14 @@ export function userMatchesAudiences(
 
     if (audience.audienceType === NoticeAudienceType.STAFF) {
       return context.hasStaffProfile;
+    }
+
+    if (audience.audienceType === NoticeAudienceType.STUDENT) {
+      return context.hasStudentProfile;
+    }
+
+    if (audience.audienceType === NoticeAudienceType.PARENT) {
+      return context.hasParentLink;
     }
 
     if (audience.audienceType === NoticeAudienceType.DEPARTMENT) {

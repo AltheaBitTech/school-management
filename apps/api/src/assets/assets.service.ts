@@ -16,11 +16,13 @@ import {
   DepartmentStatus,
   EmploymentStatus,
   Prisma,
+  StudentStatus,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { buildPaginationMeta } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { ASSET_WARRANTY_ALERT_WINDOW_DAYS } from '../dashboard/constants/asset-alert.constants';
 import { ASSET_CODE_PREFIX, ASSET_ERROR_CODES } from './constants/asset.constants';
 import {
   AssignAssetDto,
@@ -48,6 +50,14 @@ const staffSummarySelect = {
   displayName: true,
 } as const;
 
+const studentSummarySelect = {
+  id: true,
+  studentCode: true,
+  firstName: true,
+  lastName: true,
+  displayName: true,
+} as const;
+
 const departmentSummarySelect = {
   id: true,
   name: true,
@@ -70,6 +80,7 @@ const assetInclude = {
   category: { select: categorySummarySelect },
   department: { select: departmentSummarySelect },
   assignedStaff: { select: staffSummarySelect },
+  assignedStudent: { select: studentSummarySelect },
 } as const;
 
 const assetDetailInclude = {
@@ -103,6 +114,14 @@ type StaffSummary = {
   displayName: string | null;
 };
 
+type StudentSummary = {
+  id: string;
+  studentCode: string;
+  firstName: string;
+  lastName: string;
+  displayName: string | null;
+};
+
 type DepartmentSummary = {
   id: string;
   name: string;
@@ -125,6 +144,7 @@ type AssetWithRelations = Asset & {
   category: CategorySummary;
   department: DepartmentSummary | null;
   assignedStaff: StaffSummary | null;
+  assignedStudent: StudentSummary | null;
 };
 
 type AssetMaintenanceWithRelations = AssetMaintenance & {
@@ -169,12 +189,27 @@ export class AssetsService {
     const skip = (page - 1) * pageSize;
     const searchTerm = query.search?.trim();
 
+    let warrantyEndFilter: Prisma.AssetWhereInput['warrantyEndDate'];
+    if (query.warrantyAlert) {
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const windowEnd = new Date(today);
+      windowEnd.setUTCDate(windowEnd.getUTCDate() + ASSET_WARRANTY_ALERT_WINDOW_DAYS);
+      warrantyEndFilter = { not: null, lte: windowEnd };
+    }
+
     const where: Prisma.AssetWhereInput = {
       organizationId,
-      ...(query.status ? { status: query.status } : {}),
+      ...(query.status
+        ? { status: query.status }
+        : query.warrantyAlert
+          ? { status: { not: AssetStatus.RETIRED } }
+          : {}),
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.departmentId ? { departmentId: query.departmentId } : {}),
       ...(query.assignedStaffId ? { assignedStaffId: query.assignedStaffId } : {}),
+      ...(query.assignedStudentId ? { assignedStudentId: query.assignedStudentId } : {}),
+      ...(warrantyEndFilter ? { warrantyEndDate: warrantyEndFilter } : {}),
       ...(searchTerm
         ? {
             OR: [
@@ -414,20 +449,35 @@ export class AssetsService {
     actor: AuthenticatedUser,
     dto: AssignAssetDto,
   ): Promise<AssetDetail> {
+    const hasStaff = Boolean(dto.staffId);
+    const hasStudent = Boolean(dto.studentId);
+    if (hasStaff === hasStudent) {
+      throw new BadRequestException({
+        code: ASSET_ERROR_CODES.ASSET_VALIDATION_FAILED,
+        message: 'Provide exactly one of staffId or studentId',
+      });
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const asset = await this.lockAssetForMutation(tx, organizationId, assetId, {
         blockedStatuses: [AssetStatus.RETIRED, AssetStatus.UNDER_MAINTENANCE],
       });
 
-      await this.assertActiveStaff(tx, organizationId, dto.staffId);
+      if (dto.staffId) {
+        await this.assertActiveStaff(tx, organizationId, dto.staffId);
+      } else if (dto.studentId) {
+        await this.assertActiveStudent(tx, organizationId, dto.studentId);
+      }
 
-      const isReassignment =
-        asset.assignedStaffId !== null && asset.assignedStaffId !== dto.staffId;
+      const isReassignment = dto.staffId
+        ? asset.assignedStaffId !== null && asset.assignedStaffId !== dto.staffId
+        : asset.assignedStudentId !== null && asset.assignedStudentId !== dto.studentId;
 
       await tx.asset.update({
         where: { id: assetId },
         data: {
-          assignedStaffId: dto.staffId,
+          assignedStaffId: dto.staffId ?? null,
+          assignedStudentId: dto.studentId ?? null,
           status: AssetStatus.ASSIGNED,
         },
       });
@@ -437,7 +487,11 @@ export class AssetsService {
         assetId,
         eventType: AssetHistoryEvent.ASSIGNED,
         actorUserId: actor.userId,
-        comment: isReassignment ? 'Asset reassigned' : 'Asset assigned',
+        comment: isReassignment
+          ? 'Asset reassigned'
+          : dto.studentId
+            ? 'Asset assigned to student'
+            : 'Asset assigned',
       });
 
       return this.reloadAssetDetail(tx, organizationId, assetId);
@@ -454,7 +508,7 @@ export class AssetsService {
         allowedStatuses: [AssetStatus.ASSIGNED],
       });
 
-      if (!asset.assignedStaffId) {
+      if (!asset.assignedStaffId && !asset.assignedStudentId) {
         throw new ConflictException({
           code: ASSET_ERROR_CODES.ASSET_NOT_ASSIGNED,
           message: 'Asset is not assigned',
@@ -465,6 +519,7 @@ export class AssetsService {
         where: { id: assetId },
         data: {
           assignedStaffId: null,
+          assignedStudentId: null,
           status: AssetStatus.AVAILABLE,
         },
       });
@@ -731,6 +786,7 @@ export class AssetsService {
       departmentId: asset.departmentId,
       location: asset.location,
       assignedStaffId: asset.assignedStaffId,
+      assignedStudentId: asset.assignedStudentId,
       status: asset.status,
       retiredAt: asset.retiredAt?.toISOString() ?? null,
       retirementReason: asset.retirementReason,
@@ -740,6 +796,7 @@ export class AssetsService {
       category: asset.category,
       department: asset.department,
       assignedStaff: asset.assignedStaff,
+      assignedStudent: asset.assignedStudent,
       ...('createdBy' in asset ? { createdBy: asset.createdBy } : {}),
       ...('maintenances' in asset
         ? {
@@ -946,6 +1003,23 @@ export class AssetsService {
       throw new BadRequestException({
         code: ASSET_ERROR_CODES.ASSET_DEPARTMENT_INVALID,
         message: 'Department is not active',
+      });
+    }
+  }
+
+  private async assertActiveStudent(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    studentId: string,
+  ): Promise<void> {
+    const student = await tx.student.findFirst({
+      where: { id: studentId, organizationId },
+    });
+
+    if (!student || student.status !== StudentStatus.ACTIVE) {
+      throw new BadRequestException({
+        code: ASSET_ERROR_CODES.ASSET_STUDENT_INVALID,
+        message: 'Active student not found in this organization',
       });
     }
   }

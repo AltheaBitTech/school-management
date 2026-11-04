@@ -18,6 +18,23 @@ vi.mock('@/components/notifications/NotificationMenu', () => ({
   NotificationMenu: () => <button type="button">Notifications</button>,
 }));
 
+const adminPermissions = [
+  'dashboard.view',
+  'staff.view',
+  'student.view',
+  'department.view',
+  'leave.view',
+  'approval.view',
+  'complaint.view',
+  'visitor.view',
+  'notice.view',
+  'event.view',
+  'asset.view',
+  'fee.view',
+  'document.view',
+  'report.attendance.view',
+];
+
 vi.mock('@/components/providers/AuthSessionProvider', () => ({
   useAuthSession: () => ({
     isReady: true,
@@ -26,7 +43,7 @@ vi.mock('@/components/providers/AuthSessionProvider', () => ({
       id: 'user-1',
       email: 'admin@school.edu',
       organizationId: 'org-1',
-      permissions: ['dashboard.view', 'report.attendance.view'],
+      permissions: adminPermissions,
       organization: { id: 'org-1', name: 'Demo School', code: 'demo', status: 'ACTIVE' },
     },
     signOut: vi.fn(),
@@ -45,10 +62,12 @@ describe('AppShell', () => {
     expect(screen.getAllByText('Staff').length).toBeGreaterThan(0);
     expect(screen.getAllByText('People').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Workflows').length).toBeGreaterThan(0);
-    expect(screen.getByText('admin@school.edu')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+    expect(screen.getAllByText('admin').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('School operations').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Sign out' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/reports');
+    expect(screen.queryByRole('link', { name: 'Attendance' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Attendance reports' })).not.toBeInTheDocument();
   });
 });

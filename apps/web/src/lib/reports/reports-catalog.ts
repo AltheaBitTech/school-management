@@ -1,4 +1,5 @@
 import { hasPermission } from '@/lib/auth/routing';
+import { isAttendanceEnabled } from '@/lib/features/feature-flags';
 
 export type ReportGroupId = 'operations' | 'finance' | 'events';
 
@@ -69,7 +70,13 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
 ];
 
 export function getVisibleReports(permissions: string[] | undefined): ReportDefinition[] {
-  return REPORT_DEFINITIONS.filter((report) => hasPermission(permissions, report.permission));
+  return REPORT_DEFINITIONS.filter((report) => {
+    if (!isAttendanceEnabled() && report.id === 'attendance') {
+      return false;
+    }
+
+    return hasPermission(permissions, report.permission);
+  });
 }
 
 export function hasAnyReportPermission(permissions: string[] | undefined): boolean {

@@ -26,6 +26,8 @@ import { AUTH_ERROR_CODES, REFRESH_COOKIE_NAME } from './constants/auth.constant
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { SelectLoginContextDto } from './dto/select-login-context.dto';
+import { isAuthenticatedLogin } from './auth.service';
 import { CompleteSignupDto } from './dto/complete-signup.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -35,6 +37,7 @@ import { MeResponseDto } from './dto/me-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { FeatureFlagsService } from '../common/features/feature-flags.service';
 import { PasswordResetService } from './services/password-reset.service';
 import { RefreshSessionMetadata } from './services/refresh-session.service';
 import { TokenService } from './services/token.service';
@@ -51,12 +54,13 @@ export class AuthController {
     private readonly configService: ConfigService,
     private readonly organizationsService: OrganizationsService,
     private readonly permissionsService: PermissionsService,
+    private readonly featureFlagsService: FeatureFlagsService,
   ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Authenticate with organization code, email, and password' })
+  @ApiOperation({ summary: 'Authenticate with email and password' })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   async login(
@@ -65,6 +69,53 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
     const result = await this.authService.login(loginDto, this.extractMetadata(request));
+
+    if (!isAuthenticatedLogin(result)) {
+      return {
+        data: {
+          contextSelectionRequired: true,
+          selectionToken: result.selectionToken,
+          expiresIn: result.expiresIn,
+          roles: result.roles,
+        },
+      };
+    }
+
+    setRefreshTokenCookie(
+      response,
+      result.refreshToken,
+      this.tokenService.getRefreshTokenExpiresInSeconds(),
+      this.isProduction(),
+    );
+
+    return {
+      data: {
+        accessToken: result.accessToken,
+        expiresIn: result.expiresIn,
+        user: {
+          id: result.user.userId,
+          email: result.user.email,
+          organizationId: result.user.organizationId,
+        },
+      },
+    };
+  }
+
+  @Post('login/context')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Bind an assigned role after password authentication' })
+  @ApiOkResponse({ type: AuthResponseDto })
+  async selectLoginContext(
+    @Body() body: SelectLoginContextDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthResponseDto> {
+    const result = await this.authService.selectLoginContext(
+      body.selectionToken,
+      body.roleId,
+      this.extractMetadata(request),
+    );
 
     setRefreshTokenCookie(
       response,
@@ -184,9 +235,30 @@ export class AuthController {
       user.organizationId,
     );
 
+    if (!user.activeRoleId) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.ROLE_REVOKED,
+        message: 'Your role is no longer assigned. Sign in again.',
+      });
+    }
+
     const permissions = await this.permissionsService.getEffectivePermissions(
       user.userId,
       user.organizationId,
+      user.activeRoleId,
+    );
+
+    if (!permissions) {
+      throw new UnauthorizedException({
+        code: AUTH_ERROR_CODES.ROLE_REVOKED,
+        message: 'Your role is no longer assigned. Sign in again.',
+      });
+    }
+
+    const profile = await this.authService.getUserSessionProfile(
+      user.userId,
+      user.organizationId,
+      user.activeRoleId,
     );
 
     return {
@@ -196,6 +268,10 @@ export class AuthController {
         organizationId: authenticatedUser.organizationId,
         organization: this.organizationsService.toOrganizationSummary(organization),
         permissions,
+        features: this.featureFlagsService.toPublicSnapshot(),
+        ...(profile.staff ? { staff: profile.staff } : {}),
+        ...(profile.role ? { role: profile.role } : {}),
+        ...(profile.studentId ? { studentId: profile.studentId } : {}),
       },
     };
   }

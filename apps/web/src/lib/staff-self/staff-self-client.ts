@@ -37,7 +37,7 @@ export interface StaffSelfLeaveRequestSummary {
 export interface StaffSelfDashboard {
   staff: StaffSelfProfile;
   localDate: string;
-  todayAttendance: StaffSelfTodayAttendance;
+  todayAttendance?: StaffSelfTodayAttendance;
   leaveBalances: StaffSelfLeaveBalanceSummary[];
   pendingLeaveRequestCount: number;
   recentLeaveRequests: StaffSelfLeaveRequestSummary[];

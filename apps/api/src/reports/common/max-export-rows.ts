@@ -1,0 +1,1 @@
+export const MAX_REPORT_CSV_EXPORT_ROWS = 5000;

@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NoticeAudienceType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsEnum,
@@ -40,6 +41,13 @@ export class CreateNoticeDto {
   @ValidateNested({ each: true })
   @Type(() => NoticeAudienceInputDto)
   audiences!: NoticeAudienceInputDto[];
+
+  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsUUID('4', { each: true })
+  attachmentFileIds?: string[];
 }
 
 export class UpdateNoticeDto {
@@ -65,5 +73,13 @@ export class UpdateNoticeDto {
 
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
+  @Type(() => Date)
   scheduledAt?: Date | null;
+
+  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsUUID('4', { each: true })
+  attachmentFileIds?: string[];
 }

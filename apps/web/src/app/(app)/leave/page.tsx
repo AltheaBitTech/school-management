@@ -9,13 +9,18 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import EventBusyOutlined from '@mui/icons-material/EventBusyOutlined';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
+import { useAuthSession } from '@/components/providers/AuthSessionProvider';
+import { useCan } from '@/lib/auth/use-can';
+import { canApproveOrRejectLeave } from '@/lib/leave/leave-approval-access';
 import {
   approveLeaveRequest,
   formatLeaveStatus,
@@ -27,6 +32,11 @@ import {
 } from '@/lib/leave/leave-client';
 
 export default function LeavePage() {
+  const { user } = useAuthSession();
+  const canCreate = useCan('leave.create');
+  const canConfigure = useCan('leave.configure_types');
+  const canApprove = canApproveOrRejectLeave(user?.permissions, user?.role?.code);
+  const canReject = canApprove;
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState<LeaveRequestStatus | ''>('PENDING_APPROVAL');
   const [isLoading, setIsLoading] = useState(true);
@@ -122,22 +132,25 @@ export default function LeavePage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        title="Leave requests"
-        description="Review pending leave and track request decisions."
-        actions={
-          <>
+    <ListPageShell
+      title="Leave requests"
+      description="Review pending leave and track request decisions."
+      icon={EventBusyOutlined}
+      actions={
+        <>
+          {canConfigure ? (
             <Button component={Link} href="/leave/types" variant="outlined">
               Leave types
             </Button>
-            <Button component={Link} href="/leave/new" variant="contained">
+          ) : null}
+          {canCreate ? (
+            <Button component={Link} href="/leave/new" variant="contained" startIcon={<AddOutlined />}>
               New request
             </Button>
-          </>
-        }
-      />
-
+          ) : null}
+        </>
+      }
+      filters={
       <TextField
         select
         label="Status"
@@ -150,14 +163,25 @@ export default function LeavePage() {
         <MenuItem value="APPROVED">Approved</MenuItem>
         <MenuItem value="REJECTED">Rejected</MenuItem>
       </TextField>
+      }
+    >
+      {isLoading ? <LoadingState label="Loading leave requests" columnCount={6} /> : null}
 
-      {isLoading ? <LoadingState label="Loading leave requests" /> : null}
-
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
       {successMessage ? <Alert severity="success">{successMessage}</Alert> : null}
 
       {!isLoading && requests.length === 0 ? (
-        <EmptyState message="No leave requests found for the selected filter." />
+        <EmptyState
+          icon={EventBusyOutlined}
+          message="No leave requests found for the selected filter."
+          action={
+            canCreate ? (
+              <Button component={Link} href="/leave/new" variant="contained" startIcon={<AddOutlined />}>
+                New request
+              </Button>
+            ) : undefined
+          }
+        />
       ) : null}
 
       {!isLoading && requests.length > 0 ? (
@@ -186,24 +210,28 @@ export default function LeavePage() {
                   <StatusChip status={request.status} label={formatLeaveStatus(request.status)} />
                 </TableCell>
                 <TableCell align="right">
-                  {request.status === 'PENDING_APPROVAL' ? (
+                  {request.status === 'PENDING_APPROVAL' && (canApprove || canReject) ? (
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Button
-                        size="small"
-                        variant="contained"
-                        disabled={actingOnId === request.id}
-                        onClick={() => void handleApprove(request.id)}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        size="small"
-                        color="warning"
-                        disabled={actingOnId === request.id}
-                        onClick={() => void handleReject(request.id)}
-                      >
-                        Reject
-                      </Button>
+                      {canApprove ? (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          disabled={actingOnId === request.id}
+                          onClick={() => void handleApprove(request.id)}
+                        >
+                          Approve
+                        </Button>
+                      ) : null}
+                      {canReject ? (
+                        <Button
+                          size="small"
+                          color="warning"
+                          disabled={actingOnId === request.id}
+                          onClick={() => void handleReject(request.id)}
+                        >
+                          Reject
+                        </Button>
+                      ) : null}
                     </Stack>
                   ) : (
                     '—'
@@ -214,6 +242,6 @@ export default function LeavePage() {
           </TableBody>
         </AppTable>
       ) : null}
-    </Stack>
+    </ListPageShell>
   );
 }

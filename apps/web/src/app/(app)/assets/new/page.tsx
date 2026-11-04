@@ -1,28 +1,32 @@
 'use client';
 
+import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
+import { resetSubmitting } from '@/lib/forms/submit-state';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
+import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
+import { FormPageShell } from '@/components/ui/FormPageShell';
 import { createAsset, listAssetCategories, type AssetCategory } from '@/lib/assets/assets-client';
 import { ApiError } from '@/lib/api/client';
+import { requiredText } from '@/lib/forms/field-rules';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
 
 export default function NewAssetPage() {
   const router = useRouter();
+  const { showSuccess } = useAppSnackbar();
   const [categories, setCategories] = useState<AssetCategory[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [barcode, setBarcode] = useState('');
@@ -64,6 +68,7 @@ export default function NewAssetPage() {
           setStaff(staffResponse.data);
         }
       } catch (error) {
+      resetSubmitting(setIsSubmitting);
         if (!cancelled) {
           setErrorMessage(error instanceof Error ? error.message : 'Failed to load form options');
         }
@@ -83,6 +88,15 @@ export default function NewAssetPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    const nextNameError = requiredText(name, 'Asset name', 2);
+    setNameError(nextNameError);
+    if (nextNameError || !categoryId) {
+      return;
+    }
+    if (warrantyStartDate && warrantyEndDate && warrantyEndDate < warrantyStartDate) {
+      setErrorMessage('Warranty end must be on or after the warranty start.');
+      return;
+    }
     setErrorMessage(null);
     setIsSubmitting(true);
 
@@ -102,15 +116,15 @@ export default function NewAssetPage() {
         location: location || undefined,
         assignedStaffId: assignedStaffId || undefined,
       });
+      showSuccess('Asset registered');
       router.push(`/assets/${asset.id}`);
     } catch (error) {
+      resetSubmitting(setIsSubmitting);
       if (error instanceof ApiError && error.statusCode === 403) {
         setIsForbidden(true);
       } else {
         setErrorMessage(error instanceof Error ? error.message : 'Failed to register asset');
       }
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -118,18 +132,30 @@ export default function NewAssetPage() {
     return <ForbiddenState />;
   }
 
-  return (
-    <Stack spacing={3} component="form" onSubmit={handleSubmit}>
-      <Box>
-        <Typography variant="h4" component="h1">
-          Register asset
-        </Typography>
-        <Typography color="text.secondary">
-          Add a new asset with category, identifiers, and optional assignment.
-        </Typography>
-      </Box>
+  const warrantyError =
+    warrantyStartDate && warrantyEndDate && warrantyEndDate < warrantyStartDate
+      ? 'Warranty end must be on or after the warranty start.'
+      : null;
 
-      <Stack spacing={2} maxWidth="sm">
+  return (
+    <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+      <FormPageShell
+        title="Register asset"
+        description="Add a new asset with category, identifiers, and optional assignment."
+        icon={Inventory2Outlined}
+        maxWidth={840}
+        footer={
+          <FormPageFooter
+            cancelHref="/assets"
+            submitLabel="Register asset"
+            submittingLabel="Saving…"
+            isSubmitting={isSubmitting}
+            submitDisabled={isLoadingOptions || Boolean(nameError || warrantyError || !categoryId)}
+          />
+        }
+      >
+        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      <FormSection title="Asset details" description="Category, name, and optional assignment." maxWidth="100%">
         <TextField
           select
           label="Category"
@@ -149,6 +175,9 @@ export default function NewAssetPage() {
           label="Asset name"
           value={name}
           onChange={(event) => setName(event.target.value)}
+          onBlur={() => setNameError(requiredText(name, 'Asset name', 2))}
+          error={Boolean(nameError)}
+          helperText={nameError ?? 'At least 2 characters'}
           required
         />
         <TextField
@@ -200,6 +229,8 @@ export default function NewAssetPage() {
           value={warrantyEndDate}
           onChange={(event) => setWarrantyEndDate(event.target.value)}
           InputLabelProps={{ shrink: true }}
+          error={Boolean(warrantyError)}
+          helperText={warrantyError ?? undefined}
         />
         <TextField
           select
@@ -233,17 +264,8 @@ export default function NewAssetPage() {
           ))}
         </TextField>
 
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-
-        <Stack direction="row" spacing={2}>
-          <Button type="submit" variant="contained" disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting…' : 'Register asset'}
-          </Button>
-          <Button component={Link} href="/assets">
-            Cancel
-          </Button>
-        </Stack>
-      </Stack>
-    </Stack>
+      </FormSection>
+      </FormPageShell>
+    </Box>
   );
 }

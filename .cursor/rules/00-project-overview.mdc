@@ -9,7 +9,7 @@ CampusOps is a multi-tenant School Operations Management SaaS.
 
 Architecture baseline:
 
-- `apps/web` — Next.js frontend
+- `apps/web` — Next.js frontend (MUI v6 + @mui/icons-material v6)
 - `apps/api` — NestJS backend
 - PostgreSQL
 - Prisma
@@ -22,3 +22,24 @@ CampusOps complements a School ERP. Do not silently turn it into a full academic
 Prefer simple, maintainable solutions. Avoid premature microservices, Kafka, Kubernetes, multiple databases, or Redis unless the actual workload requires them.
 
 Before implementing a feature, inspect the relevant docs and existing code.
+
+## Active Plan
+
+All product decisions, phase plan, and Composer 2.5 prompts are in:
+- `docs/19-DECISIONS-AND-PLAN.md` — master decisions and plan document
+- `.cursor/commands/phase1-ui-foundation.md` — Phase 1 prompt
+- `.cursor/commands/phase2-roles-system.md` — Phase 2 prompt
+- `.cursor/commands/phase3-attendance-csv.md` — Phase 3 prompt
+- `.cursor/commands/phase4-document-templates.md` — Phase 4 prompt
+- `.cursor/commands/phase5-visitor-qr-fees-students.md` — Phase 5 prompt
+
+## Roles in scope (8 org roles)
+
+SCHOOL_ADMIN · PRINCIPAL · TEACHER · RECEPTIONIST · MAINTENANCE_STAFF · ACCOUNTANT · STAFF · STUDENT · PARENT
+
+## UI Decisions
+
+- Input variant: FILLED (not outlined) — see rule 07-ui-ux.mdc
+- Sidebar: deep navy `#0f2044` with @mui/icons-material icons
+- PDF generation: pdfkit (already installed in apps/api)
+- Nav items are permission-filtered — user only sees modules they can access
