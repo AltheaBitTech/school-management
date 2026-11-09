@@ -14,7 +14,7 @@ import { ORGANIZATION_CODE_PATTERN } from '../constants/organization.constants';
 export class CreateOrganizationAdminDto {
   @ApiProperty({ example: 'admin@school.example' })
   @IsEmail()
-  @MaxLength(320)
+  @MaxLength(254)
   email!: string;
 
   @ApiProperty({ example: 'StrongPassword123!' })

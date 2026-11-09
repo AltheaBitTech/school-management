@@ -43,6 +43,7 @@ describe('OrganizationRegistrationsController', () => {
       contactFirstName: 'John',
       contactLastName: 'Doe',
       contactPhone: '9876543210',
+      password: 'SchoolAdmin123!',
     };
 
     it('should return 201 with registration response on valid submission', async () => {
@@ -84,6 +85,7 @@ describe('OrganizationRegistrationsController', () => {
         contactFirstName: 'John',
         contactLastName: 'Doe',
         contactPhone: '9876543210',
+        password: 'SchoolAdmin123!',
         address: 'Test Address',
         city: 'Test City',
         state: 'Test State',

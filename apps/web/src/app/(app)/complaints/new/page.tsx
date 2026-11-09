@@ -26,6 +26,7 @@ import {
   type ComplaintCategory,
   type ComplaintPriority,
 } from '@/lib/complaints/complaints-client';
+import { validateRequiredMaxLength } from '@/lib/forms/validators';
 
 interface PendingAttachment {
   id: string;
@@ -71,15 +72,24 @@ export default function NewComplaintPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorMessage(null);
+    const titleProblem = validateRequiredMaxLength(title, 'Title', 200);
+    const descriptionProblem = validateRequiredMaxLength(description, 'Description', 4000);
+    const locationProblem = location.trim()
+      ? validateRequiredMaxLength(location, 'Location', 200)
+      : undefined;
+    if (titleProblem || descriptionProblem || locationProblem) {
+      setErrorMessage(titleProblem ?? descriptionProblem ?? locationProblem ?? 'Fix the highlighted fields');
+      return;
+    }
     setIsSubmitting(true);
 
     try {
       const complaint = await createComplaint({
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim(),
         category,
         priority,
-        location: location || undefined,
+        location: location.trim() || undefined,
         attachmentFileIds: attachmentFileIds.length ? attachmentFileIds : undefined,
       });
       router.push(`/complaints/${complaint.id}`);

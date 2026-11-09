@@ -18,6 +18,11 @@ import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError, apiClient } from '@/lib/api/client';
 import { useCan } from '@/lib/auth/use-can';
 import { listStudents, type Student } from '@/lib/students/students-client';
+import {
+  validateOptionalMaxLength,
+  validateOptionalTimeHHMM,
+  validateRequiredMinMaxLength,
+} from '@/lib/forms/validators';
 
 interface StopDraft {
   id?: string;
@@ -88,9 +93,18 @@ export default function TransportRoutePage() {
 
   async function saveStops(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (stops.some((stop) => stop.name.trim().length < 2)) {
-      setErrorMessage('Every stop needs a name of at least 2 characters.');
+    if (stops.length > 40) {
+      setErrorMessage('A route can have at most 40 stops.');
       return;
+    }
+    for (const stop of stops) {
+      const nameProblem = validateRequiredMinMaxLength(stop.name, 'Stop name', 2, 80);
+      const addressProblem = validateOptionalMaxLength(stop.address, 'Address', 160);
+      const timeProblem = validateOptionalTimeHHMM(stop.pickupTime);
+      if (nameProblem || addressProblem || timeProblem) {
+        setErrorMessage(nameProblem ?? addressProblem ?? timeProblem ?? null);
+        return;
+      }
     }
     setIsSavingStops(true);
     setErrorMessage(null);

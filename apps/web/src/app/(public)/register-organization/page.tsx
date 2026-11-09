@@ -28,8 +28,8 @@ function SuccessState() {
       </Stack>
 
       <Alert severity="info" sx={{ textAlign: 'left' }}>
-        Check your inbox for a confirmation message with instructions to set up your school administrator account after
-        approval.
+        You cannot sign in until the platform team approves this request. After approval, use your school sign-in code,
+        email, and the password you chose above.
       </Alert>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="center" sx={{ pt: 1 }}>

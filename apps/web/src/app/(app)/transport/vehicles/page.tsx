@@ -18,6 +18,7 @@ import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError, apiClient } from '@/lib/api/client';
 import { useCan } from '@/lib/auth/use-can';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
+import { validateRequiredMinMaxLength } from '@/lib/forms/validators';
 
 interface VehicleRow {
   id: string;
@@ -59,9 +60,13 @@ export default function TransportVehiclesPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    const registrationProblem = validateRequiredMinMaxLength(registrationNumber, 'Registration', 2, 20);
+    const typeProblem = validateRequiredMinMaxLength(vehicleType, 'Type', 2, 40);
     const seats = Number(capacity);
-    if (!Number.isInteger(seats) || seats < 1) {
-      setErrorMessage('Capacity must be a whole number of at least 1.');
+    const capacityProblem =
+      !Number.isInteger(seats) || seats < 1 ? 'Capacity must be a whole number of at least 1.' : null;
+    if (registrationProblem || typeProblem || capacityProblem) {
+      setErrorMessage(registrationProblem ?? typeProblem ?? capacityProblem);
       return;
     }
     setIsSubmitting(true);

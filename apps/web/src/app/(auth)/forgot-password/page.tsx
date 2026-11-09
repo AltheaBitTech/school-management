@@ -11,6 +11,7 @@ import { useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 import { AuthPageCard } from '@/components/auth/AuthPageCard';
 import { requestPasswordReset } from '@/lib/auth/auth-client';
+import { validateEmail } from '@/lib/forms/validators';
 
 function ForgotPasswordForm() {
   const searchParams = useSearchParams();
@@ -18,16 +19,22 @@ function ForgotPasswordForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
+    const nextEmailError = validateEmail(email) ?? null;
+    setEmailError(nextEmailError);
+    if (nextEmailError) {
+      return;
+    }
     setIsSubmitting(true);
 
     try {
       const response = await requestPasswordReset({
-        email,
+        email: email.trim(),
       });
       setSuccessMessage(response.message);
     } catch (error) {
@@ -58,11 +65,18 @@ function ForgotPasswordForm() {
               name="email"
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              helperText="The email address on your CampusOps account (same as your invite email)"
+              onChange={(event) => {
+                setEmail(event.target.value);
+                if (emailError) {
+                  setEmailError(validateEmail(event.target.value) ?? null);
+                }
+              }}
+              onBlur={() => setEmailError(validateEmail(email) ?? null)}
+              helperText={emailError ?? 'The email address on your CampusOps account (same as your invite email)'}
+              error={Boolean(emailError)}
               required
               fullWidth
-                          />
+            />
 
             {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 

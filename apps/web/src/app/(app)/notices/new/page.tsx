@@ -28,6 +28,7 @@ import {
   updateNotice,
   type NoticeAudienceInput,
 } from '@/lib/notices/notices-client';
+import { validateRequired } from '@/lib/forms/validators';
 
 function buildAudiences(
   entireSchool: boolean,
@@ -87,16 +88,22 @@ export default function NewNoticePage() {
 
   async function handleAction(action: 'draft' | 'schedule' | 'publish'): Promise<void> {
     setErrorMessage(null);
+    const titleProblem = validateRequired(title, 'Title');
+    const contentProblem = validateRequired(content, 'Content');
+    if (titleProblem || contentProblem) {
+      setErrorMessage(titleProblem ?? contentProblem ?? null);
+      return;
+    }
+    if (audiences.length === 0) {
+      setErrorMessage('Select at least one audience.');
+      return;
+    }
     setIsSubmitting(true);
 
     try {
-      if (audiences.length === 0) {
-        throw new Error('Select at least one audience.');
-      }
-
       const notice = await createNotice({
-        title,
-        content,
+        title: title.trim(),
+        content: content.trim(),
         audiences,
         attachmentFileIds: attachmentFileIds.length ? attachmentFileIds : undefined,
       });

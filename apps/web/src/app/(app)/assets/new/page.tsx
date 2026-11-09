@@ -14,7 +14,12 @@ import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
 import { FormPageShell } from '@/components/ui/FormPageShell';
 import { createAsset, listAssetCategories, type AssetCategory } from '@/lib/assets/assets-client';
 import { ApiError } from '@/lib/api/client';
-import { requiredText } from '@/lib/forms/field-rules';
+import {
+  validateDateRange,
+  validateOptionalMaxLength,
+  validateOptionalNonNegativeAmount,
+  validateRequiredMinMaxLength,
+} from '@/lib/forms/validators';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
 
@@ -68,7 +73,6 @@ export default function NewAssetPage() {
           setStaff(staffResponse.data);
         }
       } catch (error) {
-      resetSubmitting(setIsSubmitting);
         if (!cancelled) {
           setErrorMessage(error instanceof Error ? error.message : 'Failed to load form options');
         }
@@ -88,13 +92,24 @@ export default function NewAssetPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    const nextNameError = requiredText(name, 'Asset name', 2);
+    const nextNameError = validateRequiredMinMaxLength(name, 'Asset name', 2, 200) ?? null;
     setNameError(nextNameError);
-    if (nextNameError || !categoryId) {
-      return;
-    }
-    if (warrantyStartDate && warrantyEndDate && warrantyEndDate < warrantyStartDate) {
-      setErrorMessage('Warranty end must be on or after the warranty start.');
+    const costProblem = validateOptionalNonNegativeAmount(purchaseCost, 'Purchase cost');
+    const descriptionProblem = validateOptionalMaxLength(description, 'Description', 2000);
+    const serialProblem = validateOptionalMaxLength(serialNumber, 'Serial number', 100);
+    const warrantyProblem =
+      warrantyStartDate && warrantyEndDate
+        ? validateDateRange(warrantyStartDate, warrantyEndDate)
+        : undefined;
+    if (
+      nextNameError ||
+      !categoryId ||
+      costProblem ||
+      descriptionProblem ||
+      serialProblem ||
+      warrantyProblem
+    ) {
+      setErrorMessage(costProblem ?? descriptionProblem ?? serialProblem ?? warrantyProblem ?? null);
       return;
     }
     setErrorMessage(null);
@@ -103,8 +118,8 @@ export default function NewAssetPage() {
     try {
       const asset = await createAsset({
         categoryId,
-        name,
-        description: description || undefined,
+        name: name.trim(),
+        description: description.trim() || undefined,
         serialNumber: serialNumber || undefined,
         barcode: barcode || undefined,
         qrCode: qrCode || undefined,
@@ -175,7 +190,7 @@ export default function NewAssetPage() {
           label="Asset name"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          onBlur={() => setNameError(requiredText(name, 'Asset name', 2))}
+          onBlur={() => setNameError(validateRequiredMinMaxLength(name, 'Asset name', 2, 200) ?? null)}
           error={Boolean(nameError)}
           helperText={nameError ?? 'At least 2 characters'}
           required

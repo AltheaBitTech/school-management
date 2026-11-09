@@ -164,6 +164,7 @@ describeIfDatabase('Organization registrations integration', () => {
       prisma as unknown as PrismaService,
       auditService,
       configService as unknown as ConfigService,
+      passwordService,
       {
         sendEmail: jest.fn().mockResolvedValue(undefined),
       },
@@ -248,12 +249,15 @@ describeIfDatabase('Organization registrations integration', () => {
     const suffix = Date.now();
     const contactEmail = `onboarding-principal-${suffix}@example.com`;
 
+    const registrationPassword = 'NewSchoolAdmin123!';
+
     const registration = await registrationsService.submitRegistrationRequest({
       organizationName: 'Onboarding Test School',
       contactEmail,
       contactPhone: testContactPhone,
       contactFirstName: 'Priya',
       contactLastName: 'Sharma',
+      password: registrationPassword,
     });
 
     expect(registration.status).toBe('PENDING');
@@ -267,23 +271,18 @@ describeIfDatabase('Organization registrations integration', () => {
     );
 
     expect(approval.organizationCode).toBe('onboarding-test-school');
-    expect(approval.completeSignupUrl).toContain(registration.id);
-    expect(approval.completeSignupUrl).toContain(approval.organizationCode);
+    expect(approval.signupPreCompleted).toBe(true);
+    expect(approval.loginUrl).toContain(approval.organizationCode);
+    expect(approval.completeSignupUrl).toBeUndefined();
 
     const signupContext = await registrationsService.getSignupContext(registration.id);
-    expect(signupContext.signupCompleted).toBe(false);
+    expect(signupContext.signupCompleted).toBe(true);
     expect(signupContext.organizationCode).toBe(approval.organizationCode);
-
-    const completeSignupResult = await authService.completeSignup(
-      registration.id,
-      'NewSchoolAdmin123!',
-    );
-    expect(completeSignupResult.organizationCode).toBe(approval.organizationCode);
 
     const loginResult = await authService.login(
       {
         email: contactEmail,
-        password: 'NewSchoolAdmin123!',
+        password: registrationPassword,
       },
       {},
     );
@@ -317,6 +316,7 @@ describeIfDatabase('Organization registrations integration', () => {
       contactPhone: testContactPhone,
       contactFirstName: 'A',
       contactLastName: 'B',
+      password: 'SchoolAdmin123!',
     });
 
     await expect(
@@ -326,6 +326,7 @@ describeIfDatabase('Organization registrations integration', () => {
         contactPhone: testContactPhone,
         contactFirstName: 'C',
         contactLastName: 'D',
+        password: 'SchoolAdmin123!',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
 
@@ -342,6 +343,7 @@ describeIfDatabase('Organization registrations integration', () => {
         contactPhone: testContactPhone,
         contactFirstName: 'A',
         contactLastName: 'B',
+        password: 'SchoolAdmin123!',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
@@ -384,6 +386,7 @@ describeIfDatabase('Organization registrations integration', () => {
       contactPhone: testContactPhone,
       contactFirstName: 'R',
       contactLastName: 'J',
+      password: 'SchoolAdmin123!',
     });
 
     await registrationsService.rejectRegistration(
@@ -402,19 +405,20 @@ describeIfDatabase('Organization registrations integration', () => {
     await prisma.organizationRegistrationRequest.delete({ where: { id: registration.id } });
   });
 
-  it('prevents replaying complete signup after password is set', async () => {
+  it('prevents replaying complete signup after registration password was applied', async () => {
     const suffix = Date.now();
     const contactEmail = `replay-${suffix}@example.com`;
+    const registrationPassword = 'ReplayPassword123!';
     const registration = await registrationsService.submitRegistrationRequest({
       organizationName: 'Replay School',
       contactEmail,
       contactPhone: testContactPhone,
       contactFirstName: 'Replay',
       contactLastName: 'Test',
+      password: registrationPassword,
     });
 
     await registrationsService.approveRegistration(registration.id, platformAdminUserId);
-    await authService.completeSignup(registration.id, 'ReplayPassword123!');
 
     await expect(authService.completeSignup(registration.id, 'AnotherPassword123!')).rejects.toBeInstanceOf(
       ConflictException,
@@ -435,6 +439,7 @@ describeIfDatabase('Organization registrations integration', () => {
       contactPhone: testContactPhone,
       contactFirstName: 'Scope',
       contactLastName: 'Test',
+      password: 'SchoolAdmin123!',
     });
 
     const approval = await registrationsService.approveRegistration(

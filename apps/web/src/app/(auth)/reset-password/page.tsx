@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 import { AuthPageCard } from '@/components/auth/AuthPageCard';
 import { resetPassword } from '@/lib/auth/auth-client';
+import { validateConfirmPassword, validatePassword } from '@/lib/forms/validators';
 
 function InviteRecoveryHelp() {
   return (
@@ -54,13 +55,15 @@ function ResetPasswordForm({ isInvite }: { isInvite: boolean }) {
       return;
     }
 
-    if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match');
+    const passwordProblem = validatePassword(password);
+    if (passwordProblem) {
+      setErrorMessage(passwordProblem);
       return;
     }
 
-    if (password.length < 8) {
-      setErrorMessage('Password must be at least 8 characters');
+    const confirmProblem = validateConfirmPassword(password, confirmPassword);
+    if (confirmProblem) {
+      setErrorMessage(confirmProblem);
       return;
     }
 

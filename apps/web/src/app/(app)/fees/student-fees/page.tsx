@@ -86,6 +86,10 @@ export default function StudentFeesPage() {
 
   async function handleAssign(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (!studentId || !feeStructureId) {
+      setErrorMessage('Select a student and a fee structure.');
+      return;
+    }
     setIsSubmitting(true);
     setErrorMessage(null);
 

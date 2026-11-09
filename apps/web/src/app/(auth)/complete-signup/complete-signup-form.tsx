@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button, TextField, Alert, Box, CircularProgress, Stack } from '@mui/material';
 import { apiClient } from '@/lib/api/client';
+import { validateConfirmPassword, validatePassword } from '@/lib/forms/validators';
 
 interface SignupContext {
   registrationRequestId: string;
@@ -47,7 +48,11 @@ export function CompleteSignupForm() {
         if (!cancelled) {
           setSignupContext(context);
           if (context.signupCompleted) {
-            setError('Signup has already been completed. Please sign in.');
+            const loginParams = new URLSearchParams({
+              orgCode: context.organizationCode,
+              email: context.contactEmail,
+            });
+            router.replace(`/login?${loginParams.toString()}`);
           }
         }
       } catch {
@@ -66,7 +71,7 @@ export function CompleteSignupForm() {
     return () => {
       cancelled = true;
     };
-  }, [requestId]);
+  }, [requestId, router]);
 
   const organizationCode = signupContext?.organizationCode ?? orgCodeParam ?? '';
   const email = signupContext?.contactEmail ?? emailParam ?? '';
@@ -80,13 +85,15 @@ export function CompleteSignupForm() {
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
+    const passwordProblem = validatePassword(password);
+    if (passwordProblem) {
+      setError(passwordProblem);
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    const confirmProblem = validateConfirmPassword(password, confirmPassword);
+    if (confirmProblem) {
+      setError(confirmProblem);
       return;
     }
 

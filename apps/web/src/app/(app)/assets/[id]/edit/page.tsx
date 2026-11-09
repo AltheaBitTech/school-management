@@ -15,6 +15,12 @@ import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
 import { FormPageShell } from '@/components/ui/FormPageShell';
 import { getAsset, updateAsset, type Asset } from '@/lib/assets/assets-client';
 import { ApiError } from '@/lib/api/client';
+import {
+  validateDateRange,
+  validateOptionalMaxLength,
+  validateOptionalNonNegativeAmount,
+  validateRequiredMinMaxLength,
+} from '@/lib/forms/validators';
 
 export default function EditAssetPage() {
   const params = useParams<{ id: string }>();
@@ -37,6 +43,7 @@ export default function EditAssetPage() {
   const [isNotFound, setIsNotFound] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,7 +102,20 @@ export default function EditAssetPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (!asset || asset.status === 'RETIRED' || warrantyError) {
+    if (!asset || asset.status === 'RETIRED') {
+      return;
+    }
+
+    const nextNameError = validateRequiredMinMaxLength(name, 'Asset name', 2, 200) ?? null;
+    const costProblem = validateOptionalNonNegativeAmount(purchaseCost, 'Purchase cost');
+    const descriptionProblem = validateOptionalMaxLength(description, 'Description', 2000);
+    const warrantyProblem =
+      warrantyStartDate && warrantyEndDate
+        ? validateDateRange(warrantyStartDate, warrantyEndDate)
+        : undefined;
+    setNameError(nextNameError);
+    if (nextNameError || costProblem || descriptionProblem || warrantyProblem || warrantyError) {
+      setErrorMessage(costProblem ?? descriptionProblem ?? warrantyProblem ?? warrantyError);
       return;
     }
 
@@ -104,8 +124,8 @@ export default function EditAssetPage() {
 
     try {
       const updated = await updateAsset(assetId, {
-        name,
-        description: description || null,
+        name: name.trim(),
+        description: description.trim() || null,
         serialNumber: serialNumber || null,
         barcode: barcode || null,
         qrCode: qrCode || null,
@@ -189,7 +209,15 @@ export default function EditAssetPage() {
         {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
         <FormSection title="Identity" description="Name and how the item is identified." maxWidth="100%">
-          <TextField label="Asset name" value={name} onChange={(event) => setName(event.target.value)} required fullWidth />
+          <TextField
+            label="Asset name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            error={Boolean(nameError)}
+            helperText={nameError ?? undefined}
+            fullWidth
+          />
           <TextField
             label="Description"
             value={description}

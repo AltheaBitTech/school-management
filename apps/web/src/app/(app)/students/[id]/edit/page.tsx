@@ -29,6 +29,7 @@ import {
   updateStudent,
   type StudentStatus,
 } from '@/lib/students/students-client';
+import { validateRequiredMaxLength } from '@/lib/forms/validators';
 
 export default function EditStudentPage() {
   const params = useParams<{ id: string }>();
@@ -49,6 +50,8 @@ export default function EditStudentPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [firstNameError, setFirstNameError] = useState<string | null>(null);
+  const [lastNameError, setLastNameError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,7 +76,6 @@ export default function EditStudentPage() {
           setStatus(student.status);
         }
       } catch (error) {
-      resetSubmitting(setIsSubmitting);
         if (!cancelled) {
           if (error instanceof ApiError && error.statusCode === 403) {
             setIsForbidden(true);
@@ -98,6 +100,8 @@ export default function EditStudentPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorMessage(null);
+    const nextFirstNameError = validateRequiredMaxLength(firstName, 'First name', 100) ?? null;
+    const nextLastNameError = validateRequiredMaxLength(lastName, 'Last name', 100) ?? null;
     const profileErrors = validateStudentProfile({
       studentClass,
       section,
@@ -106,8 +110,10 @@ export default function EditStudentPage() {
       guardianName,
       guardianPhone,
     });
+    setFirstNameError(nextFirstNameError);
+    setLastNameError(nextLastNameError);
     setFieldErrors(profileErrors);
-    if (Object.keys(profileErrors).length > 0) {
+    if (nextFirstNameError || nextLastNameError || Object.keys(profileErrors).length > 0) {
       setErrorMessage('Fill the highlighted fields before saving.');
       return;
     }
@@ -177,6 +183,8 @@ export default function EditStudentPage() {
             onChange={(event) => setFirstName(event.target.value)}
             required
             inputProps={{ maxLength: 100 }}
+            error={Boolean(firstNameError)}
+            helperText={firstNameError ?? undefined}
             fullWidth
           />
           <TextField
@@ -185,6 +193,8 @@ export default function EditStudentPage() {
             onChange={(event) => setLastName(event.target.value)}
             required
             inputProps={{ maxLength: 100 }}
+            error={Boolean(lastNameError)}
+            helperText={lastNameError ?? undefined}
             fullWidth
           />
           <TextField

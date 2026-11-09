@@ -12,7 +12,7 @@ import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
 import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError } from '@/lib/api/client';
-import { validateEmail } from '@/lib/forms/validators';
+import { validateEmail, validateRequiredMaxLength } from '@/lib/forms/validators';
 import { INDIA_MOBILE_HELPER_TEXT } from '@/lib/validation/india-mobile';
 import {
   validateStudentProfile,
@@ -39,6 +39,8 @@ export default function NewStudentPage() {
   const [loginEmail, setLoginEmail] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<StudentProfileField, string>>>({});
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [firstNameError, setFirstNameError] = useState<string | null>(null);
+  const [lastNameError, setLastNameError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +55,8 @@ export default function NewStudentPage() {
     event.preventDefault();
     setErrorMessage(null);
     setIsForbidden(false);
+    const nextFirstNameError = validateRequiredMaxLength(firstName, 'First name', 100) ?? null;
+    const nextLastNameError = validateRequiredMaxLength(lastName, 'Last name', 100) ?? null;
     const profileErrors = validateStudentProfile({
       studentClass,
       section,
@@ -62,9 +66,16 @@ export default function NewStudentPage() {
       guardianPhone,
     });
     const nextEmailError = validateEmail(loginEmail) ?? null;
+    setFirstNameError(nextFirstNameError);
+    setLastNameError(nextLastNameError);
     setFieldErrors(profileErrors);
     setEmailError(nextEmailError);
-    if (Object.keys(profileErrors).length > 0 || nextEmailError) {
+    if (
+      nextFirstNameError ||
+      nextLastNameError ||
+      Object.keys(profileErrors).length > 0 ||
+      nextEmailError
+    ) {
       setErrorMessage('Fill the highlighted fields before creating the student.');
       return;
     }
@@ -148,6 +159,8 @@ export default function NewStudentPage() {
             onChange={(event) => setFirstName(event.target.value)}
             required
             inputProps={{ maxLength: 100 }}
+            error={Boolean(firstNameError)}
+            helperText={firstNameError ?? undefined}
             fullWidth
           />
           <TextField
@@ -156,6 +169,8 @@ export default function NewStudentPage() {
             onChange={(event) => setLastName(event.target.value)}
             required
             inputProps={{ maxLength: 100 }}
+            error={Boolean(lastNameError)}
+            helperText={lastNameError ?? undefined}
             fullWidth
           />
           <TextField

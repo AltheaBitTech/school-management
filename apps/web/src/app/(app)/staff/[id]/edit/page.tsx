@@ -20,6 +20,12 @@ import { listDepartments, type Department } from '@/lib/departments/departments-
 import { filterStaffAssignableRoles } from '@/lib/rbac/staff-assignable-roles';
 import { listOrganizationRoles, type OrganizationRole } from '@/lib/rbac/roles-client';
 import { getStaff, updateStaff } from '@/lib/staff/staff-client';
+import {
+  validateEmail,
+  validateOptionalIndianMobile,
+  validateRequiredMaxLength,
+} from '@/lib/forms/validators';
+import { INDIA_MOBILE_HELPER_TEXT } from '@/lib/validation/india-mobile';
 
 export default function EditStaffPage() {
   const params = useParams<{ id: string }>();
@@ -30,6 +36,7 @@ export default function EditStaffPage() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [designation, setDesignation] = useState('');
+  const [mobile, setMobile] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [roleId, setRoleId] = useState('');
   const [roles, setRoles] = useState<OrganizationRole[]>([]);
@@ -38,20 +45,9 @@ export default function EditStaffPage() {
   const [isForbidden, setIsForbidden] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-
-  function validateEmail(value: string): boolean {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      setEmailError('Work email is required');
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setEmailError('Enter a valid email address');
-      return false;
-    }
-    setEmailError(null);
-    return true;
-  }
+  const [mobileError, setMobileError] = useState<string | null>(null);
+  const [firstNameError, setFirstNameError] = useState<string | null>(null);
+  const [lastNameError, setLastNameError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +68,7 @@ export default function EditStaffPage() {
           setFirstName(staff.firstName);
           setLastName(staff.lastName);
           setEmail(staff.email ?? '');
+          setMobile(staff.mobile ?? '');
           setDesignation(staff.designation ?? '');
           setDepartmentId(staff.departmentId ?? '');
           setDepartments(departmentResponse.data);
@@ -85,7 +82,6 @@ export default function EditStaffPage() {
           );
         }
       } catch (error) {
-      resetSubmitting(setIsSubmitting);
         if (!cancelled) {
           if (error instanceof ApiError && error.statusCode === 403) {
             setIsForbidden(true);
@@ -109,17 +105,26 @@ export default function EditStaffPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorMessage(null);
-    if (!validateEmail(email)) {
+    const nextFirstNameError = validateRequiredMaxLength(firstName, 'First name', 100) ?? null;
+    const nextLastNameError = validateRequiredMaxLength(lastName, 'Last name', 100) ?? null;
+    const nextEmailError = validateEmail(email) ?? null;
+    const nextMobileError = validateOptionalIndianMobile(mobile) ?? null;
+    setFirstNameError(nextFirstNameError);
+    setLastNameError(nextLastNameError);
+    setEmailError(nextEmailError);
+    setMobileError(nextMobileError);
+    if (nextFirstNameError || nextLastNameError || nextEmailError || nextMobileError) {
       return;
     }
     setIsSubmitting(true);
 
     try {
       await updateStaff(params.id, {
-        firstName,
-        lastName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         email: email.trim(),
-        designation: designation || null,
+        mobile: mobile.trim() || null,
+        designation: designation.trim() || null,
         departmentId: departmentId || null,
       });
       showSuccess('Staff profile updated');
@@ -174,6 +179,8 @@ export default function EditStaffPage() {
             value={firstName}
             onChange={(event) => setFirstName(event.target.value)}
             required
+            error={Boolean(firstNameError)}
+            helperText={firstNameError ?? undefined}
             fullWidth
           />
           <TextField
@@ -181,6 +188,8 @@ export default function EditStaffPage() {
             value={lastName}
             onChange={(event) => setLastName(event.target.value)}
             required
+            error={Boolean(lastNameError)}
+            helperText={lastNameError ?? undefined}
             fullWidth
           />
           <TextField
@@ -190,13 +199,22 @@ export default function EditStaffPage() {
             onChange={(event) => {
               setEmail(event.target.value);
               if (emailError) {
-                validateEmail(event.target.value);
+                setEmailError(validateEmail(event.target.value) ?? null);
               }
             }}
-            onBlur={() => validateEmail(email)}
+            onBlur={() => setEmailError(validateEmail(email) ?? null)}
             required
             error={Boolean(emailError)}
             helperText={emailError ?? 'Used to send the login invite'}
+            fullWidth
+          />
+          <TextField
+            label="Mobile"
+            value={mobile}
+            onChange={(event) => setMobile(event.target.value)}
+            onBlur={() => setMobileError(validateOptionalIndianMobile(mobile) ?? null)}
+            error={Boolean(mobileError)}
+            helperText={mobileError ?? INDIA_MOBILE_HELPER_TEXT}
             fullWidth
           />
         </FormSection>

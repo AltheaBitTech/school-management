@@ -46,7 +46,7 @@ export class CreateOrganizationRegistrationRequestDto {
   @ApiProperty({ example: 'principal@dps.edu' })
   @IsNotEmpty()
   @IsEmail()
-  @MaxLength(320)
+  @MaxLength(254)
   @Transform(({ value }) => normalizeEmail(value))
   contactEmail!: string;
 
@@ -97,4 +97,14 @@ export class CreateOrganizationRegistrationRequestDto {
   @IsString()
   @MaxLength(100)
   country?: string;
+
+  @ApiProperty({
+    minLength: 8,
+    description: 'Password for the school administrator account (used after approval)',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  password!: string;
 }

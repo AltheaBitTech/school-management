@@ -30,6 +30,7 @@ import {
   type Notice,
   type NoticeAudienceInput,
 } from '@/lib/notices/notices-client';
+import { validateRequired } from '@/lib/forms/validators';
 
 function buildAudiences(
   entireSchool: boolean,
@@ -153,17 +154,24 @@ export default function EditNoticePage() {
       return;
     }
 
+    const titleProblem = validateRequired(title, 'Title');
+    const contentProblem = validateRequired(content, 'Content');
+    if (titleProblem || contentProblem) {
+      setErrorMessage(titleProblem ?? contentProblem ?? null);
+      return;
+    }
+    if (audiences.length === 0) {
+      setErrorMessage('Select at least one audience.');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      if (audiences.length === 0) {
-        throw new Error('Select at least one audience.');
-      }
-
       const updated = await updateNotice(noticeId, {
-        title,
-        content,
+        title: title.trim(),
+        content: content.trim(),
         audiences,
         attachmentFileIds,
         scheduledAt: scheduleAt ? new Date(scheduleAt).toISOString() : null,

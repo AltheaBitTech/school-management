@@ -8,7 +8,10 @@ import {
   IsUUID,
   Matches,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
+import { Trim } from '../../common/transforms/trim.decorator';
+import { VISITOR_MOBILE_PATTERN } from '../../visitors/constants/visitor-mobile.constants';
 import { EMPLOYEE_CODE_PATTERN } from '../constants/staff.constants';
 
 export class CreateStaffDto {
@@ -22,12 +25,14 @@ export class CreateStaffDto {
   employeeCode!: string;
 
   @ApiProperty({ example: 'Priya' })
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(80)
   firstName!: string;
 
   @ApiProperty({ example: 'Sharma' })
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(80)
@@ -41,8 +46,11 @@ export class CreateStaffDto {
 
   @ApiPropertyOptional({ example: '+919876543210' })
   @IsOptional()
-  @IsString()
-  @MaxLength(20)
+  @Trim()
+  @ValidateIf((_, value) => typeof value === 'string' && value.length > 0)
+  @Matches(VISITOR_MOBILE_PATTERN, {
+    message: 'Mobile must be a 10-digit Indian mobile number (optional +91 prefix)',
+  })
   mobile?: string;
 
   @ApiProperty({ example: 'priya.sharma@school.example' })

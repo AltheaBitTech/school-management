@@ -42,6 +42,11 @@ import {
   type FeePaymentMethod,
   type StudentFeeDetail,
 } from '@/lib/fees/fees-client';
+import {
+  validateOptionalMaxLength,
+  validatePositiveAmount,
+  validateRequired,
+} from '@/lib/forms/validators';
 
 export default function StudentFeeDetailPage() {
   const canRecordPayment = useCan('fee.record_payment');
@@ -104,6 +109,15 @@ export default function StudentFeeDetailPage() {
   async function handleRecordPayment(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!studentFee) return;
+
+    const amountProblem = validatePositiveAmount(paymentAmount);
+    const dateProblem = validateRequired(paymentDate, 'Payment date');
+    const referenceProblem = validateOptionalMaxLength(paymentReference, 'Reference', 120);
+    const notesProblem = validateOptionalMaxLength(paymentNotes, 'Notes', 500);
+    if (amountProblem || dateProblem || referenceProblem || notesProblem) {
+      setErrorMessage(amountProblem ?? dateProblem ?? referenceProblem ?? notesProblem ?? null);
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMessage(null);

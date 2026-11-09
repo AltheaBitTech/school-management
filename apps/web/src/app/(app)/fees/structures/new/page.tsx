@@ -1,6 +1,7 @@
 'use client';
 
-import Alert from '@mui/material/Alert';import { resetSubmitting } from '@/lib/forms/submit-state';
+import Alert from '@mui/material/Alert';
+import { resetSubmitting } from '@/lib/forms/submit-state';
 
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
@@ -14,6 +15,7 @@ import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
 import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError } from '@/lib/api/client';
 import { createFeeStructure } from '@/lib/fees/fees-client';
+import { validateDateRange, validatePositiveAmount, validateRequiredMaxLength } from '@/lib/forms/validators';
 
 export default function NewFeeStructurePage() {
   const router = useRouter();
@@ -32,14 +34,25 @@ export default function NewFeeStructurePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setIsSubmitting(true);
     setErrorMessage(null);
     setIsForbidden(false);
+    const nameProblem = validateRequiredMaxLength(name, 'Name', 120);
+    const amountProblem = validatePositiveAmount(amount);
+    const periodProblem = validateDateRange(periodStart, periodEnd);
+    const descriptionProblem =
+      description.trim().length > 0
+        ? validateRequiredMaxLength(description, 'Description', 500)
+        : undefined;
+    if (nameProblem || amountProblem || periodProblem || descriptionProblem) {
+      setErrorMessage(nameProblem ?? amountProblem ?? periodProblem ?? descriptionProblem ?? null);
+      return;
+    }
+    setIsSubmitting(true);
 
     try {
       await createFeeStructure({
-        name,
-        description: description || undefined,
+        name: name.trim(),
+        description: description.trim() || undefined,
         amount: Number(amount),
         periodStart,
         periodEnd,

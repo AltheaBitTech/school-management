@@ -25,6 +25,11 @@ import {
   provisionStaffLogin,
   type StaffMember,
 } from '@/lib/staff/staff-client';
+import {
+  validateEmail,
+  validateOrganizationName,
+  validateRequiredMaxLength,
+} from '@/lib/forms/validators';
 
 const TIMEZONE_OPTIONS = ['UTC', 'Asia/Kolkata', 'Asia/Dubai', 'Europe/London', 'America/New_York'];
 
@@ -82,6 +87,11 @@ export default function OnboardingPage() {
   async function handleSchoolSetupSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorMessage(null);
+    const nameProblem = validateOrganizationName(organizationName);
+    if (nameProblem) {
+      setErrorMessage(nameProblem);
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -101,13 +111,20 @@ export default function OnboardingPage() {
   async function handleAddStaff(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorMessage(null);
+    const firstProblem = validateRequiredMaxLength(firstName, 'First name', 100);
+    const lastProblem = validateRequiredMaxLength(lastName, 'Last name', 100);
+    const emailProblem = staffEmail.trim() ? validateEmail(staffEmail) : undefined;
+    if (firstProblem || lastProblem || emailProblem) {
+      setErrorMessage(firstProblem ?? lastProblem ?? emailProblem ?? 'Fix the highlighted fields');
+      return;
+    }
     setSubmitting(true);
 
     try {
       const staff = await createStaff({
-        employeeCode,
-        firstName,
-        lastName,
+        employeeCode: employeeCode.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         email: staffEmail.trim(),
       });
 

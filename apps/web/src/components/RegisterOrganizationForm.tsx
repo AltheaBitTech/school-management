@@ -14,6 +14,8 @@ import {
   isValidOrganizationCodeInput,
   normalizeOrganizationCodeInput,
 } from '@/lib/organizations/organization-code';
+import { validatePassword } from '@/lib/forms/validators';
+import LockOutlined from '@mui/icons-material/LockOutlined';
 
 interface FormData {
   organizationName: string;
@@ -22,6 +24,8 @@ interface FormData {
   contactFirstName: string;
   contactLastName: string;
   contactPhone?: string;
+  password: string;
+  confirmPassword: string;
   address?: string;
   city?: string;
   state?: string;
@@ -54,6 +58,8 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
     contactFirstName: '',
     contactLastName: '',
     contactPhone: '',
+    password: '',
+    confirmPassword: '',
     address: '',
     city: '',
     state: '',
@@ -135,6 +141,17 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
       newErrors.contactPhone = 'Enter a valid 10-digit mobile number';
     }
 
+    const passwordError = validatePassword(formData.password, 'Administrator password');
+    if (passwordError) {
+      newErrors.password = passwordError;
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Confirm your password';
+    } else if (formData.confirmPassword !== formData.password) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -179,6 +196,7 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
         contactFirstName: formData.contactFirstName.trim(),
         contactLastName: formData.contactLastName.trim(),
         contactPhone: phoneDigits,
+        password: formData.password,
         address: formData.address?.trim() || undefined,
         city: formData.city?.trim() || undefined,
         state: formData.state?.trim() || undefined,
@@ -274,7 +292,7 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
         value={formData.contactEmail}
         onChange={handleChange}
         error={!!errors.contactEmail}
-        helperText={errors.contactEmail || 'We will send approval and setup instructions here'}
+        helperText={errors.contactEmail || 'We will send approval updates here'}
         required
       />
 
@@ -288,6 +306,34 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
         helperText={errors.contactPhone || '10-digit mobile number (India)'}
         inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 10 }}
         required
+      />
+
+      <SectionLabel icon={LockOutlined}>Administrator sign-in</SectionLabel>
+
+      <TextField
+        fullWidth
+        name="password"
+        type="password"
+        label="Password"
+        value={formData.password}
+        onChange={handleChange}
+        error={!!errors.password}
+        helperText={errors.password || 'At least 8 characters — used to sign in after approval'}
+        required
+        autoComplete="new-password"
+      />
+
+      <TextField
+        fullWidth
+        name="confirmPassword"
+        type="password"
+        label="Confirm password"
+        value={formData.confirmPassword}
+        onChange={handleChange}
+        error={!!errors.confirmPassword}
+        helperText={errors.confirmPassword}
+        required
+        autoComplete="new-password"
       />
 
       <SectionLabel icon={PlaceOutlined}>Campus location</SectionLabel>

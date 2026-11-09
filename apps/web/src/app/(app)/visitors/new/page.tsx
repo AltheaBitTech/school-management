@@ -53,7 +53,6 @@ export default function NewVisitorPage() {
           setStaff(hosts);
         }
       } catch (error) {
-      resetSubmitting(setIsSubmitting);
         if (!cancelled) {
           setErrorMessage(error instanceof Error ? error.message : 'Failed to load staff');
         }

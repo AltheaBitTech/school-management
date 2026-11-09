@@ -302,6 +302,7 @@ model OrganizationRegistrationRequest {
   city             String?
   state            String?
   country          String   @default("India")
+  adminPasswordHash String?
   status           String   @default("PENDING")
   rejectionReason  String?
   approvedAt       DateTime?

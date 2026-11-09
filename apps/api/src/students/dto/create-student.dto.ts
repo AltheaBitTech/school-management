@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { Trim } from '../../common/transforms/trim.decorator';
 import { VISITOR_MOBILE_PATTERN } from '../../visitors/constants/visitor-mobile.constants';
 import { ROLL_NUMBER_PATTERN } from '../utils/student-profile.util';
 
@@ -11,12 +12,14 @@ export class CreateStudentDto {
   studentCode!: string;
 
   @ApiProperty({ example: 'Aarav' })
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
   firstName!: string;
 
   @ApiProperty({ example: 'Sharma' })
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)

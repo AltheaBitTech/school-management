@@ -22,6 +22,7 @@ import {
 } from '@/lib/auth/auth-client';
 import { isOperationalDashboardUser, resolveHomePath } from '@/lib/auth/routing';
 import { getOnboardingState, shouldRedirectToOnboarding } from '@/lib/onboarding/onboarding-client';
+import { validateEmail, validatePassword } from '@/lib/forms/validators';
 
 function LoginForm() {
   const router = useRouter();
@@ -31,6 +32,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [roleChoices, setRoleChoices] = useState<LoginRoleOption[] | null>(null);
   const [selectionToken, setSelectionToken] = useState<string | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState('');
@@ -55,11 +58,18 @@ function LoginForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorMessage(null);
+    const nextEmailError = validateEmail(email) ?? null;
+    const nextPasswordError = validatePassword(password) ?? null;
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+    if (nextEmailError || nextPasswordError) {
+      return;
+    }
     setIsSubmitting(true);
 
     try {
       const result = await login({
-        email,
+        email: email.trim(),
         password,
       });
 
@@ -173,8 +183,15 @@ function LoginForm() {
             name="email"
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            helperText="The work email registered with your school account"
+            onChange={(event) => {
+              setEmail(event.target.value);
+              if (emailError) {
+                setEmailError(validateEmail(event.target.value) ?? null);
+              }
+            }}
+            onBlur={() => setEmailError(validateEmail(email) ?? null)}
+            helperText={emailError ?? 'The work email registered with your school account'}
+            error={Boolean(emailError)}
             required
             fullWidth
           />
@@ -183,8 +200,15 @@ function LoginForm() {
             name="password"
             type="password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            helperText="Minimum 8 characters"
+            onChange={(event) => {
+              setPassword(event.target.value);
+              if (passwordError) {
+                setPasswordError(validatePassword(event.target.value) ?? null);
+              }
+            }}
+            onBlur={() => setPasswordError(validatePassword(password) ?? null)}
+            helperText={passwordError ?? 'Minimum 8 characters'}
+            error={Boolean(passwordError)}
             required
             fullWidth
           />

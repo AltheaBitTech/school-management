@@ -1,6 +1,7 @@
 'use client';
 
-import DirectionsBusOutlined from '@mui/icons-material/DirectionsBusOutlined';import { resetSubmitting } from '@/lib/forms/submit-state';
+import DirectionsBusOutlined from '@mui/icons-material/DirectionsBusOutlined';
+import { resetSubmitting } from '@/lib/forms/submit-state';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -11,6 +12,7 @@ import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
 import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError, apiClient } from '@/lib/api/client';
+import { validateRequiredMinMaxLength } from '@/lib/forms/validators';
 
 export default function NewTransportRoutePage() {
   const router = useRouter();
@@ -22,8 +24,10 @@ export default function NewTransportRoutePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (name.trim().length < 2 || code.trim().length < 2) {
-      setErrorMessage('Name and code need at least 2 characters.');
+    const nameProblem = validateRequiredMinMaxLength(name, 'Name', 2, 80);
+    const codeProblem = validateRequiredMinMaxLength(code, 'Code', 2, 32);
+    if (nameProblem || codeProblem) {
+      setErrorMessage(nameProblem ?? codeProblem ?? null);
       return;
     }
     setIsSubmitting(true);

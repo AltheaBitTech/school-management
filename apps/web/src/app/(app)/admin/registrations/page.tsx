@@ -26,6 +26,7 @@ import { apiClient } from '@/lib/api/client';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { isForbiddenError } from '@/lib/auth/auth-client';
+import { validateRequiredMaxLength } from '@/lib/forms/validators';
 
 interface RegistrationRequest {
   id: string;
@@ -43,7 +44,9 @@ interface ApproveRegistrationResponse {
   organizationCode: string;
   adminUserId: string;
   adminEmail: string;
-  completeSignupUrl: string;
+  signupPreCompleted: boolean;
+  loginUrl: string;
+  completeSignupUrl?: string;
 }
 
 function CreateSchoolLink() {
@@ -112,8 +115,12 @@ export default function RegistrationsPage() {
   };
 
   const handleReject = async () => {
-    if (!selectedId || !rejectionReason.trim()) {
-      setError('A rejection reason is required');
+    if (!selectedId) {
+      return;
+    }
+    const reasonProblem = validateRequiredMaxLength(rejectionReason, 'Reason', 1000);
+    if (reasonProblem) {
+      setError(reasonProblem);
       return;
     }
 
@@ -212,6 +219,8 @@ export default function RegistrationsPage() {
             rows={3}
             value={rejectionReason}
             onChange={e => setRejectionReason(e.target.value)}
+            inputProps={{ maxLength: 1000 }}
+            helperText="Required. Up to 1000 characters."
             sx={{ mt: 2 }}
           />
         </DialogContent>
@@ -229,20 +238,42 @@ export default function RegistrationsPage() {
           {approvalResult ? (
             <Stack spacing={2} sx={{ mt: 1 }}>
               <Typography>
-                <strong>{approvalResult.organizationName}</strong> is ready for administrator signup.
+                <strong>{approvalResult.organizationName}</strong> has been approved.
               </Typography>
               <Alert severity="success">
                 Organization code: <strong>{approvalResult.organizationCode}</strong>
               </Alert>
-              <TextField
-                fullWidth
-                label="Complete signup link"
-                value={approvalResult.completeSignupUrl}
-                InputProps={{ readOnly: true }}
-              />
-              <Typography variant="body2" color="text.secondary">
-                Share the organization code and signup link with {approvalResult.adminEmail}. An approval email was also sent when email delivery is configured.
-              </Typography>
+              {approvalResult.signupPreCompleted ? (
+                <>
+                  <Alert severity="info">
+                    The applicant set their administrator password during registration. They can sign in with organization
+                    code, email, and that password — no extra signup step.
+                  </Alert>
+                  <TextField
+                    fullWidth
+                    label="Sign-in page (optional reference)"
+                    value={approvalResult.loginUrl}
+                    InputProps={{ readOnly: true }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    An approval email was sent to {approvalResult.adminEmail} when email delivery is configured. You do
+                    not need to share a complete-signup link.
+                  </Typography>
+                </>
+              ) : (
+                <>
+                  <TextField
+                    fullWidth
+                    label="Complete signup link (legacy)"
+                    value={approvalResult.completeSignupUrl ?? ''}
+                    InputProps={{ readOnly: true }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    This request has no registration password on file. Share the signup link with {approvalResult.adminEmail}{' '}
+                    so they can set a password. An approval email was also sent when email delivery is configured.
+                  </Typography>
+                </>
+              )}
             </Stack>
           ) : null}
         </DialogContent>

@@ -13,6 +13,11 @@ import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
 import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError } from '@/lib/api/client';
+import {
+  validateEmail,
+  validateOptionalIndianMobile,
+  validateRequiredMaxLength,
+} from '@/lib/forms/validators';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { listOrganizationRoles, type OrganizationRole } from '@/lib/rbac/roles-client';
 import { filterStaffAssignableRoles } from '@/lib/rbac/staff-assignable-roles';
@@ -26,6 +31,7 @@ export default function CreateStaffPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [mobile, setMobile] = useState('');
   const [designation, setDesignation] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [roleId, setRoleId] = useState('');
@@ -34,20 +40,9 @@ export default function CreateStaffPage() {
   const [isForbidden, setIsForbidden] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-
-  function validateEmail(value: string): boolean {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      setEmailError('Work email is required');
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setEmailError('Enter a valid email address');
-      return false;
-    }
-    setEmailError(null);
-    return true;
-  }
+  const [mobileError, setMobileError] = useState<string | null>(null);
+  const [firstNameError, setFirstNameError] = useState<string | null>(null);
+  const [lastNameError, setLastNameError] = useState<string | null>(null);
 
   useEffect(() => {
     void Promise.all([
@@ -77,7 +72,15 @@ export default function CreateStaffPage() {
     event.preventDefault();
     setErrorMessage(null);
     setIsForbidden(false);
-    if (!validateEmail(email)) {
+    const firstNameProblem = validateRequiredMaxLength(firstName, 'First name', 100);
+    const lastNameProblem = validateRequiredMaxLength(lastName, 'Last name', 100);
+    const emailProblem = validateEmail(email);
+    const mobileProblem = validateOptionalIndianMobile(mobile);
+    setFirstNameError(firstNameProblem ?? null);
+    setLastNameError(lastNameProblem ?? null);
+    setEmailError(emailProblem ?? null);
+    setMobileError(mobileProblem ?? null);
+    if (firstNameProblem || lastNameProblem || emailProblem || mobileProblem) {
       return;
     }
     setIsSubmitting(true);
@@ -85,10 +88,11 @@ export default function CreateStaffPage() {
     try {
       const staff = await createStaff({
         employeeCode,
-        firstName,
-        lastName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         email: email.trim(),
-        designation: designation || undefined,
+        mobile: mobile.trim() || undefined,
+        designation: designation.trim() || undefined,
         departmentId: departmentId || undefined,
       });
       showSuccess('Staff member created');
@@ -136,6 +140,8 @@ export default function CreateStaffPage() {
             value={firstName}
             onChange={(event) => setFirstName(event.target.value)}
             required
+            error={Boolean(firstNameError)}
+            helperText={firstNameError ?? undefined}
             fullWidth
           />
           <TextField
@@ -143,6 +149,8 @@ export default function CreateStaffPage() {
             value={lastName}
             onChange={(event) => setLastName(event.target.value)}
             required
+            error={Boolean(lastNameError)}
+            helperText={lastNameError ?? undefined}
             fullWidth
           />
           <TextField
@@ -152,13 +160,27 @@ export default function CreateStaffPage() {
             onChange={(event) => {
               setEmail(event.target.value);
               if (emailError) {
-                validateEmail(event.target.value);
+                setEmailError(validateEmail(event.target.value) ?? null);
               }
             }}
-            onBlur={() => validateEmail(email)}
+            onBlur={() => setEmailError(validateEmail(email) ?? null)}
             required
             error={Boolean(emailError)}
-            helperText={emailError ?? 'Used to send the login invite'}
+            helperText={emailError ?? 'Used to send the login invite. 254 characters or fewer.'}
+            fullWidth
+          />
+          <TextField
+            label="Mobile"
+            value={mobile}
+            onChange={(event) => {
+              setMobile(event.target.value);
+              if (mobileError) {
+                setMobileError(validateOptionalIndianMobile(event.target.value) ?? null);
+              }
+            }}
+            onBlur={() => setMobileError(validateOptionalIndianMobile(mobile) ?? null)}
+            error={Boolean(mobileError)}
+            helperText={mobileError ?? 'Optional. 10-digit Indian mobile, with or without +91.'}
             fullWidth
           />
         </FormSection>

@@ -1,6 +1,7 @@
 'use client';
 
-import ArticleOutlined from '@mui/icons-material/ArticleOutlined';import { resetSubmitting } from '@/lib/forms/submit-state';
+import ArticleOutlined from '@mui/icons-material/ArticleOutlined';
+import { resetSubmitting } from '@/lib/forms/submit-state';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -14,6 +15,7 @@ import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
 import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError, apiClient } from '@/lib/api/client';
+import { validateRequiredMinMaxLength } from '@/lib/forms/validators';
 
 const PLACEHOLDERS = [
   'student.name',
@@ -70,8 +72,10 @@ export default function EditDocumentTemplatePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (!title.trim()) {
-      setErrorMessage('Title is required.');
+    const titleProblem = validateRequiredMinMaxLength(title, 'Title', 1, 120);
+    const bodyProblem = validateRequiredMinMaxLength(body, 'Body', 1, 4000);
+    if (titleProblem || bodyProblem) {
+      setErrorMessage(titleProblem ?? bodyProblem ?? null);
       return;
     }
     setIsSubmitting(true);

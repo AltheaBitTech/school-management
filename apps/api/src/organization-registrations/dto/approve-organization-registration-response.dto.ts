@@ -16,6 +16,17 @@ export class ApproveOrganizationRegistrationResponseDto {
   @ApiProperty()
   adminEmail!: string;
 
-  @ApiProperty()
-  completeSignupUrl!: string;
+  @ApiProperty({
+    description: 'When true, the applicant chose a password at registration and can sign in immediately.',
+  })
+  signupPreCompleted!: boolean;
+
+  @ApiProperty({ description: 'Sign-in URL for the new school (primary handoff when signupPreCompleted is true).' })
+  loginUrl!: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Legacy link to set a password when signupPreCompleted is false.',
+  })
+  completeSignupUrl?: string;
 }

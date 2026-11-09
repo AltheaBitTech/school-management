@@ -37,6 +37,7 @@ import { CreateOrganizationRegistrationRequestDto } from './dto/create-organizat
 import { OrganizationRegistrationResponseDto } from './dto/organization-registration-response.dto';
 import { ApproveOrganizationRegistrationResponseDto } from './dto/approve-organization-registration-response.dto';
 import { RegistrationSignupContextDto } from './dto/registration-signup-context.dto';
+import { PasswordService } from '../auth/services/password.service';
 import { renderRegistrationApprovedEmail } from './utils/registration-email.util';
 
 /** School-admin role seed runs many permission upserts; serverless + pooler needs a longer interactive transaction window. */
@@ -53,6 +54,7 @@ export class OrganizationRegistrationsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
+    private readonly passwordService: PasswordService,
     @Inject(EMAIL_PROVIDER) private readonly emailProvider: EmailProvider,
   ) {}
 
@@ -134,6 +136,8 @@ export class OrganizationRegistrationsService {
       });
     }
 
+    const adminPasswordHash = await this.passwordService.hash(dto.password);
+
     try {
       const request = await this.prisma.organizationRegistrationRequest.create({
         data: {
@@ -147,6 +151,7 @@ export class OrganizationRegistrationsService {
           city: dto.city,
           state: dto.state,
           country: dto.country || 'India',
+          adminPasswordHash,
           status: 'PENDING',
         },
       });
@@ -155,7 +160,8 @@ export class OrganizationRegistrationsService {
         id: request.id,
         status: request.status,
         createdAt: request.createdAt,
-        message: 'Registration request submitted successfully. We will review and contact you within 1-2 business days.',
+        message:
+          'Registration request submitted successfully. We will review and contact you within 1-2 business days. After approval, sign in with your school code, email, and the password you chose.',
       };
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -257,7 +263,13 @@ export class OrganizationRegistrationsService {
       throw new ConflictException('Can only approve pending requests');
     }
 
-    let result: { organization: { id: string; name: string; code: string }; adminUser: { id: string; email: string } };
+    const signupPreCompleted = Boolean(registration.adminPasswordHash);
+
+    let result: {
+      organization: { id: string; name: string; code: string };
+      adminUser: { id: string; email: string };
+      signupPreCompleted: boolean;
+    };
 
     try {
       result = await this.prisma.$transaction(async (tx) => {
@@ -294,7 +306,7 @@ export class OrganizationRegistrationsService {
         data: {
           organizationId: organization.id,
           email: registration.contactEmail,
-          passwordHash: null,
+          passwordHash: registration.adminPasswordHash,
           status: UserStatus.ACTIVE,
         },
       });
@@ -324,6 +336,7 @@ export class OrganizationRegistrationsService {
           organizationId: organization.id,
           approvedAt: new Date(),
           approvedByUserId,
+          adminPasswordHash: null,
         },
       });
 
@@ -344,7 +357,25 @@ export class OrganizationRegistrationsService {
         tx,
       );
 
-      return { organization, adminUser };
+      if (signupPreCompleted) {
+        await this.auditService.record(
+          {
+            organizationId: organization.id,
+            actorUserId: adminUser.id,
+            action: AUDIT_ACTIONS.ORGANIZATION_SIGNUP_COMPLETED,
+            entityType: AUDIT_ENTITY_TYPES.ORGANIZATION_REGISTRATION_REQUEST,
+            entityId: registrationId,
+            metadata: {
+              email: adminUser.email,
+              organizationCode: organization.code,
+              source: 'registration_password',
+            },
+          },
+          tx,
+        );
+      }
+
+      return { organization, adminUser, signupPreCompleted };
       }, REGISTRATION_APPROVAL_TRANSACTION_OPTIONS);
     } catch (error: unknown) {
       this.logger.error(
@@ -365,10 +396,14 @@ export class OrganizationRegistrationsService {
       result.organization.code,
     );
 
+    const loginUrl = this.buildLoginUrl(result.organization.code);
+
     const emailContent = renderRegistrationApprovedEmail({
       organizationName: result.organization.name,
       organizationCode: result.organization.code,
       completeSignupUrl,
+      signupPreCompleted: result.signupPreCompleted,
+      loginUrl,
     });
 
     try {
@@ -388,7 +423,9 @@ export class OrganizationRegistrationsService {
       organizationCode: result.organization.code,
       adminUserId: result.adminUser.id,
       adminEmail: result.adminUser.email,
-      completeSignupUrl,
+      signupPreCompleted: result.signupPreCompleted,
+      loginUrl,
+      completeSignupUrl: result.signupPreCompleted ? undefined : completeSignupUrl,
     };
   }
 
@@ -514,5 +551,12 @@ export class OrganizationRegistrationsService {
     });
 
     return `${frontendBaseUrl}/complete-signup?${params.toString()}`;
+  }
+
+  private buildLoginUrl(organizationCode: string): string {
+    const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
+    const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
+    const params = new URLSearchParams({ orgCode: organizationCode });
+    return `${frontendBaseUrl}/login?${params.toString()}`;
   }
 }

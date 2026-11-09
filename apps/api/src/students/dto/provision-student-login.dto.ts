@@ -5,6 +5,6 @@ export class ProvisionStudentLoginDto {
   @ApiProperty({ example: 'aarav.sharma@sunrise-school.test' })
   @IsEmail()
   @IsNotEmpty()
-  @MaxLength(320)
+  @MaxLength(254)
   email!: string;
 }

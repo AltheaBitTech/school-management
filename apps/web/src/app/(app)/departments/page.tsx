@@ -26,6 +26,10 @@ import {
   updateDepartment,
   type Department,
 } from '@/lib/departments/departments-client';
+import {
+  validateDepartmentCode,
+  validateRequiredMinMaxLength,
+} from '@/lib/forms/validators';
 
 export default function DepartmentsPage() {
   const canCreate = useCan('department.create');
@@ -66,11 +70,17 @@ export default function DepartmentsPage() {
 
   async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    const nameProblem = validateRequiredMinMaxLength(name, 'Name', 1, 120);
+    const codeProblem = validateDepartmentCode(code);
+    if (nameProblem || codeProblem) {
+      setErrorMessage(nameProblem ?? codeProblem ?? null);
+      return;
+    }
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      await createDepartment({ name, code });
+      await createDepartment({ name: name.trim(), code: code.trim().toLowerCase() });
       setName('');
       setCode('');
       showSuccess('Department created');
@@ -83,11 +93,16 @@ export default function DepartmentsPage() {
   }
 
   async function handleSaveEdit(departmentId: string): Promise<void> {
+    const nameProblem = validateRequiredMinMaxLength(editingName, 'Name', 1, 120);
+    if (nameProblem) {
+      setErrorMessage(nameProblem);
+      return;
+    }
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      await updateDepartment(departmentId, { name: editingName });
+      await updateDepartment(departmentId, { name: editingName.trim() });
       setEditingId(null);
       setEditingName('');
       showSuccess('Department updated');

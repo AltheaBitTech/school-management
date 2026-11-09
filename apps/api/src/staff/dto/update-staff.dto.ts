@@ -7,13 +7,18 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
+import { Trim } from '../../common/transforms/trim.decorator';
+import { VISITOR_MOBILE_PATTERN } from '../../visitors/constants/visitor-mobile.constants';
 import { EmploymentStatus } from '@prisma/client';
 
 export class UpdateStaffDto {
   @ApiPropertyOptional({ example: 'Priya' })
   @IsOptional()
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(80)
@@ -21,6 +26,7 @@ export class UpdateStaffDto {
 
   @ApiPropertyOptional({ example: 'Sharma' })
   @IsOptional()
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(80)
@@ -34,8 +40,11 @@ export class UpdateStaffDto {
 
   @ApiPropertyOptional({ example: '+919876543210' })
   @IsOptional()
-  @IsString()
-  @MaxLength(20)
+  @Trim()
+  @ValidateIf((_, value) => value !== null && value !== undefined && String(value).length > 0)
+  @Matches(VISITOR_MOBILE_PATTERN, {
+    message: 'Mobile must be a 10-digit Indian mobile number (optional +91 prefix)',
+  })
   mobile?: string | null;
 
   @ApiPropertyOptional({ example: 'priya.sharma@school.example' })

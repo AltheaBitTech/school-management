@@ -12,6 +12,7 @@ export interface SubmitRegistrationRequest {
   contactFirstName: string;
   contactLastName: string;
   contactPhone: string;
+  password: string;
   address?: string;
   city?: string;
   state?: string;

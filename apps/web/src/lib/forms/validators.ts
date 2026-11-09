@@ -22,8 +22,8 @@ export function validateEmail(value: string): string | undefined {
     return 'Enter a valid email address';
   }
 
-  if (trimmed.length > 320) {
-    return 'Email must be 320 characters or fewer';
+  if (trimmed.length > 254) {
+    return 'Email must be 254 characters or fewer';
   }
 
   return undefined;
@@ -112,6 +112,159 @@ export function validateOptionalUrl(value: string | undefined): string | undefin
   }
 
   return undefined;
+}
+
+export function validateOptionalIndianMobile(value: string | undefined): string | undefined {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (!/^(\+91[\s-]?)?[6-9]\d{9}$/.test(trimmed)) {
+    return 'Enter a 10-digit Indian mobile number';
+  }
+
+  return undefined;
+}
+
+export function validateConfirmPassword(
+  password: string,
+  confirmPassword: string,
+): string | undefined {
+  if (confirmPassword !== password) {
+    return 'Passwords do not match';
+  }
+  return undefined;
+}
+
+export function validateRequiredMaxLength(
+  value: string,
+  label: string,
+  maxLength: number,
+): string | undefined {
+  const required = validateRequired(value, label);
+  if (required) {
+    return required;
+  }
+  if (trimToEmpty(value).length > maxLength) {
+    return `${label} must be ${maxLength} characters or fewer`;
+  }
+  return undefined;
+}
+
+/** ISO date strings (YYYY-MM-DD). End must be on or after start. */
+export function validateDateRange(start: string, end: string): string | undefined {
+  if (!start || !end) {
+    return 'Start and end dates are required';
+  }
+  if (end < start) {
+    return 'End date must be on or after start date';
+  }
+  return undefined;
+}
+
+export function validateRequiredMinMaxLength(
+  value: string,
+  label: string,
+  minLength: number,
+  maxLength: number,
+): string | undefined {
+  const required = validateRequired(value, label);
+  if (required) {
+    return required;
+  }
+  const len = trimToEmpty(value).length;
+  if (len < minLength) {
+    return `${label} must be at least ${minLength} characters`;
+  }
+  if (len > maxLength) {
+    return `${label} must be ${maxLength} characters or fewer`;
+  }
+  return undefined;
+}
+
+export function validateOptionalMaxLength(
+  value: string,
+  label: string,
+  maxLength: number,
+): string | undefined {
+  const trimmed = trimToEmpty(value);
+  if (!trimmed) {
+    return undefined;
+  }
+  if (trimmed.length > maxLength) {
+    return `${label} must be ${maxLength} characters or fewer`;
+  }
+  return undefined;
+}
+
+export function validateOptionalNonNegativeAmount(value: string, label = 'Amount'): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const num = Number(trimmed);
+  if (Number.isNaN(num) || num < 0) {
+    return `${label} must be zero or greater`;
+  }
+  const decimals = trimmed.includes('.') ? trimmed.split('.')[1]?.length ?? 0 : 0;
+  if (decimals > 2) {
+    return `${label} must have at most 2 decimal places`;
+  }
+  return undefined;
+}
+
+export function validateDepartmentCode(value: string): string | undefined {
+  const normalized = trimToEmpty(value).toLowerCase();
+  if (!normalized) {
+    return 'Department code is required';
+  }
+  if (!/^[a-z0-9-]{2,32}$/.test(normalized)) {
+    return 'Department code must be 2–32 lowercase letters, numbers, or hyphens';
+  }
+  return undefined;
+}
+
+/** Optional pickup / schedule time in HH:MM (24-hour). */
+export function validateOptionalTimeHHMM(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (!/^\d{2}:\d{2}$/.test(trimmed)) {
+    return 'Use 24-hour time like 07:30';
+  }
+  return undefined;
+}
+
+export function validatePositiveAmount(value: string, label = 'Amount'): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return `${label} is required`;
+  }
+  const num = Number(trimmed);
+  if (Number.isNaN(num) || num < 0.01) {
+    return `${label} must be at least 0.01`;
+  }
+  const decimals = trimmed.includes('.') ? trimmed.split('.')[1]?.length ?? 0 : 0;
+  if (decimals > 2) {
+    return `${label} must have at most 2 decimal places`;
+  }
+  return undefined;
+}
+
+export function mapApiFieldErrors(
+  message: string,
+  fields: readonly string[],
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const part of message.split(';').map((item) => item.trim()).filter(Boolean)) {
+    const match = fields.find((field) => part.toLowerCase().startsWith(field.toLowerCase()));
+    if (match && !errors[match]) {
+      errors[match] = part;
+    }
+  }
+  return errors;
 }
 
 export function mapApiErrorMessage(error: unknown, fallback: string): string {

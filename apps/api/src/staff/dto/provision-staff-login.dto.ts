@@ -8,7 +8,7 @@ export class ProvisionStaffLoginDto {
   })
   @IsEmail()
   @IsNotEmpty()
-  @MaxLength(320)
+  @MaxLength(254)
   email!: string;
 
   @ApiProperty({ description: 'Role to assign to this user', format: 'uuid' })

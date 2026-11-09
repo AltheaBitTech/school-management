@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EMAIL_PROVIDER } from '../notifications/providers/email-provider.interface';
+import { PasswordService } from '../auth/services/password.service';
 import { OrganizationRegistrationsService } from './organization-registrations.service';
 import { CreateOrganizationRegistrationRequestDto } from './dto/create-organization-registration-request.dto';
 
@@ -53,6 +54,12 @@ describe('OrganizationRegistrationsService', () => {
             sendEmail: jest.fn(),
           },
         },
+        {
+          provide: PasswordService,
+          useValue: {
+            hash: jest.fn().mockResolvedValue('hashed-admin-password'),
+          },
+        },
       ],
     }).compile();
 
@@ -71,6 +78,7 @@ describe('OrganizationRegistrationsService', () => {
       contactFirstName: 'John',
       contactLastName: 'Doe',
       contactPhone: '9876543210',
+      password: 'SchoolAdmin123!',
       address: 'Test Address',
       city: 'Test City',
       state: 'Test State',
@@ -114,6 +122,7 @@ describe('OrganizationRegistrationsService', () => {
           data: expect.objectContaining({
             organizationName: validDto.organizationName,
             contactEmail: validDto.contactEmail.toLowerCase(),
+            adminPasswordHash: 'hashed-admin-password',
             status: 'PENDING',
           }),
         }),
