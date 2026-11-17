@@ -390,6 +390,11 @@ export default function StudentDetailPage() {
 
   async function handleProvisionLogin(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (!student) {
+      return;
+    }
+    const studentId = student.id;
+    const studentName = getStudentDisplayName(student);
     const emailError = validateEmail(provisionEmail) ?? null;
     setProvisionEmailError(emailError);
     if (emailError) {
@@ -398,14 +403,14 @@ export default function StudentDetailPage() {
     setIsProvisioning(true);
     setProvisionError(null);
     try {
-      const result = await provisionStudentLogin(student.id, provisionEmail.trim());
+      const result = await provisionStudentLogin(studentId, provisionEmail.trim());
       setStudent((current) => (current ? { ...current, userId: result.userId } : current));
       setLoginEmail(result.loginEmail);
       setProvisionDialogOpen(false);
       setProvisionEmail('');
       showSuccess('Login invite sent');
       setInviteDialogData({
-        name: getStudentDisplayName(student),
+        name: studentName,
         inviteUrl: result.inviteUrl,
         inviteExpiresAt: result.inviteExpiresAt,
       });
