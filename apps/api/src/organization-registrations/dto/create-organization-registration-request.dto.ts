@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { InstitutionType } from '@prisma/client';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ORGANIZATION_CODE_PATTERN } from '../../organizations/constants/organization.constants';
 
@@ -31,15 +32,20 @@ export class CreateOrganizationRegistrationRequestDto {
   @MaxLength(255)
   organizationName!: string;
 
+  @ApiPropertyOptional({ enum: InstitutionType, default: InstitutionType.SCHOOL })
+  @IsOptional()
+  @IsEnum(InstitutionType)
+  institutionType?: InstitutionType;
+
   @ApiPropertyOptional({
     example: 'delhi-public-school',
-    description: 'Preferred login code for your school (lowercase letters, numbers, hyphens)',
+    description: 'Preferred login code for your institution (lowercase letters, numbers, hyphens)',
   })
   @IsOptional()
   @Transform(({ value }) => normalizeOptionalString(value))
   @IsString()
   @Matches(ORGANIZATION_CODE_PATTERN, {
-    message: 'School code must be 3-64 characters of lowercase letters, numbers, or hyphens',
+    message: 'Institution code must be 3-64 characters of lowercase letters, numbers, or hyphens',
   })
   preferredOrganizationCode?: string;
 
@@ -100,7 +106,7 @@ export class CreateOrganizationRegistrationRequestDto {
 
   @ApiProperty({
     minLength: 8,
-    description: 'Password for the school administrator account (used after approval)',
+    description: 'Password for the institution administrator account (used after approval)',
   })
   @IsNotEmpty()
   @IsString()

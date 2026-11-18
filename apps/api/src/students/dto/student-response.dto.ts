@@ -45,6 +45,9 @@ export class StudentResponseDto {
   @ApiPropertyOptional()
   academicYear?: string | null;
 
+  @ApiPropertyOptional({ nullable: true })
+  currentTerm?: number | null;
+
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   userId?: string | null;
 

@@ -17,7 +17,7 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'platform.organization.view', description: 'View organizations at platform level' },
   { code: 'platform.organization.create', description: 'Create organizations at platform level' },
   { code: 'platform.role.assign', description: 'Assign platform-scoped roles to users' },
-  { code: 'platform.subscription.manage', description: 'Change a school subscription plan' },
+  { code: 'platform.subscription.manage', description: 'Change an institution subscription plan' },
   { code: 'student.view', description: 'View students' },
   { code: 'student.create', description: 'Create students' },
   { code: 'student.update', description: 'Update students' },

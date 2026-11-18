@@ -21,7 +21,7 @@ export class ApproveOrganizationRegistrationResponseDto {
   })
   signupPreCompleted!: boolean;
 
-  @ApiProperty({ description: 'Sign-in URL for the new school (primary handoff when signupPreCompleted is true).' })
+  @ApiProperty({ description: 'Sign-in URL for the new institution (primary handoff when signupPreCompleted is true).' })
   loginUrl!: string;
 
   @ApiProperty({

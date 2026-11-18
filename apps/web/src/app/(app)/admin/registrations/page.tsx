@@ -27,8 +27,10 @@ import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { isForbiddenError } from '@/lib/auth/auth-client';
 import { validateRequiredMaxLength } from '@/lib/forms/validators';
+import { INSTITUTION_TYPE_OPTIONS } from '@/lib/terminology/terminology';
 
 interface RegistrationRequest {
+  institutionType?: 'SCHOOL' | 'COLLEGE' | 'INSTITUTE';
   id: string;
   organizationName: string;
   contactEmail: string;
@@ -52,7 +54,7 @@ interface ApproveRegistrationResponse {
 function CreateSchoolLink() {
   return (
     <Button component={Link} href="/organizations/new" variant="contained">
-      Create school
+      Create institution
     </Button>
   );
 }
@@ -147,7 +149,7 @@ export default function RegistrationsPage() {
       <Stack spacing={3}>
         <PageHeader
           title="Pending registration requests"
-          description="Schools waiting for platform approval."
+          description="Institutions waiting for platform approval."
           actions={<CreateSchoolLink />}
         />
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -165,7 +167,7 @@ export default function RegistrationsPage() {
     <Stack spacing={3}>
       <PageHeader
         title="Pending registration requests"
-        description="Schools waiting for platform approval."
+        description="Institutions waiting for platform approval."
         actions={<CreateSchoolLink />}
       />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -178,7 +180,8 @@ export default function RegistrationsPage() {
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: 'action.hover' }}>
-                  <TableCell>School Name</TableCell>
+                  <TableCell>Institution</TableCell>
+                  <TableCell>Type</TableCell>
                   <TableCell>Contact Name</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Submitted</TableCell>
@@ -189,6 +192,9 @@ export default function RegistrationsPage() {
                 {requests.map(req => (
                   <TableRow key={req.id}>
                     <TableCell>{req.organizationName}</TableCell>
+                    <TableCell>
+                      {INSTITUTION_TYPE_OPTIONS.find((option) => option.value === (req.institutionType ?? 'SCHOOL'))?.label}
+                    </TableCell>
                     <TableCell>{req.contactFirstName} {req.contactLastName}</TableCell>
                     <TableCell>{req.contactEmail}</TableCell>
                     <TableCell>{new Date(req.createdAt).toLocaleDateString()}</TableCell>

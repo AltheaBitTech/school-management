@@ -24,7 +24,7 @@ const sectionInclude = {
 } satisfies Prisma.SectionInclude;
 
 type SectionWithRelations = Prisma.SectionGetPayload<{ include: typeof sectionInclude }>;
-type ClassWithSections = Prisma.SchoolClassGetPayload<{
+type ClassWithSections = Prisma.AcademicUnitGetPayload<{
   include: { sections: { include: typeof sectionInclude } };
 }>;
 
@@ -42,7 +42,7 @@ export class ClassesService {
   // ---------- Classes ----------
 
   async listClasses(organizationId: string, query: ListClassesQueryDto): Promise<ClassDto[]> {
-    const classes = await this.prisma.schoolClass.findMany({
+    const classes = await this.prisma.academicUnit.findMany({
       where: { organizationId, ...(query.status ? { status: query.status } : {}) },
       include: {
         sections: {
@@ -58,7 +58,7 @@ export class ClassesService {
   }
 
   async getClass(organizationId: string, classId: string): Promise<ClassDto> {
-    const schoolClass = await this.prisma.schoolClass.findFirst({
+    const schoolClass = await this.prisma.academicUnit.findFirst({
       where: { id: classId, organizationId },
       include: { sections: { include: sectionInclude, orderBy: { name: 'asc' } } },
     });
@@ -75,8 +75,8 @@ export class ClassesService {
     await this.assertClassNameAvailable(organizationId, name);
 
     try {
-      const created = await this.prisma.schoolClass.create({
-        data: { organizationId, name, displayOrder: dto.displayOrder ?? 0 },
+      const created = await this.prisma.academicUnit.create({
+        data: { organizationId, name, displayOrder: dto.displayOrder ?? 0, termCount: dto.termCount ?? null },
       });
       return this.getClass(organizationId, created.id);
     } catch (error: unknown) {
@@ -96,11 +96,12 @@ export class ClassesService {
 
     try {
       await this.prisma.$transaction(async (tx) => {
-        await tx.schoolClass.update({
+        await tx.academicUnit.update({
           where: { id: classId },
           data: {
             ...(renamed ? { name: nextName } : {}),
             ...(dto.displayOrder !== undefined ? { displayOrder: dto.displayOrder } : {}),
+            ...(dto.termCount !== undefined ? { termCount: dto.termCount } : {}),
           },
         });
 
@@ -143,7 +144,7 @@ export class ClassesService {
         where: { classId, organizationId },
         data: { status: ClassStatus.INACTIVE },
       }),
-      this.prisma.schoolClass.update({
+      this.prisma.academicUnit.update({
         where: { id: classId },
         data: { status: ClassStatus.INACTIVE },
       }),
@@ -154,7 +155,7 @@ export class ClassesService {
 
   async activateClass(organizationId: string, classId: string): Promise<ClassDto> {
     await this.findClassOrThrow(organizationId, classId);
-    await this.prisma.schoolClass.update({
+    await this.prisma.academicUnit.update({
       where: { id: classId },
       data: { status: ClassStatus.ACTIVE },
     });
@@ -230,7 +231,7 @@ export class ClassesService {
         if (renamed) {
           await tx.student.updateMany({
             where: { organizationId, sectionId },
-            data: sectionDisplayFields(existing.schoolClass.name, nextName),
+            data: sectionDisplayFields(existing.academicUnit.name, nextName),
           });
         }
       });
@@ -264,7 +265,7 @@ export class ClassesService {
 
   async activateSection(organizationId: string, sectionId: string): Promise<SectionDto> {
     const section = await this.findSectionOrThrow(organizationId, sectionId);
-    if (section.schoolClass.status !== ClassStatus.ACTIVE) {
+    if (section.academicUnit.status !== ClassStatus.ACTIVE) {
       throw new BadRequestException({
         code: CLASS_ERROR_CODES.CLASS_INACTIVE,
         message: 'Reactivate the class before reactivating its sections',
@@ -294,13 +295,13 @@ export class ClassesService {
   async resolveActiveSectionById(organizationId: string, sectionId: string): Promise<ResolvedSection> {
     const section = await this.prisma.section.findFirst({
       where: { id: sectionId, organizationId },
-      include: { schoolClass: true },
+      include: { academicUnit: true },
     });
 
     if (!section) {
       throw this.sectionNotFound();
     }
-    if (section.status !== ClassStatus.ACTIVE || section.schoolClass.status !== ClassStatus.ACTIVE) {
+    if (section.status !== ClassStatus.ACTIVE || section.academicUnit.status !== ClassStatus.ACTIVE) {
       throw new BadRequestException({
         code: CLASS_ERROR_CODES.SECTION_INACTIVE,
         message: 'The selected class or section is inactive',
@@ -311,7 +312,7 @@ export class ClassesService {
       id: section.id,
       name: section.name,
       classId: section.classId,
-      className: section.schoolClass.name,
+      className: section.academicUnit.name,
     };
   }
 
@@ -326,23 +327,23 @@ export class ClassesService {
         organizationId,
         status: ClassStatus.ACTIVE,
         name: { equals: sectionName.trim(), mode: 'insensitive' },
-        schoolClass: {
+        academicUnit: {
           status: ClassStatus.ACTIVE,
           name: { equals: className.trim(), mode: 'insensitive' },
         },
       },
-      include: { schoolClass: true },
+      include: { academicUnit: true },
     });
 
     return section
-      ? { id: section.id, name: section.name, classId: section.classId, className: section.schoolClass.name }
+      ? { id: section.id, name: section.name, classId: section.classId, className: section.academicUnit.name }
       : null;
   }
 
   // ---------- Helpers ----------
 
   private async findClassOrThrow(organizationId: string, classId: string) {
-    const schoolClass = await this.prisma.schoolClass.findFirst({
+    const schoolClass = await this.prisma.academicUnit.findFirst({
       where: { id: classId, organizationId },
     });
     if (!schoolClass) {
@@ -354,7 +355,7 @@ export class ClassesService {
   private async findSectionOrThrow(organizationId: string, sectionId: string) {
     const section = await this.prisma.section.findFirst({
       where: { id: sectionId, organizationId },
-      include: { schoolClass: true },
+      include: { academicUnit: true },
     });
     if (!section) {
       throw this.sectionNotFound();
@@ -363,7 +364,7 @@ export class ClassesService {
   }
 
   private async assertClassNameAvailable(organizationId: string, name: string, excludeId?: string) {
-    const clash = await this.prisma.schoolClass.findFirst({
+    const clash = await this.prisma.academicUnit.findFirst({
       where: {
         organizationId,
         name: { equals: name, mode: 'insensitive' },
@@ -404,7 +405,7 @@ export class ClassesService {
     if (!staff) {
       throw new BadRequestException({
         code: CLASS_ERROR_CODES.CLASS_TEACHER_NOT_FOUND,
-        message: 'Class teacher was not found in this school',
+        message: 'Class teacher was not found in this institution',
       });
     }
   }
@@ -448,6 +449,7 @@ export class ClassesService {
       organizationId: schoolClass.organizationId,
       name: schoolClass.name,
       displayOrder: schoolClass.displayOrder,
+      termCount: schoolClass.termCount,
       status: schoolClass.status,
       sections,
       studentCount: sections.reduce((sum, section) => sum + section.studentCount, 0),

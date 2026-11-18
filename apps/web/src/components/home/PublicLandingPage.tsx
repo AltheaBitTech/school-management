@@ -39,7 +39,7 @@ const FEATURE_MODULES = [
   },
   {
     name: 'Notices & Circulars',
-    description: 'Publish and track school communications',
+    description: 'Publish and track communications',
     Icon: AnnouncementOutlined,
   },
   {
@@ -67,7 +67,7 @@ const FEATURE_MODULES = [
 const HOW_IT_WORKS = [
   {
     step: 'Register',
-    description: 'Submit your school details for platform review.',
+    description: 'Submit your institution details for platform review.',
   },
   {
     step: 'Onboard',
@@ -79,7 +79,7 @@ const HOW_IT_WORKS = [
   },
 ] as const;
 
-const BOARD_TYPES = ['CBSE', 'ICSE', 'State Board', 'International Schools'] as const;
+const BOARD_TYPES = ['CBSE', 'ICSE', 'State Board', 'Colleges & Universities', 'Coaching Institutes'] as const;
 
 const FEATURE_TONES = ['primary.main', 'secondary.main', 'success.main', 'warning.main'] as const;
 
@@ -98,7 +98,7 @@ export function PublicLandingPage() {
             <Grid size={{ xs: 12, md: 6 }}>
               <Stack spacing={2.5}>
                 <Chip
-                  label="Trusted school operations platform"
+                  label="Operations platform for schools, colleges & institutes"
                   sx={{
                     alignSelf: 'flex-start',
                     bgcolor: 'rgba(255,255,255,0.12)',
@@ -107,10 +107,10 @@ export function PublicLandingPage() {
                   }}
                 />
                 <Typography variant="h3" component="h1">
-                  One platform to manage every school operation
+                  One platform to manage every campus operation
                 </Typography>
                 <Typography variant="h6" sx={{ fontWeight: 400, opacity: 0.92, maxWidth: 640 }}>
-                  CampusOps digitizes complaints, leave, visitors, assets, notices, and every school workflow —
+                  CampusOps digitizes complaints, leave, visitors, assets, notices, and every campus workflow —
                   replacing paper registers, Excel sheets, and WhatsApp approvals.
                 </Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ pt: 1 }}>
@@ -125,7 +125,7 @@ export function PublicLandingPage() {
                       '&:hover': { bgcolor: 'grey.100' },
                     }}
                   >
-                    Register Your School
+                    Register Your Institution
                   </Button>
                   <Button
                     component={Link}
@@ -158,7 +158,7 @@ export function PublicLandingPage() {
 
       <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
         <Typography variant="h4" component="h2" sx={{ mb: 3 }}>
-          Everything your school runs on
+          Everything your institution runs on
         </Typography>
         <Grid container spacing={2}>
           {FEATURE_MODULES.map(({ name, description, Icon }, index) => (

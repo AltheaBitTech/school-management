@@ -5,7 +5,7 @@ alwaysApply: true
 
 # CampusOps Project Context
 
-CampusOps is a multi-tenant School Operations Management SaaS.
+CampusOps is a multi-tenant Operations Management SaaS for schools, colleges and institutes (Organization.institutionType).
 
 Architecture baseline:
 
@@ -17,7 +17,9 @@ Architecture baseline:
 - Provider abstractions for notifications and storage
 - Permission identifiers use `resource.action` (for example `staff.view`, `leave.approve`)
 
-CampusOps complements a School ERP. Do not silently turn it into a full academic ERP.
+CampusOps complements an academic ERP. Do not silently turn it into a full academic ERP.
+
+Never hard-code "School", "Class", "Section" or "Principal" in UI copy. Use `useTerminology()` (web) or `resolveTerminology()` (api). Role codes, routes and permission codes stay stable.
 
 Prefer simple, maintainable solutions. Avoid premature microservices, Kafka, Kubernetes, multiple databases, or Redis unless the actual workload requires them.
 

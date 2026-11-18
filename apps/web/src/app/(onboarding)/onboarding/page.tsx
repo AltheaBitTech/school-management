@@ -102,7 +102,7 @@ export default function OnboardingPage() {
       setState(updated);
       setStep(2);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to save school setup');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to save setup');
     } finally {
       setSubmitting(false);
     }
@@ -173,7 +173,7 @@ export default function OnboardingPage() {
     <Stack spacing={3}>
       <PageHeader
         title="Welcome to CampusOps"
-        description="Complete a quick setup so your school can start using attendance, staff, leave, and daily operations."
+        description="Complete a quick setup so your institution can start using attendance, staff, leave, and daily operations."
       />
 
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
@@ -181,9 +181,9 @@ export default function OnboardingPage() {
       {step === 1 ? (
         <Box component="form" onSubmit={handleSchoolSetupSubmit}>
           <Stack spacing={2}>
-            <FormSection title="School Setup">
+            <FormSection title="Institution Setup">
               <TextField
-                label="School name"
+                label="Institution name"
                 value={organizationName}
                 onChange={(event) => setOrganizationName(event.target.value)}
                 required

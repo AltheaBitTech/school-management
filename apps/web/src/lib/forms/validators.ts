@@ -62,11 +62,11 @@ export function validateOrganizationCode(value: string): string | undefined {
 export function validateOrganizationName(value: string): string | undefined {
   const trimmed = trimToEmpty(value);
   if (!trimmed) {
-    return 'School name is required';
+    return 'Institution name is required';
   }
 
   if (trimmed.length > 200) {
-    return 'School name must be 200 characters or fewer';
+    return 'Institution name must be 200 characters or fewer';
   }
 
   return undefined;

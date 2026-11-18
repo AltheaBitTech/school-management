@@ -25,7 +25,7 @@ export default function OrganizationLogoPage() {
     setErrorMessage(null);
     try {
       await apiClient.patch('/organizations/current/logo', { fileId }, { auth: true });
-      showSuccess('School logo saved. New PDFs will use it.');
+      showSuccess('Logo saved. New PDFs will use it.');
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'Failed to save logo');
     } finally {
@@ -35,7 +35,7 @@ export default function OrganizationLogoPage() {
 
   return (
     <FormPageShell
-      title="School logo"
+      title="Institution logo"
       description="Certificates, ID cards, and visitor PDFs use this image in the header."
       icon={ImageOutlined}
     >

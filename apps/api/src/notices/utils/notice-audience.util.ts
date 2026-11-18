@@ -20,7 +20,7 @@ export function userMatchesAudiences(
   context: NoticeRecipientAudienceContext,
 ): boolean {
   return audiences.some((audience) => {
-    if (audience.audienceType === NoticeAudienceType.ENTIRE_SCHOOL) {
+    if (audience.audienceType === NoticeAudienceType.ENTIRE_ORGANIZATION) {
       return true;
     }
 

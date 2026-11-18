@@ -60,7 +60,7 @@ export async function generateBonafidePdf(data: BonafideData): Promise<Buffer> {
     const yearPart = data.student.academicYear ? `, Academic Year ${data.student.academicYear}` : '';
     writeParagraph(
       doc,
-      `The student is currently studying in Class ${data.student.class}${sectionPart}${yearPart}.`,
+      `The student is currently studying in ${data.unitLabel ?? 'Class'} ${data.student.class}${sectionPart}${yearPart}.`,
     );
   }
 
@@ -91,7 +91,7 @@ export async function generateCharacterCertificatePdf(data: CharacterData): Prom
   }
 
   writeParagraph(doc, 'To Whom It May Concern,');
-  const classPart = data.student.class ? ` of Class ${data.student.class}` : '';
+  const classPart = data.student.class ? ` of ${data.unitLabel ?? 'Class'} ${data.student.class}` : '';
   const attendancePart = data.student.attendancePercentage
     ? ` The student maintained ${data.student.attendancePercentage} attendance during the academic period.`
     : '';

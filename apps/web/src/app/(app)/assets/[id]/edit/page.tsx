@@ -156,7 +156,7 @@ export default function EditAssetPage() {
 
   if (isNotFound) {
     return (
-      <FormPageShell title="Edit asset" description="This asset is not in your school." icon={Inventory2Outlined}>
+      <FormPageShell title="Edit asset" description="This asset is not in your institution." icon={Inventory2Outlined}>
         <Alert severity="warning">Asset not found.</Alert>
         <Button component={Link} href="/assets" variant="outlined">
           Back to assets

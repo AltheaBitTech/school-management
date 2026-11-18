@@ -92,7 +92,7 @@ export default function OperationalRequestsPage() {
   return (
     <FormPageShell
       title="Operational requests"
-      description="Submit maintenance, purchase, or budget work. School admins approve it from Approvals."
+      description="Submit maintenance, purchase, or budget work. Admins approve it from Approvals."
       icon={ApprovalOutlined}
       maxWidth={880}
     >

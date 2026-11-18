@@ -24,6 +24,8 @@ import {
   provisionStudentLogin,
   suggestNextStudentCode,
 } from '@/lib/students/students-client';
+import { useTerminology } from '@/lib/terminology/use-terminology';
+import { usesTerms } from '@/lib/terminology/terminology';
 
 export default function NewStudentPage() {
   const router = useRouter();
@@ -36,6 +38,14 @@ export default function NewStudentPage() {
   const [sectionId, setSectionId] = useState('');
   const [rollNumber, setRollNumber] = useState('');
   const [academicYear, setAcademicYear] = useState('');
+  const t = useTerminology();
+  const showTerms = usesTerms(t.institutionType);
+  const [currentTerm, setCurrentTerm] = useState('');
+  const parsedTerm = currentTerm.trim() ? Number(currentTerm.trim()) : null;
+  const termError =
+    parsedTerm !== null && (!Number.isInteger(parsedTerm) || parsedTerm < 1 || parsedTerm > 20)
+      ? 'Enter a whole number between 1 and 20'
+      : null;
   const [guardianName, setGuardianName] = useState('');
   const [guardianPhone, setGuardianPhone] = useState('');
   const [loginEmail, setLoginEmail] = useState('');
@@ -76,7 +86,8 @@ export default function NewStudentPage() {
       nextFirstNameError ||
       nextLastNameError ||
       Object.keys(profileErrors).length > 0 ||
-      nextEmailError
+      nextEmailError ||
+      (showTerms && termError)
     ) {
       setErrorMessage('Fill the highlighted fields before creating the student.');
       return;
@@ -91,6 +102,7 @@ export default function NewStudentPage() {
         sectionId,
         rollNumber: rollNumber.trim(),
         academicYear: academicYear.trim(),
+        ...(showTerms && parsedTerm !== null ? { currentTerm: parsedTerm } : {}),
         guardianName: guardianName.trim(),
         guardianPhone: guardianPhone.trim(),
       });
@@ -217,6 +229,17 @@ export default function NewStudentPage() {
             helperText={fieldErrors.academicYear ?? 'Two consecutive years, such as 2025-2026'}
             fullWidth
           />
+          {showTerms ? (
+            <TextField
+              label={`Current ${t.term.toLowerCase()}`}
+              value={currentTerm}
+              onChange={(event) => setCurrentTerm(event.target.value)}
+              error={Boolean(termError)}
+              inputProps={{ inputMode: 'numeric', maxLength: 2 }}
+              helperText={termError ?? `Optional. ${t.term} number, such as 3`}
+              fullWidth
+            />
+          ) : null}
         </FormSection>
 
         <FormSection title="Guardian details" maxWidth="100%">

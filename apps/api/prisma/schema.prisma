@@ -9,6 +9,12 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum InstitutionType {
+  SCHOOL
+  COLLEGE
+  INSTITUTE
+}
+
 enum OrganizationStatus {
   ACTIVE
   SUSPENDED
@@ -100,7 +106,7 @@ enum NoticeStatus {
 }
 
 enum NoticeAudienceType {
-  ENTIRE_SCHOOL
+  ENTIRE_ORGANIZATION
   STAFF
   DEPARTMENT
   STUDENT
@@ -241,6 +247,7 @@ model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
   code      String             @unique
+  institutionType InstitutionType @default(SCHOOL)
   status    OrganizationStatus @default(ACTIVE)
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
@@ -270,7 +277,7 @@ model Organization {
   assetHistories AssetHistory[]
   files       File[]
   students    Student[]
-  schoolClasses SchoolClass[]
+  academicUnits AcademicUnit[]
   sections      Section[]
   documentTemplates DocumentTemplate[]
   generatedDocuments GeneratedDocument[]
@@ -301,6 +308,7 @@ model OrganizationRegistrationRequest {
   id                        String   @id @default(uuid()) @db.Uuid
   organizationName          String
   preferredOrganizationCode String?
+  institutionType           InstitutionType @default(SCHOOL)
   contactEmail              String   @unique
   contactFirstName String
   contactLastName  String
@@ -338,6 +346,7 @@ model OrganizationSettings {
   notificationDefaults   Json?
   documentSettings       Json?
   operationalPreferences Json?
+  terminology            Json?
   logoFileId             String?  @db.Uuid
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
@@ -761,6 +770,7 @@ model Student {
   guardianName   String?
   guardianPhone  String?
   academicYear   String?
+  currentTerm    Int?
   sectionId      String?       @db.Uuid
   status         StudentStatus @default(ACTIVE)
   createdAt      DateTime      @default(now())
@@ -781,11 +791,14 @@ model Student {
   @@index([organizationId, sectionId])
 }
 
-model SchoolClass {
+/// Generic academic unit: Class (school), Program (college) or Course (institute).
+/// Backed by the legacy "SchoolClass" table.
+model AcademicUnit {
   id             String      @id @default(uuid()) @db.Uuid
   organizationId String      @db.Uuid
   name           String
   displayOrder   Int         @default(0)
+  termCount      Int?
   status         ClassStatus @default(ACTIVE)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -795,6 +808,7 @@ model SchoolClass {
 
   @@unique([organizationId, name])
   @@index([organizationId, status])
+  @@map("SchoolClass")
 }
 
 model Section {
@@ -809,7 +823,7 @@ model Section {
   updatedAt      DateTime    @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  schoolClass  SchoolClass  @relation(fields: [classId], references: [id], onDelete: Restrict)
+  academicUnit AcademicUnit @relation(fields: [classId], references: [id], onDelete: Restrict)
   classTeacher Staff?       @relation("SectionClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
   students     Student[]
 

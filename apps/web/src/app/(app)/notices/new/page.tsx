@@ -40,7 +40,7 @@ function buildAudiences(
   const audiences: NoticeAudienceInput[] = [];
 
   if (entireSchool) {
-    audiences.push({ audienceType: 'ENTIRE_SCHOOL' });
+    audiences.push({ audienceType: 'ENTIRE_ORGANIZATION' });
   }
   if (allStaff) {
     audiences.push({ audienceType: 'STAFF' });
@@ -216,7 +216,7 @@ export default function NewNoticePage() {
                   onChange={(event) => setEntireSchool(event.target.checked)}
                 />
               }
-              label="Entire school"
+              label="Everyone (entire institution)"
             />
             <FormControlLabel
               control={

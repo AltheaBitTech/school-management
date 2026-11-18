@@ -402,7 +402,7 @@ export class VisitorsReportsService {
     if (organization.code === PLATFORM_ORGANIZATION_CODE) {
       throw new ForbiddenException({
         code: VISITOR_REPORT_ERROR_CODES.PLATFORM_ORGANIZATION,
-        message: 'Platform organizations do not use school visitor reports',
+        message: 'Platform organizations do not use institution visitor reports',
       });
     }
   }

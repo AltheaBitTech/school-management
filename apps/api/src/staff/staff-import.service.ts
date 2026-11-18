@@ -328,7 +328,7 @@ export class StaffImportService {
       if (existingStaffByCode) {
         errors.push({
           column: 'employeeCode',
-          message: 'This employee code already exists in this school and will not be updated',
+          message: 'This employee code already exists in this institution and will not be updated',
         });
       }
     }
@@ -375,7 +375,7 @@ export class StaffImportService {
       const role = await getOrganizationRoleByCode(this.prisma, organizationId, normalized);
       return { roleId: role.id };
     } catch {
-      return { error: `${normalized} is not available for this school` };
+      return { error: `${normalized} is not available for this institution` };
     }
   }
 

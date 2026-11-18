@@ -199,7 +199,7 @@ describeIfDatabase('Notices integration', () => {
     const notice = await noticesService.create(orgAId, actorA, {
       title: 'School holiday',
       content: 'School will remain closed on Friday.',
-      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_SCHOOL }],
+      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_ORGANIZATION }],
     });
 
     expect(notice.status).toBe(NoticeStatus.DRAFT);
@@ -270,7 +270,7 @@ describeIfDatabase('Notices integration', () => {
     const scheduled = await noticesService.create(orgAId, actorA, {
       title: 'Scheduled notice',
       content: 'Future publish.',
-      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_SCHOOL }],
+      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_ORGANIZATION }],
     });
 
     await noticesService.update(orgAId, scheduled.id, {
@@ -324,7 +324,7 @@ describeIfDatabase('Notices integration', () => {
     const draft = await noticesService.create(orgAId, actorA, {
       title: 'Hidden draft',
       content: 'Only management should list this.',
-      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_SCHOOL }],
+      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_ORGANIZATION }],
     });
 
     const viewerList = await noticesService.list(orgAId, actorViewer, { page: 1, pageSize: 10 }, false);
@@ -412,7 +412,7 @@ describeIfDatabase('Notices integration', () => {
     const notice = await noticesService.create(orgAId, actorA, {
       title: 'Cross-tenant read ack',
       content: 'Tenant B must not read or acknowledge.',
-      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_SCHOOL }],
+      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_ORGANIZATION }],
     });
     await noticesService.publish(orgAId, notice.id);
 
@@ -434,7 +434,7 @@ describeIfDatabase('Notices integration', () => {
     const notice = await noticesService.create(orgAId, actorA, {
       title: 'Tenant isolation',
       content: 'Cross-tenant access must fail.',
-      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_SCHOOL }],
+      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_ORGANIZATION }],
     });
 
     await expect(noticesService.findById(orgBId, notice.id, actorA, true)).rejects.toBeInstanceOf(
@@ -458,7 +458,7 @@ describeIfDatabase('Notices integration', () => {
     const notice = await noticesService.create(orgAId, actorA, {
       title: 'Concurrent publish',
       content: 'Only one publish should win.',
-      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_SCHOOL }],
+      audiences: [{ audienceType: NoticeAudienceType.ENTIRE_ORGANIZATION }],
     });
 
     const results = await Promise.allSettled([

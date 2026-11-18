@@ -62,7 +62,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
   {
     id: 'events',
     name: 'Event operations',
-    description: 'Review scheduled and completed school events.',
+    description: 'Review scheduled and completed events.',
     href: '/reports/events',
     permission: 'report.event.view',
     group: 'events',

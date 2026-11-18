@@ -13,7 +13,7 @@ export function CompleteSignupPageContent({ loading = false }: CompleteSignupPag
   return (
     <AuthPageCard
       title="Complete your sign-up"
-      description="Set your password to activate your school administrator account."
+      description="Set your password to activate your administrator account."
       footerLink={{ href: '/', label: 'Back to home' }}
     >
       {loading ? (

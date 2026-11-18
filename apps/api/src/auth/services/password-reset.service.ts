@@ -81,7 +81,7 @@ export class PasswordResetService {
       rawToken,
     );
     const emailContent = renderPasswordResetEmail({
-      organizationName: organization?.name ?? 'your school',
+      organizationName: organization?.name ?? 'your institution',
       resetUrl,
       expiresInMinutes: PASSWORD_RESET_TOKEN_TTL_MS / 60_000,
     });

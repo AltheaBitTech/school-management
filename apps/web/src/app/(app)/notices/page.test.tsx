@@ -43,7 +43,7 @@ describe('NoticesPage', () => {
           createdAt: '2026-09-01T00:00:00.000Z',
           updatedAt: '2026-09-01T00:00:00.000Z',
           publishedAt: '2026-09-01T10:00:00.000Z',
-          audiences: [{ id: 'aud-1', audienceType: 'ENTIRE_SCHOOL' }],
+          audiences: [{ id: 'aud-1', audienceType: 'ENTIRE_ORGANIZATION' }],
         },
       ],
       meta: { page: 1, pageSize: 25, total: 1, totalPages: 1 },

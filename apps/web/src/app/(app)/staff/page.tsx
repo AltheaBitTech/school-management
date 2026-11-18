@@ -144,7 +144,7 @@ export default function StaffListPage() {
     <>
       <ListPageShell
         title="Staff"
-        description="Manage school staff profiles for your organization."
+        description="Manage staff profiles for your organization."
         icon={PeopleAltOutlined}
         actions={
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>

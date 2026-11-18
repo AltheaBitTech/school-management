@@ -41,7 +41,7 @@ describeIfDatabase('Classes integration', () => {
     const orgIds = [orgAId, orgBId];
     await prisma.student.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.section.deleteMany({ where: { organizationId: { in: orgIds } } });
-    await prisma.schoolClass.deleteMany({ where: { organizationId: { in: orgIds } } });
+    await prisma.academicUnit.deleteMany({ where: { organizationId: { in: orgIds } } });
     await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
     await prisma.$disconnect();
   });

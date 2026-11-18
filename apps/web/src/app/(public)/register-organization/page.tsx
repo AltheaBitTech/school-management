@@ -19,7 +19,7 @@ function SuccessState() {
           Application Submitted
         </Typography>
         <Typography color="text.secondary" variant="body2">
-          Thank you for registering your school with CampusOps. We&apos;ve received your registration request.
+          Thank you for registering your institution with CampusOps. We&apos;ve received your registration request.
         </Typography>
         <Typography color="text.secondary" variant="body2">
           Our team will review your application and send you an email at the provided address with next steps.
@@ -28,7 +28,7 @@ function SuccessState() {
       </Stack>
 
       <Alert severity="info" sx={{ textAlign: 'left' }}>
-        You cannot sign in until the platform team approves this request. After approval, use your school sign-in code,
+        You cannot sign in until the platform team approves this request. After approval, use your institution sign-in code,
         email, and the password you chose above.
       </Alert>
 
@@ -56,7 +56,7 @@ export default function RegisterOrganizationPage() {
       {!submitted ? (
         <>
           <Typography variant="h4" component="h1" sx={{ mb: 0.75 }}>
-            Register Your School
+            Register Your Institution
           </Typography>
           <Typography color="text.secondary" variant="body2" sx={{ mb: 3 }}>
             Fill in the details below. Our team will review your application and contact you within 1–2 business days.

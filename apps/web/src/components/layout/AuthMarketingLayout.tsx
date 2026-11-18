@@ -88,7 +88,7 @@ export function AuthMarketingLayout({ children, maxWidth = 440 }: AuthMarketingL
           component="p"
           sx={{ mt: 3, textAlign: 'center', color: 'sidebar.textMuted' }}
         >
-          One platform for school operations
+          One platform for schools, colleges & institutes
         </Typography>
       </Box>
     </Box>

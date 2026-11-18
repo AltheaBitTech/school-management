@@ -41,12 +41,12 @@ describe('HomePage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('link', { name: 'Register Your School' }),
+        screen.getByRole('link', { name: 'Register Your Institution' }),
       ).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Sign In' })).toBeInTheDocument();
       expect(
         screen.getByRole('heading', {
-          name: 'One platform to manage every school operation',
+          name: 'One platform to manage every campus operation',
         }),
       ).toBeInTheDocument();
     });
@@ -151,7 +151,7 @@ describe('HomePage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Welcome to CampusOps')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Create school' })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'Create institution' })).toHaveAttribute(
         'href',
         '/organizations/new',
       );

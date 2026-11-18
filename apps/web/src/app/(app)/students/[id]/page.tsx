@@ -52,6 +52,8 @@ import {
   type ParentCandidate,
   type Student,
 } from '@/lib/students/students-client';
+import { useTerminology } from '@/lib/terminology/use-terminology';
+import { usesTerms } from '@/lib/terminology/terminology';
 
 function displayValue(value?: string | null): string {
   const trimmed = value?.trim();
@@ -60,6 +62,7 @@ function displayValue(value?: string | null): string {
 
 export default function StudentDetailPage() {
   const canEdit = useCan('student.update');
+  const t = useTerminology();
   const canLinkParents = useCan('parent.link.manage');
   const canGenerate = useCan('document.generate');
   const canViewAttendance = useCan('attendance.view');
@@ -482,8 +485,11 @@ export default function StudentDetailPage() {
         <CardContent>
           <Stack spacing={1.5}>
             <Typography variant="h6">Academic details</Typography>
-            <DetailFactRow label="Class">{formatStudentClassLabel(student)}</DetailFactRow>
-            <DetailFactRow label="Section">{displayValue(student.section)}</DetailFactRow>
+            <DetailFactRow label={t.unit}>{formatStudentClassLabel(student)}</DetailFactRow>
+            <DetailFactRow label={t.group}>{displayValue(student.section)}</DetailFactRow>
+            {usesTerms(t.institutionType) ? (
+              <DetailFactRow label={`Current ${t.term.toLowerCase()}`}>{displayValue(student.currentTerm?.toString())}</DetailFactRow>
+            ) : null}
             <DetailFactRow label="Roll number">{displayValue(student.rollNumber)}</DetailFactRow>
             <DetailFactRow label="Academic year">{displayValue(student.academicYear)}</DetailFactRow>
             <DetailFactRow label="Date of birth">
@@ -522,7 +528,7 @@ export default function StudentDetailPage() {
               <>
                 <Typography variant="subtitle2">Link a parent</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Search parent accounts in this school by name or email, then link the one you select. An account that is already linked is left out of the results.
+                  Search parent accounts in this institution by name or email, then link the one you select. An account that is already linked is left out of the results.
                 </Typography>
                 <TextField
                   label="Search parent accounts"

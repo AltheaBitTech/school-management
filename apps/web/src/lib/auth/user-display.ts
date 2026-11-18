@@ -1,3 +1,4 @@
+import { DEFAULT_TERMINOLOGY, roleDisplayName } from '@/lib/terminology/terminology';
 import type { AuthUser } from '@/lib/auth/auth-client';
 import { isOperationalDashboardUser, isStaffSelfServiceUser, isStudentSelfServiceUser } from '@/lib/auth/routing';
 import { isPlatformOrganization } from '@/lib/navigation/platform';
@@ -25,7 +26,8 @@ export function getUserInitials(displayName: string): string {
 
 export function getUserRoleLabel(user: AuthUser): string {
   if (user.role?.name?.trim()) {
-    return user.role.name.trim();
+    const terms = user.organization?.terminology ?? DEFAULT_TERMINOLOGY[user.organization?.institutionType ?? 'SCHOOL'];
+    return roleDisplayName(user.role.code, user.role.name.trim(), terms);
   }
   if (isPlatformOrganization(user.organization?.code)) {
     return 'Platform administrator';
@@ -37,7 +39,7 @@ export function getUserRoleLabel(user: AuthUser): string {
     return 'Student';
   }
   if (isOperationalDashboardUser(user.permissions)) {
-    return 'School operations';
+    return 'Operations';
   }
   return 'User';
 }

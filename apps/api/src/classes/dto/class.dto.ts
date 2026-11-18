@@ -31,6 +31,13 @@ export class CreateClassDto {
   @Min(0)
   @Max(1000)
   displayOrder?: number;
+  @ApiPropertyOptional({ example: 8, description: 'Number of terms/semesters (college/institute programs)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  termCount?: number;
 }
 
 export class UpdateClassDto {
@@ -49,6 +56,15 @@ export class UpdateClassDto {
   @Min(0)
   @Max(1000)
   displayOrder?: number;
+
+  @ApiPropertyOptional({ example: 8, nullable: true, description: 'Number of terms/semesters; null to clear' })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  termCount?: number | null;
 }
 
 export class CreateSectionDto {
@@ -123,6 +139,7 @@ export class ClassDto {
   @ApiProperty() organizationId!: string;
   @ApiProperty() name!: string;
   @ApiProperty() displayOrder!: number;
+  @ApiPropertyOptional({ nullable: true }) termCount!: number | null;
   @ApiProperty({ enum: ClassStatus }) status!: ClassStatus;
   @ApiProperty({ type: [SectionDto] }) sections!: SectionDto[];
   @ApiProperty() studentCount!: number;

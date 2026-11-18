@@ -23,6 +23,7 @@ export interface Student {
   guardianName?: string | null;
   guardianPhone?: string | null;
   academicYear?: string | null;
+  currentTerm?: number | null;
   userId?: string | null;
   status: StudentStatus;
   createdAt: string;
@@ -90,6 +91,7 @@ export async function createStudent(payload: {
   guardianName: string;
   guardianPhone: string;
   academicYear: string;
+  currentTerm?: number | null;
 }): Promise<Student> {
   const response = await apiClient.post<StudentResponse>('/students', payload, { auth: true });
   return response.data;
@@ -110,6 +112,7 @@ export async function updateStudent(
     guardianName?: string | null;
     guardianPhone?: string | null;
     academicYear?: string | null;
+    currentTerm?: number | null;
     status?: StudentStatus;
   },
 ): Promise<Student> {
@@ -204,7 +207,7 @@ export function formatStudentClassLabel(
   const studentClass = student.studentClass?.trim();
   const section = student.section?.trim();
   if (studentClass && section) {
-    return `${studentClass} - Section ${section}`;
+    return `${studentClass} - ${section}`;
   }
   if (studentClass) {
     return studentClass;

@@ -58,6 +58,7 @@ export class StudentsService {
           guardianName: profile.guardianName,
           guardianPhone: profile.guardianPhone,
           academicYear: profile.academicYear,
+          currentTerm: dto.currentTerm ?? null,
           status: StudentStatus.ACTIVE,
         },
       });
@@ -178,6 +179,7 @@ export class StudentsService {
                 academicYear: profile.academicYear,
               }
             : {}),
+          ...(dto.currentTerm !== undefined ? { currentTerm: dto.currentTerm } : {}),
           ...(dto.status !== undefined ? { status: dto.status } : {}),
         },
       });
@@ -216,6 +218,7 @@ export class StudentsService {
       guardianName: student.guardianName,
       guardianPhone: student.guardianPhone,
       academicYear: student.academicYear,
+      currentTerm: student.currentTerm,
       userId: student.userId,
       status: student.status,
       createdAt: student.createdAt.toISOString(),

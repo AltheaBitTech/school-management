@@ -147,7 +147,7 @@ export default function AssetsPage() {
       description={
         warrantyAlertOnly
           ? 'Assets with warranty expired or expiring within 30 days.'
-          : 'Track school assets, assignments, maintenance, and lifecycle status.'
+          : 'Track assets, assignments, maintenance, and lifecycle status.'
       }
       icon={Inventory2Outlined}
       actions={

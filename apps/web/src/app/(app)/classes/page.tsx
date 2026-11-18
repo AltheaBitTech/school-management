@@ -30,6 +30,8 @@ import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import { useCan } from '@/lib/auth/use-can';
+import { usesTerms } from '@/lib/terminology/terminology';
+import { useTerminology } from '@/lib/terminology/use-terminology';
 import {
   createClass,
   createSection,
@@ -65,6 +67,12 @@ export default function ClassesPage() {
   const canManage = useCan('class.manage');
   const canViewStaff = useCan('staff.view');
   const { showSuccess } = useAppSnackbar();
+  const t = useTerminology();
+  const unitLc = t.unit.toLowerCase();
+  const unitsLc = t.unitPlural.toLowerCase();
+  const groupLc = t.group.toLowerCase();
+  const groupsLc = t.groupPlural.toLowerCase();
+  const showTerms = usesTerms(t.institutionType);
 
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -76,6 +84,7 @@ export default function ClassesPage() {
   const [classDialog, setClassDialog] = useState<ClassDialogState>(null);
   const [className, setClassName] = useState('');
   const [displayOrder, setDisplayOrder] = useState('');
+  const [termCount, setTermCount] = useState('');
 
   const [sectionDialog, setSectionDialog] = useState<SectionDialogState>(null);
   const [sectionNames, setSectionNames] = useState('');
@@ -95,7 +104,7 @@ export default function ClassesPage() {
       if (error instanceof ApiError && error.statusCode === 403) {
         setIsForbidden(true);
       } else {
-        setErrorMessage(error instanceof Error ? error.message : 'Failed to load classes');
+        setErrorMessage(error instanceof Error ? error.message : `Failed to load ${unitsLc}`);
       }
     } finally {
       setIsLoading(false);
@@ -142,8 +151,10 @@ export default function ClassesPage() {
     if (state?.mode === 'edit') {
       setClassName(state.schoolClass.name);
       setDisplayOrder(String(state.schoolClass.displayOrder));
+      setTermCount(state.schoolClass.termCount ? String(state.schoolClass.termCount) : '');
     } else {
       setClassName('');
+      setTermCount('');
       setDisplayOrder(String(classes.length > 0 ? Math.max(...classes.map((c) => c.displayOrder)) + 1 : 1));
     }
   }
@@ -175,28 +186,35 @@ export default function ClassesPage() {
     event.preventDefault();
     if (!classDialog) return;
     const name = className.trim();
-    if (!name) return setDialogError('Class name is required');
-    if (name.length > CLASS_NAME_MAX) return setDialogError(`Class name must be ${CLASS_NAME_MAX} characters or fewer`);
+    if (!name) return setDialogError(`${t.unit} name is required`);
+    if (name.length > CLASS_NAME_MAX) return setDialogError(`${t.unit} name must be ${CLASS_NAME_MAX} characters or fewer`);
     const order = parseOptionalInt(displayOrder, 'Sort order', 0, 1000);
     if (typeof order === 'string') return setDialogError(order);
+    const terms = showTerms ? parseOptionalInt(termCount, `Number of ${t.termPlural.toLowerCase()}`, 1, 20) : null;
+    if (typeof terms === 'string') return setDialogError(terms);
 
     setIsSubmitting(true);
     setDialogError(null);
     try {
       if (classDialog.mode === 'create') {
-        await createClass({ name, ...(order !== null ? { displayOrder: order } : {}) });
-        showSuccess(`Class ${name} created. Now add its sections.`);
+        await createClass({
+          name,
+          ...(order !== null ? { displayOrder: order } : {}),
+          ...(terms !== null ? { termCount: terms } : {}),
+        });
+        showSuccess(`${t.unit} ${name} created. Now add its ${groupsLc}.`);
       } else {
         await updateClass(classDialog.schoolClass.id, {
           name,
           ...(order !== null ? { displayOrder: order } : {}),
+          ...(showTerms ? { termCount: terms } : {}),
         });
-        showSuccess('Class updated');
+        showSuccess(`${t.unit} updated`);
       }
       setClassDialog(null);
       await loadClasses();
     } catch (error) {
-      setDialogError(error instanceof Error ? error.message : 'Failed to save class');
+      setDialogError(error instanceof Error ? error.message : `Failed to save ${unitLc}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -206,11 +224,11 @@ export default function ClassesPage() {
     event.preventDefault();
     if (!sectionDialog) return;
     const names = parseSectionNames(sectionNames);
-    if (names.length === 0) return setDialogError('Section name is required');
+    if (names.length === 0) return setDialogError(`${t.group} name is required`);
     const tooLong = names.find((name) => name.length > SECTION_NAME_MAX);
-    if (tooLong) return setDialogError(`Section "${tooLong}" must be ${SECTION_NAME_MAX} characters or fewer`);
+    if (tooLong) return setDialogError(`${t.group} "${tooLong}" must be ${SECTION_NAME_MAX} characters or fewer`);
     if (sectionDialog.mode === 'edit' && names.length > 1) {
-      return setDialogError('Enter a single section name when editing');
+      return setDialogError(`Enter a single ${groupLc} name when editing`);
     }
     const cap = parseOptionalInt(capacity, 'Capacity', 1, 500);
     if (typeof cap === 'string') return setDialogError(cap);
@@ -230,8 +248,8 @@ export default function ClassesPage() {
         }
         showSuccess(
           created.length === 1
-            ? `Section ${created[0]} added to ${sectionDialog.schoolClass.name}`
-            : `${created.length} sections added to ${sectionDialog.schoolClass.name}`,
+            ? `${t.group} ${created[0]} added to ${sectionDialog.schoolClass.name}`
+            : `${created.length} ${groupsLc} added to ${sectionDialog.schoolClass.name}`,
         );
       } else {
         await updateSection(sectionDialog.section.id, {
@@ -239,12 +257,12 @@ export default function ClassesPage() {
           classTeacherId: classTeacherId || null,
           capacity: cap,
         });
-        showSuccess('Section updated');
+        showSuccess(`${t.group} updated`);
       }
       setSectionDialog(null);
       await loadClasses();
     } catch (error) {
-      setDialogError(error instanceof Error ? error.message : 'Failed to save section');
+      setDialogError(error instanceof Error ? error.message : `Failed to save ${groupLc}`);
       await loadClasses();
     } finally {
       setIsSubmitting(false);
@@ -258,10 +276,10 @@ export default function ClassesPage() {
     try {
       if (confirm.kind === 'class') {
         await setClassActive(confirm.schoolClass.id, confirm.activate);
-        showSuccess(confirm.activate ? 'Class reactivated' : 'Class deactivated');
+        showSuccess(`${t.unit} ${confirm.activate ? 'reactivated' : 'deactivated'}`);
       } else {
         await setSectionActive(confirm.section.id, confirm.activate);
-        showSuccess(confirm.activate ? 'Section reactivated' : 'Section deactivated');
+        showSuccess(`${t.group} ${confirm.activate ? 'reactivated' : 'deactivated'}`);
       }
       await loadClasses();
     } catch (error) {
@@ -280,20 +298,20 @@ export default function ClassesPage() {
 
   return (
     <ListPageShell
-      title="Classes & Sections"
-      description="Set up your classes and sections once. Students are then assigned by picking from a list."
+      title={`${t.unitPlural} & ${t.groupPlural}`}
+      description={`Set up your ${unitsLc} and ${groupsLc} once. Students are then assigned by picking from a list.`}
       icon={ClassOutlined}
       actions={
         canManage ? (
           <Button variant="contained" startIcon={<AddOutlined />} onClick={() => openClassDialog({ mode: 'create' })}>
-            Add class
+            Add {unitLc}
           </Button>
         ) : undefined
       }
       filters={
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
           <Typography variant="body2" color="text.secondary">
-            {totals.classes} classes · {totals.sections} sections · {totals.students} students
+            {totals.classes} {unitsLc} · {totals.sections} {groupsLc} · {totals.students} students
           </Typography>
           <FormControlLabel
             control={<Switch checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />}
@@ -303,15 +321,15 @@ export default function ClassesPage() {
       }
     >
       {errorMessage && !isLoading ? <Alert severity="error">{errorMessage}</Alert> : null}
-      {isLoading ? <LoadingState label="Loading classes" columnCount={4} /> : null}
+      {isLoading ? <LoadingState label={`Loading ${unitsLc}`} columnCount={4} /> : null}
 
       {!isLoading && visibleClasses.length === 0 ? (
         <EmptyState
           icon={ClassOutlined}
           message={
             canManage
-              ? 'No classes yet. Click "Add class" to create your first class, for example Grade 1.'
-              : 'No classes have been set up yet.'
+              ? `No ${unitsLc} yet. Click "Add ${unitLc}" to create your first ${unitLc}.`
+              : `No ${unitsLc} have been set up yet.`
           }
         />
       ) : null}
@@ -330,6 +348,11 @@ export default function ClassesPage() {
                   <Typography variant="h6" component="h2">
                     {schoolClass.name}
                   </Typography>
+                  {schoolClass.termCount && showTerms ? (
+                    <Typography variant="body2" color="text.secondary">
+                      {schoolClass.termCount} {t.termPlural.toLowerCase()}
+                    </Typography>
+                  ) : null}
                   <Typography variant="body2" color="text.secondary">
                     {schoolClass.studentCount} {schoolClass.studentCount === 1 ? 'student' : 'students'}
                   </Typography>
@@ -343,7 +366,7 @@ export default function ClassesPage() {
                         startIcon={<AddOutlined />}
                         onClick={() => openSectionDialog({ mode: 'create', schoolClass })}
                       >
-                        Add section
+                        Add {groupLc}
                       </Button>
                     ) : null}
                     <Button size="small" onClick={() => openClassDialog({ mode: 'edit', schoolClass })}>
@@ -364,14 +387,14 @@ export default function ClassesPage() {
 
               {schoolClass.sections.length === 0 ? (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  No sections yet.{canManage && schoolClass.status === 'ACTIVE' ? ' Click "Add section" to add A, B, C…' : ''}
+                  No {groupsLc} yet.{canManage && schoolClass.status === 'ACTIVE' ? ` Click "Add ${groupLc}" to add A, B, C…` : ''}
                 </Typography>
               ) : (
-                <AppTable aria-label={`Sections of ${schoolClass.name}`}>
+                <AppTable aria-label={`${t.groupPlural} of ${schoolClass.name}`}>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Section</TableCell>
-                      <TableCell>Class teacher</TableCell>
+                      <TableCell>{t.group}</TableCell>
+                      <TableCell>{t.groupTeacher}</TableCell>
                       <TableCell>Students</TableCell>
                       <TableCell>Status</TableCell>
                       {canManage ? <TableCell align="right">Actions</TableCell> : null}
@@ -429,18 +452,22 @@ export default function ClassesPage() {
 
       <Dialog open={classDialog !== null} onClose={() => !isSubmitting && setClassDialog(null)} maxWidth="xs" fullWidth>
         <Box component="form" onSubmit={handleClassSubmit} noValidate>
-          <DialogTitle>{classDialog?.mode === 'edit' ? 'Edit class' : 'Add class'}</DialogTitle>
+          <DialogTitle>{classDialog?.mode === 'edit' ? `Edit ${unitLc}` : `Add ${unitLc}`}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
               {dialogError ? <Alert severity="error">{dialogError}</Alert> : null}
               <TextField
-                label="Class name"
+                label={`${t.unit} name`}
                 value={className}
                 onChange={(event) => setClassName(event.target.value)}
                 helperText={
                   classDialog?.mode === 'edit'
-                    ? 'Renaming updates every student in this class.'
-                    : 'For example Grade 8, Class 10 or Nursery'
+                    ? `Renaming updates every student in this ${unitLc}.`
+                    : t.institutionType === 'COLLEGE'
+                      ? 'For example B.Com, B.Sc Computer Science or MBA'
+                      : t.institutionType === 'INSTITUTE'
+                        ? 'For example JEE Foundation, Full Stack Development or IELTS'
+                        : 'For example Grade 8, Class 10 or Nursery'
                 }
                 inputProps={{ maxLength: CLASS_NAME_MAX }}
                 autoFocus
@@ -455,6 +482,16 @@ export default function ClassesPage() {
                 inputProps={{ inputMode: 'numeric' }}
                 fullWidth
               />
+              {showTerms ? (
+                <TextField
+                  label={`Number of ${t.termPlural.toLowerCase()}`}
+                  value={termCount}
+                  onChange={(event) => setTermCount(event.target.value)}
+                  helperText={`Optional. For example 6 ${t.termPlural.toLowerCase()} for a 3-year ${unitLc}.`}
+                  inputProps={{ inputMode: 'numeric' }}
+                  fullWidth
+                />
+              ) : null}
             </Stack>
           </DialogContent>
           <DialogActions>
@@ -462,7 +499,7 @@ export default function ClassesPage() {
               Cancel
             </Button>
             <SubmitButton isSubmitting={isSubmitting} submittingLabel="Saving…">
-              {classDialog?.mode === 'edit' ? 'Save' : 'Add class'}
+              {classDialog?.mode === 'edit' ? 'Save' : `Add ${unitLc}`}
             </SubmitButton>
           </DialogActions>
         </Box>
@@ -472,20 +509,20 @@ export default function ClassesPage() {
         <Box component="form" onSubmit={handleSectionSubmit} noValidate>
           <DialogTitle>
             {sectionDialog?.mode === 'edit'
-              ? `Edit section of ${sectionDialog.schoolClass.name}`
-              : `Add section to ${sectionDialog?.schoolClass.name ?? ''}`}
+              ? `Edit ${groupLc} of ${sectionDialog.schoolClass.name}`
+              : `Add ${groupLc} to ${sectionDialog?.schoolClass.name ?? ''}`}
           </DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
               {dialogError ? <Alert severity="error">{dialogError}</Alert> : null}
               <TextField
-                label={sectionDialog?.mode === 'edit' ? 'Section name' : 'Section name(s)'}
+                label={sectionDialog?.mode === 'edit' ? `${t.group} name` : `${t.group} name(s)`}
                 value={sectionNames}
                 onChange={(event) => setSectionNames(event.target.value)}
                 helperText={
                   sectionDialog?.mode === 'edit'
-                    ? 'Renaming updates every student in this section.'
-                    : 'Tip: type A, B, C to add several sections at once'
+                    ? `Renaming updates every student in this ${groupLc}.`
+                    : `Tip: type A, B, C to add several ${groupsLc} at once`
                 }
                 autoFocus
                 required
@@ -494,7 +531,7 @@ export default function ClassesPage() {
               {canViewStaff && !isMultiCreate ? (
                 <TextField
                   select
-                  label="Class teacher"
+                  label={t.groupTeacher}
                   value={classTeacherId}
                   onChange={(event) => setClassTeacherId(event.target.value)}
                   helperText="Optional"
@@ -515,7 +552,7 @@ export default function ClassesPage() {
                 label="Capacity"
                 value={capacity}
                 onChange={(event) => setCapacity(event.target.value)}
-                helperText={isMultiCreate ? 'Optional. Applied to every new section.' : 'Optional. Maximum number of students.'}
+                helperText={isMultiCreate ? `Optional. Applied to every new ${groupLc}.` : 'Optional. Maximum number of students.'}
                 inputProps={{ inputMode: 'numeric' }}
                 fullWidth
               />
@@ -526,7 +563,7 @@ export default function ClassesPage() {
               Cancel
             </Button>
             <SubmitButton isSubmitting={isSubmitting} submittingLabel="Saving…">
-              {sectionDialog?.mode === 'edit' ? 'Save' : isMultiCreate ? 'Add sections' : 'Add section'}
+              {sectionDialog?.mode === 'edit' ? 'Save' : isMultiCreate ? `Add ${groupsLc}` : `Add ${groupLc}`}
             </SubmitButton>
           </DialogActions>
         </Box>
@@ -539,14 +576,14 @@ export default function ClassesPage() {
             ? 'Reactivate?'
             : confirm?.kind === 'class'
               ? `Deactivate ${confirm.schoolClass.name}?`
-              : `Deactivate section ${confirm?.kind === 'section' ? confirm.section.name : ''}?`
+              : `Deactivate ${groupLc} ${confirm?.kind === 'section' ? confirm.section.name : ''}?`
         }
         description={
           confirm?.activate
             ? 'It will be available again when adding or editing students.'
             : confirm?.kind === 'class'
-              ? 'The class and all its sections will be hidden from student forms. Classes with active students cannot be deactivated.'
-              : 'The section will be hidden from student forms. Sections with active students cannot be deactivated.'
+              ? `The ${unitLc} and all its ${groupsLc} will be hidden from student forms. ${t.unitPlural} with active students cannot be deactivated.`
+              : `The ${groupLc} will be hidden from student forms. ${t.groupPlural} with active students cannot be deactivated.`
         }
         confirmLabel={confirm?.activate ? 'Reactivate' : 'Deactivate'}
         confirmColor={confirm?.activate ? 'primary' : 'error'}

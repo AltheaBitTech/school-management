@@ -115,7 +115,7 @@ export default function CreateStaffPage() {
     <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
       <FormPageShell
         title="Add staff"
-        description="Create an operational staff profile for your school."
+        description="Create an operational staff profile for your institution."
         icon={PersonAddOutlined}
         footer={
           <FormPageFooter

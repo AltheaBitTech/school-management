@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ApiError, apiClient } from '@/lib/api/client';
 import { StudentPortalPageShell, StudentPortalSection } from '@/components/ui/StudentPortalPageShell';
+import { useTerminology } from '@/lib/terminology/use-terminology';
 
 interface ParentChild {
   linkId: string;
@@ -58,6 +59,7 @@ function formatChildTransport(assignment: ChildTransport | null | 'unavailable' 
 }
 
 export default function ParentPortalPage() {
+  const t = useTerminology();
   const [children, setChildren] = useState<ParentChild[]>([]);
   const [transportByStudent, setTransportByStudent] = useState<Record<string, ChildTransport | null | 'unavailable'>>(
     {},
@@ -113,7 +115,7 @@ export default function ParentPortalPage() {
       ) : null}
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
       {!isLoading && children.length === 0 ? (
-        <Alert severity="info">No students are linked yet. Ask the school office to link your account.</Alert>
+        <Alert severity="info">No students are linked yet. Ask the office to link your account.</Alert>
       ) : null}
       {children.map((child) => (
         <StudentPortalSection key={child.linkId} title={child.student.name}>
@@ -124,7 +126,7 @@ export default function ParentPortalPage() {
               <Typography variant="body2" color="text.secondary">
                 {[child.student.studentClass, child.student.section].filter(Boolean).join(' · ') ||
                   child.student.className ||
-                  'Class not set'}
+                  `${t.unit} not set`}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {formatChildTransport(transportByStudent[child.student.id])}

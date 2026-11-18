@@ -96,7 +96,7 @@ describe('NewStudentPage', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Create student' }));
 
-    expect(await screen.findByText('Use a school year such as 2025-2026')).toBeInTheDocument();
+    expect(await screen.findByText('Use an academic year such as 2025-2026')).toBeInTheDocument();
     expect(createStudent).not.toHaveBeenCalled();
   });
 

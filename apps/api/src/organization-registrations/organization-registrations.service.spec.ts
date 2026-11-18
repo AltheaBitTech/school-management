@@ -1,3 +1,4 @@
+import { InstitutionType } from '@prisma/client';
 import { ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -99,6 +100,8 @@ describe('OrganizationRegistrationsService', () => {
         city: null,
         state: null,
         country: 'India',
+        institutionType: InstitutionType.SCHOOL,
+        adminPasswordHash: null,
         status: 'PENDING',
         rejectionReason: null,
         approvedAt: null,

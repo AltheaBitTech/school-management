@@ -1,12 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsDateString,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
+  Min,
+  ValidateIf,
 } from 'class-validator';
 import { Trim } from '../../common/transforms/trim.decorator';
 import { VISITOR_MOBILE_PATTERN } from '../../visitors/constants/visitor-mobile.constants';
@@ -109,4 +114,17 @@ export class CreateStudentDto {
     message: 'Academic year must look like 2025-2026',
   })
   academicYear!: string;
+
+  @ApiPropertyOptional({
+    example: 3,
+    nullable: true,
+    description: 'Current term/semester number (colleges and institutes)',
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  currentTerm?: number | null;
 }

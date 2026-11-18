@@ -42,7 +42,7 @@ function buildAudiences(
   const audiences: NoticeAudienceInput[] = [];
 
   if (entireSchool) {
-    audiences.push({ audienceType: 'ENTIRE_SCHOOL' });
+    audiences.push({ audienceType: 'ENTIRE_ORGANIZATION' });
   }
   if (allStaff) {
     audiences.push({ audienceType: 'STAFF' });
@@ -108,7 +108,7 @@ export default function EditNoticePage() {
         setTitle(noticeData.title);
         setContent(noticeData.content);
         setEntireSchool(
-          noticeData.audiences.some((audience) => audience.audienceType === 'ENTIRE_SCHOOL'),
+          noticeData.audiences.some((audience) => audience.audienceType === 'ENTIRE_ORGANIZATION'),
         );
         setAllStaff(noticeData.audiences.some((audience) => audience.audienceType === 'STAFF'));
         setAllStudents(noticeData.audiences.some((audience) => audience.audienceType === 'STUDENT'));
@@ -305,7 +305,7 @@ export default function EditNoticePage() {
                   onChange={(event) => setEntireSchool(event.target.checked)}
                 />
               }
-              label="Entire school"
+              label="Everyone (entire institution)"
             />
             <FormControlLabel
               control={

@@ -56,7 +56,7 @@ export class NoticeNotificationService {
     let entireSchool = false;
 
     for (const audience of audiences) {
-      if (audience.audienceType === NoticeAudienceType.ENTIRE_SCHOOL) {
+      if (audience.audienceType === NoticeAudienceType.ENTIRE_ORGANIZATION) {
         entireSchool = true;
       }
     }

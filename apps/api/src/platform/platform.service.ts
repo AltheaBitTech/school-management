@@ -40,7 +40,7 @@ export class PlatformService {
   async updateSubscription(organizationId: string, input: { planCode: string; status: SubscriptionStatus }) {
     const organization = await this.prisma.organization.findUnique({ where: { id: organizationId } });
     if (!organization) {
-      throw new NotFoundException({ message: 'School not found' });
+      throw new NotFoundException({ message: 'Institution not found' });
     }
     const plan = await this.prisma.plan.findUnique({ where: { code: input.planCode } });
     if (!plan || !plan.active) {

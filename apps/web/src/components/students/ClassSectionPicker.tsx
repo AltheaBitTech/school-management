@@ -6,6 +6,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import NextLink from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useTerminology } from '@/lib/terminology/use-terminology';
 import { useCan } from '@/lib/auth/use-can';
 import { listClasses, type SchoolClass } from '@/lib/classes/classes-client';
 
@@ -46,6 +47,9 @@ export function ClassSectionPicker({
   sectionError,
 }: ClassSectionPickerProps) {
   const canManageClasses = useCan('class.manage');
+  const t = useTerminology();
+  const unitsLc = t.unitPlural.toLowerCase();
+  const groupsLc = t.groupPlural.toLowerCase();
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [classId, setClassId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +62,7 @@ export function ClassSectionPicker({
         if (!cancelled) setClasses(data.filter((item) => item.sections.length > 0));
       })
       .catch((error: unknown) => {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Failed to load classes');
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : `Failed to load ${unitsLc}`);
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -117,13 +121,13 @@ export function ClassSectionPicker({
   if (!isLoading && !loadError && classes.length === 0) {
     return (
       <Alert severity="info">
-        No classes are set up yet.{' '}
+        No {unitsLc} are set up yet.{' '}
         {canManageClasses ? (
           <Link component={NextLink} href="/classes">
-            Add classes and sections
+            Add {unitsLc} and {groupsLc}
           </Link>
         ) : (
-          'Ask your school admin to add classes and sections'
+          `Ask your admin to add ${unitsLc} and ${groupsLc}`
         )}{' '}
         before adding students.
       </Alert>
@@ -139,13 +143,13 @@ export function ClassSectionPicker({
       ) : null}
       <TextField
         select
-        label="Class"
+        label={t.unit}
         value={selectedClass ? classId : ''}
         onChange={(event) => handleClassChange(event.target.value)}
         required
         disabled={isLoading}
         error={Boolean(classError)}
-        helperText={classError ?? (isLoading ? 'Loading classes…' : undefined)}
+        helperText={classError ?? (isLoading ? `Loading ${unitsLc}…` : undefined)}
         fullWidth
       >
         {classes.map((item) => (
@@ -156,13 +160,13 @@ export function ClassSectionPicker({
       </TextField>
       <TextField
         select
-        label="Section"
+        label={t.group}
         value={selectedClass?.sections.some((section) => section.id === sectionId) ? sectionId : ''}
         onChange={(event) => handleSectionChange(event.target.value)}
         required
         disabled={!selectedClass}
         error={Boolean(sectionError)}
-        helperText={sectionError ?? (!selectedClass ? 'Pick a class first' : undefined)}
+        helperText={sectionError ?? (!selectedClass ? `Pick a ${t.unit.toLowerCase()} first` : undefined)}
         fullWidth
       >
         {(selectedClass?.sections ?? []).map((section) => {

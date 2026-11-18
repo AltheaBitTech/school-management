@@ -6,6 +6,7 @@ export interface SuggestOrganizationCodeResponse {
 }
 
 export interface SubmitRegistrationRequest {
+  institutionType?: 'SCHOOL' | 'COLLEGE' | 'INSTITUTE';
   organizationName: string;
   preferredOrganizationCode?: string;
   contactEmail: string;

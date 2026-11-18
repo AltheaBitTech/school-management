@@ -1,6 +1,7 @@
 'use client';
 
-import EventOutlined from '@mui/icons-material/EventOutlined';import { resetSubmitting } from '@/lib/forms/submit-state';
+import EventOutlined from '@mui/icons-material/EventOutlined';
+import { resetSubmitting } from '@/lib/forms/submit-state';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -90,7 +91,7 @@ export default function NewEventPage() {
     <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
       <FormPageShell
         title="Create event"
-        description="Add a scheduled school event and assign its venue."
+        description="Add a scheduled event and assign its venue."
         icon={EventOutlined}
         footer={
           <FormPageFooter

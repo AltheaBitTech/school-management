@@ -99,7 +99,11 @@ Potential target organizations include:
 - Private schools
 - School campuses
 - Organizations operating multiple schools
+- Colleges and universities (programs, semesters, divisions)
+- Coaching and training institutes (courses, modules, batches)
 - Educational institutions requiring centralized operational workflows
+
+Each tenant picks an institution type (School, College or Institute) at registration. The type drives the labels used throughout the product, such as Class/Program/Course and Section/Division/Batch, without changing the underlying data model.
 
 The architecture should support multiple independent tenants without requiring separate application deployments for every school.
 

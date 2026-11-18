@@ -39,9 +39,11 @@ import {
   type Student,
   type StudentStatus,
 } from '@/lib/students/students-client';
+import { useTerminology } from '@/lib/terminology/use-terminology';
 
 export default function StudentsPage() {
   const canCreate = useCan('student.create');
+  const t = useTerminology();
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
   const [students, setStudents] = useState<Student[]>([]);
@@ -143,12 +145,12 @@ export default function StudentsPage() {
           label="Search students"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Name, student code, or class"
+          placeholder={`Name, student code, or ${t.unit.toLowerCase()}`}
           sx={{ minWidth: { sm: 280 }, flex: 1 }}
         />
         <TextField
           select
-          label="Class"
+          label={t.unit}
           value={classFilter}
           onChange={(event) => {
             setClassFilter(event.target.value);
@@ -156,7 +158,7 @@ export default function StudentsPage() {
           }}
           sx={{ minWidth: 180 }}
         >
-          <MenuItem value="">All classes</MenuItem>
+          <MenuItem value="">All {t.unitPlural.toLowerCase()}</MenuItem>
           {classOptions.map((item) => (
             <MenuItem key={item.id} value={item.id}>
               {item.name}
@@ -166,13 +168,13 @@ export default function StudentsPage() {
         </TextField>
         <TextField
           select
-          label="Section"
+          label={t.group}
           value={sectionFilter}
           onChange={(event) => setSectionFilter(event.target.value)}
           disabled={!classFilter}
           sx={{ minWidth: 140 }}
         >
-          <MenuItem value="">All sections</MenuItem>
+          <MenuItem value="">All {t.groupPlural.toLowerCase()}</MenuItem>
           {sectionOptions.map((section) => (
             <MenuItem key={section.id} value={section.id}>
               {section.name}
@@ -254,8 +256,8 @@ export default function StudentsPage() {
           <TableHead>
             <TableRow>
               <TableCell>Student</TableCell>
-              <TableCell>Class</TableCell>
-              <TableCell>Section</TableCell>
+              <TableCell>{t.unit}</TableCell>
+              <TableCell>{t.group}</TableCell>
               <TableCell>Roll</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Created</TableCell>

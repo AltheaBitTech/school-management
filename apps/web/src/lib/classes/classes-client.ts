@@ -20,6 +20,7 @@ export interface SchoolClass {
   organizationId: string;
   name: string;
   displayOrder: number;
+  termCount?: number | null;
   status: ClassStatus;
   sections: SchoolSection[];
   studentCount: number;
@@ -33,14 +34,14 @@ export async function listClasses(params?: { status?: ClassStatus }): Promise<Sc
   return response.data;
 }
 
-export async function createClass(input: { name: string; displayOrder?: number }): Promise<SchoolClass> {
+export async function createClass(input: { name: string; displayOrder?: number; termCount?: number }): Promise<SchoolClass> {
   const response = await apiClient.post<{ data: SchoolClass }>('/classes', input);
   return response.data;
 }
 
 export async function updateClass(
   id: string,
-  input: { name?: string; displayOrder?: number },
+  input: { name?: string; displayOrder?: number; termCount?: number | null },
 ): Promise<SchoolClass> {
   const response = await apiClient.patch<{ data: SchoolClass }>(`/classes/${id}`, input);
   return response.data;

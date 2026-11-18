@@ -34,7 +34,7 @@ export function LandingProductMock() {
         <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#f59e0b' }} />
         <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#22c55e' }} />
         <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-          app.campusops.io — school dashboard
+          app.campusops.io — campus dashboard
         </Typography>
       </Stack>
 

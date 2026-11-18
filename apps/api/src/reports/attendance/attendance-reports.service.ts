@@ -123,7 +123,7 @@ export class AttendanceReportsService {
     if (organization.code === PLATFORM_ORGANIZATION_CODE) {
       throw new ForbiddenException({
         code: ATTENDANCE_REPORT_ERROR_CODES.PLATFORM_ORGANIZATION,
-        message: 'Platform organizations do not use school attendance reports',
+        message: 'Platform organizations do not use institution attendance reports',
       });
     }
   }

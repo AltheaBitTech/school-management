@@ -70,7 +70,7 @@ export default function TransportPage() {
           icon={DirectionsBusOutlined}
           message={
             canManage
-              ? 'No routes yet. Add the first pickup route for this school.'
+              ? 'No routes yet. Add the first pickup route for this institution.'
               : 'No routes yet.'
           }
           action={

@@ -462,7 +462,7 @@ export class ComplaintsReportsService {
     if (organization.code === PLATFORM_ORGANIZATION_CODE) {
       throw new ForbiddenException({
         code: COMPLAINT_REPORT_ERROR_CODES.PLATFORM_ORGANIZATION,
-        message: 'Platform organizations do not use school complaint reports',
+        message: 'Platform organizations do not use institution complaint reports',
       });
     }
   }

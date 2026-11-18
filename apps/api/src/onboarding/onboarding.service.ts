@@ -130,7 +130,7 @@ export class OnboardingService {
     if (organizationCode === PLATFORM_ORGANIZATION_CODE) {
       throw new ForbiddenException({
         code: ONBOARDING_ERROR_CODES.PLATFORM_ORGANIZATION,
-        message: 'Platform organizations do not use school onboarding',
+        message: 'Platform organizations do not use institution onboarding',
       });
     }
   }

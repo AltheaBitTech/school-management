@@ -19,7 +19,7 @@ export async function assertPrincipalLeaveApprover(
   if (!actor.activeRoleId) {
     throw new ForbiddenException({
       code: LEAVE_ERROR_CODES.LEAVE_APPROVAL_PRINCIPAL_ONLY,
-      message: 'Only the Principal can approve or reject leave requests',
+      message: 'Only the head of the institution can approve or reject leave requests',
     });
   }
 
@@ -31,7 +31,7 @@ export async function assertPrincipalLeaveApprover(
   if (role?.code !== ORGANIZATION_ROLE_CODES.PRINCIPAL) {
     throw new ForbiddenException({
       code: LEAVE_ERROR_CODES.LEAVE_APPROVAL_PRINCIPAL_ONLY,
-      message: 'Only the Principal can approve or reject leave requests',
+      message: 'Only the head of the institution can approve or reject leave requests',
     });
   }
 }

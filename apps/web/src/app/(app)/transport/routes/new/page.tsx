@@ -71,7 +71,7 @@ export default function NewTransportRoutePage() {
             onChange={(event) => setCode(event.target.value)}
             required
             fullWidth
-            helperText="Lowercase letters or numbers, unique in this school"
+            helperText="Lowercase letters or numbers, unique in this institution"
           />
         </FormSection>
       </FormPageShell>

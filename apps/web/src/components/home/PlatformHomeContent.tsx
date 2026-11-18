@@ -81,7 +81,7 @@ export function PlatformHomeContent({ userEmail, permissions }: PlatformHomeCont
     <Stack spacing={3}>
       <HomeWelcomeHero
         title="Welcome to CampusOps"
-        subtitle="Platform control center for school onboarding and tenant management."
+        subtitle="Platform control center for institution onboarding and tenant management."
         meta={`Signed in as ${userEmail}`}
       />
 
@@ -104,7 +104,7 @@ export function PlatformHomeContent({ userEmail, permissions }: PlatformHomeCont
         >
           <Box>
             <Typography variant="h6" sx={{ mb: 0.5 }}>
-              Pending school registrations
+              Pending institution registrations
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Approve or reject new schools, then send each administrator their organization code and signup link.
@@ -112,7 +112,7 @@ export function PlatformHomeContent({ userEmail, permissions }: PlatformHomeCont
           </Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <Button component={Link} href="/organizations/new" variant="contained" size="large">
-              Create school
+              Create institution
             </Button>
             <Button component={Link} href="/admin/registrations" variant="outlined" size="large">
               Open registration requests
@@ -250,7 +250,7 @@ function SchoolsByPlanCard({ analytics }: { analytics: PlatformAnalytics }) {
     <Card variant="outlined" sx={{ height: '100%' }}>
       <CardContent>
         <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
-          Schools by plan
+          Institutions by plan
         </Typography>
         {plans.length === 0 ? (
           <Typography variant="body2" color="text.secondary">

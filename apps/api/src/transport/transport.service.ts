@@ -365,7 +365,7 @@ export class TransportService {
 
   private async requireStaff(organizationId: string, staffId: string) {
     const staff = await this.prisma.staff.findFirst({ where: { id: staffId, organizationId } });
-    if (!staff) throw new BadRequestException({ message: 'Driver must be a staff member in this school.' });
+    if (!staff) throw new BadRequestException({ message: 'Driver must be a staff member in this institution.' });
   }
 
   private rethrowUnique(error: unknown, message: string): never {

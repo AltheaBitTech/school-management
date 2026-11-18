@@ -530,7 +530,7 @@ export class NoticesService {
     audienceContext: NoticeRecipientAudienceContext,
   ): Prisma.NoticeWhereInput {
     const audienceMatch: Prisma.NoticeWhereInput[] = [
-      { audiences: { some: { audienceType: NoticeAudienceType.ENTIRE_SCHOOL } } },
+      { audiences: { some: { audienceType: NoticeAudienceType.ENTIRE_ORGANIZATION } } },
     ];
 
     if (audienceContext.hasStaffProfile) {

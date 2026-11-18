@@ -31,6 +31,8 @@ import {
   type StudentStatus,
 } from '@/lib/students/students-client';
 import { validateRequiredMaxLength } from '@/lib/forms/validators';
+import { useTerminology } from '@/lib/terminology/use-terminology';
+import { usesTerms } from '@/lib/terminology/terminology';
 
 export default function EditStudentPage() {
   const params = useParams<{ id: string }>();
@@ -47,6 +49,14 @@ export default function EditStudentPage() {
   );
   const [rollNumber, setRollNumber] = useState('');
   const [academicYear, setAcademicYear] = useState('');
+  const t = useTerminology();
+  const showTerms = usesTerms(t.institutionType);
+  const [currentTerm, setCurrentTerm] = useState('');
+  const parsedTerm = currentTerm.trim() ? Number(currentTerm.trim()) : null;
+  const termError =
+    parsedTerm !== null && (!Number.isInteger(parsedTerm) || parsedTerm < 1 || parsedTerm > 20)
+      ? 'Enter a whole number between 1 and 20'
+      : null;
   const [guardianName, setGuardianName] = useState('');
   const [guardianPhone, setGuardianPhone] = useState('');
   const [status, setStatus] = useState<StudentStatus>('ACTIVE');
@@ -86,6 +96,7 @@ export default function EditStudentPage() {
           }
           setRollNumber(student.rollNumber ?? '');
           setAcademicYear(student.academicYear ?? '');
+          setCurrentTerm(student.currentTerm ? String(student.currentTerm) : '');
           setGuardianName(student.guardianName ?? '');
           setGuardianPhone(student.guardianPhone ?? '');
           setStatus(student.status);
@@ -128,7 +139,12 @@ export default function EditStudentPage() {
     setFirstNameError(nextFirstNameError);
     setLastNameError(nextLastNameError);
     setFieldErrors(profileErrors);
-    if (nextFirstNameError || nextLastNameError || Object.keys(profileErrors).length > 0) {
+    if (
+      nextFirstNameError ||
+      nextLastNameError ||
+      Object.keys(profileErrors).length > 0 ||
+      (showTerms && termError)
+    ) {
       setErrorMessage('Fill the highlighted fields before saving.');
       return;
     }
@@ -141,6 +157,7 @@ export default function EditStudentPage() {
         sectionId,
         rollNumber: rollNumber.trim(),
         academicYear: academicYear.trim(),
+        ...(showTerms ? { currentTerm: parsedTerm } : {}),
         guardianName: guardianName.trim(),
         guardianPhone: guardianPhone.trim(),
         status,
@@ -265,6 +282,17 @@ export default function EditStudentPage() {
             helperText={fieldErrors.academicYear ?? 'Two consecutive years, such as 2025-2026'}
             fullWidth
           />
+          {showTerms ? (
+            <TextField
+              label={`Current ${t.term.toLowerCase()}`}
+              value={currentTerm}
+              onChange={(event) => setCurrentTerm(event.target.value)}
+              error={Boolean(termError)}
+              inputProps={{ inputMode: 'numeric', maxLength: 2 }}
+              helperText={termError ?? `Optional. ${t.term} number, such as 3`}
+              fullWidth
+            />
+          ) : null}
         </FormSection>
 
         <FormSection title="Guardian details" maxWidth="100%">

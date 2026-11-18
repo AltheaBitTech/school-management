@@ -38,7 +38,7 @@ export class CalendarService {
     if (organization.code === PLATFORM_ORGANIZATION_CODE) {
       throw new BadRequestException({
         code: DASHBOARD_ERROR_CODES.PLATFORM_ORGANIZATION,
-        message: 'Platform organizations do not use the school calendar',
+        message: 'Platform organizations do not use the institution calendar',
       });
     }
 

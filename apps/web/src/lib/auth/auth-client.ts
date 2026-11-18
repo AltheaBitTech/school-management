@@ -1,5 +1,6 @@
 import { ApiError } from '@/lib/api/client';
 import { getApiV1BaseUrl } from '@/lib/api/config';
+import type { InstitutionType, Terminology } from '@/lib/terminology/terminology';
 import { clearAccessToken, getAccessToken, setAccessExpiry, setAccessToken } from '@/lib/auth/session';
 
 export interface AuthUser {
@@ -15,6 +16,8 @@ export interface AuthUser {
     name: string;
     code: string;
     status: string;
+    institutionType?: InstitutionType;
+    terminology?: Terminology;
   };
   staff?: {
     firstName: string;

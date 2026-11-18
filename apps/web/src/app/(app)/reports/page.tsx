@@ -44,7 +44,7 @@ export default function ReportsHubPage() {
   return (
     <ListPageShell
       title="Reports"
-      description="Operational reports for your school. Open a report to filter by date, department, status, and other criteria supported by that module."
+      description="Operational reports for your institution. Open a report to filter by date, department, status, and other criteria supported by that module."
       icon={BarChartOutlined}
     >
       {!isReady ? <LoadingState label="Loading available reports" columnCount={3} /> : null}
@@ -52,7 +52,7 @@ export default function ReportsHubPage() {
       {isReady && !hasReports ? (
         <EmptyState
           icon={BarChartOutlined}
-          message="No reports are available for your account. Contact your school administrator if you need access."
+          message="No reports are available for your account. Contact your administrator if you need access."
         />
       ) : null}
 

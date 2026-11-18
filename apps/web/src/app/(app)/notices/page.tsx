@@ -84,7 +84,7 @@ export default function NoticesPage() {
   return (
     <ListPageShell
       title="Notices"
-      description="Publish school notices and circulars to targeted audiences."
+      description="Publish notices and circulars to targeted audiences."
       icon={AnnouncementOutlined}
       actions={
         canCreate ? (

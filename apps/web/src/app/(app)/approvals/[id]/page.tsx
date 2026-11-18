@@ -239,7 +239,7 @@ export default function ApprovalDetailPage() {
           ) : request.status === 'PENDING' ? (
             <Alert severity="info">
               {request.entityType === 'LEAVE'
-                ? 'Only the Principal can approve or reject leave requests.'
+                ? 'Only the head of the institution can approve or reject leave requests.'
                 : 'You are not authorized to act on this approval at the current level.'}
             </Alert>
           ) : (

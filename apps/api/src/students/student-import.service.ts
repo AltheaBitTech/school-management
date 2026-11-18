@@ -285,7 +285,7 @@ export class StudentImportService {
       if (existing) {
         errors.push({
           column: 'studentCode',
-          message: 'This student code already exists in this school and will not be updated',
+          message: 'This student code already exists in this institution and will not be updated',
         });
       }
     }

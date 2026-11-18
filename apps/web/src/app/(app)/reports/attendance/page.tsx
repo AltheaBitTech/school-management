@@ -132,7 +132,7 @@ function AttendanceReportPageContent() {
       <PageHeader
         icon={FactCheckOutlined}
         title="Attendance report"
-        description="Staff attendance summary and records for your organization. Dates use your school calendar (organization timezone)."
+        description="Staff attendance summary and records for your organization. Dates use your institution calendar (organization timezone)."
         actions={
           <ReportExportCsvButton
             exportPath="/reports/attendance/export.csv"

@@ -250,7 +250,7 @@ function GenerateDocumentPageContent() {
             setStaff([]);
             setVisitors([]);
             setOwnerId('');
-            setErrorMessage('This document needs a list your role cannot open. Choose another template, or ask a school admin to generate it.');
+            setErrorMessage('This document needs a list your role cannot open. Choose another template, or ask an admin to generate it.');
           } else {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to load form data');
           }

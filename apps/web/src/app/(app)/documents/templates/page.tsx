@@ -65,7 +65,7 @@ export default function DocumentTemplatesPage() {
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
       {isLoading ? <LoadingState label="Loading templates" columnCount={4} /> : null}
       {!isLoading && rows.length === 0 ? (
-        <EmptyState icon={ArticleOutlined} message="No templates are seeded for this school yet." />
+        <EmptyState icon={ArticleOutlined} message="No templates are seeded for this institution yet." />
       ) : null}
       {!isLoading && rows.length > 0 ? (
         <AppTable minWidth={640} aria-label="Document templates">

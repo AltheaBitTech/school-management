@@ -1,6 +1,6 @@
 # CampusOps
 
-CampusOps is a multi-tenant **School Operations Management SaaS** platform. It complements a School ERP by digitizing operational workflows such as staff, attendance, leave, complaints, visitors, notices, assets, documents, approvals, and events.
+CampusOps is a multi-tenant **Operations Management SaaS** platform for **schools, colleges and institutes**. It complements an academic ERP by digitizing operational workflows such as staff, attendance, leave, complaints, visitors, notices, assets, documents, approvals, and events.
 
 This repository is a **pnpm monorepo**:
 

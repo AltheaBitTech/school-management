@@ -45,7 +45,7 @@ export class OrganizationsController {
   @RequirePermissions('platform.organization.create')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Bootstrap a school organization with its initial administrator' })
+  @ApiOperation({ summary: 'Bootstrap an institution (school, college or institute) with its initial administrator' })
   @ApiCreatedResponse({ type: OrganizationBootstrapResponseDto })
   @ApiUnauthorizedResponse({ description: 'Unauthenticated' })
   @ApiForbiddenResponse({ description: 'Platform authorization required' })

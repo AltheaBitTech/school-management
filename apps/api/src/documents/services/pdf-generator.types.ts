@@ -5,6 +5,8 @@ export interface CommonDocumentData {
   logo?: Buffer;
   heading?: string;
   body?: string;
+  /** Institution-specific label for the academic unit (Class / Program / Course). */
+  unitLabel?: string;
 }
 
 export interface IdCardData extends CommonDocumentData {

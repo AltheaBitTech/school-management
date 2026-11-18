@@ -1,7 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { InstitutionType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsEmail,
+  IsEnum,
+  IsOptional,
   IsNotEmpty,
   IsString,
   Matches,
@@ -12,7 +15,7 @@ import {
 import { ORGANIZATION_CODE_PATTERN } from '../constants/organization.constants';
 
 export class CreateOrganizationAdminDto {
-  @ApiProperty({ example: 'admin@school.example' })
+  @ApiProperty({ example: 'admin@institution.example' })
   @IsEmail()
   @MaxLength(254)
   email!: string;
@@ -25,7 +28,7 @@ export class CreateOrganizationAdminDto {
 }
 
 export class CreateOrganizationDto {
-  @ApiProperty({ example: 'Greenwood High School' })
+  @ApiProperty({ example: 'Greenwood Academy' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
@@ -42,6 +45,11 @@ export class CreateOrganizationDto {
     message: 'Organization code must be 3-64 characters of lowercase letters, numbers, or hyphens',
   })
   code!: string;
+
+  @ApiPropertyOptional({ enum: InstitutionType, default: InstitutionType.SCHOOL })
+  @IsOptional()
+  @IsEnum(InstitutionType)
+  institutionType?: InstitutionType;
 
   @ApiProperty({ type: CreateOrganizationAdminDto })
   @ValidateNested()

@@ -65,14 +65,14 @@ describe('OnboardingPage', () => {
   it('renders school setup step', async () => {
     render(<OnboardingPage />);
 
-    expect(await screen.findByText('School Setup')).toBeInTheDocument();
+    expect(await screen.findByText('Institution Setup')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Test School')).toBeInTheDocument();
   });
 
   it('progresses to staff step after saving school setup', async () => {
     render(<OnboardingPage />);
 
-    await screen.findByText('School Setup');
+    await screen.findByText('Institution Setup');
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     await waitFor(() => {
@@ -87,7 +87,7 @@ describe('OnboardingPage', () => {
   it('allows skipping staff setup and finishing onboarding', async () => {
     render(<OnboardingPage />);
 
-    await screen.findByText('School Setup');
+    await screen.findByText('Institution Setup');
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await screen.findByText('Initial Staff (Optional)');
     fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));

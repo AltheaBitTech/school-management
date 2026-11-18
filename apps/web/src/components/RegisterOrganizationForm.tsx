@@ -6,7 +6,8 @@ import PersonOutline from '@mui/icons-material/PersonOutline';
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import SendOutlined from '@mui/icons-material/SendOutlined';
 import { FormEvent, useEffect, useRef, useState, type ElementType, type ReactNode } from 'react';
-import { Box, Button, TextField, Alert, Grid, Typography, CircularProgress, Stack } from '@mui/material';
+import { Box, Button, TextField, Alert, Grid, Typography, CircularProgress, Stack, MenuItem } from '@mui/material';
+import { INSTITUTION_TYPE_OPTIONS, type InstitutionType } from '@/lib/terminology/terminology';
 import Link from 'next/link';
 import { ApiError } from '@/lib/api/client';
 import { registrationApi } from '@/lib/api/registration.api';
@@ -18,6 +19,7 @@ import { validatePassword } from '@/lib/forms/validators';
 import LockOutlined from '@mui/icons-material/LockOutlined';
 
 interface FormData {
+  institutionType: InstitutionType;
   organizationName: string;
   organizationCode: string;
   contactEmail: string;
@@ -52,6 +54,7 @@ function SectionLabel({ icon: Icon, children }: { icon: ElementType; children: R
 
 export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationFormProps) {
   const [formData, setFormData] = useState<FormData>({
+    institutionType: 'SCHOOL',
     organizationName: '',
     organizationCode: '',
     contactEmail: '',
@@ -68,7 +71,7 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
   const [globalError, setGlobalError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [organizationCodeHint, setOrganizationCodeHint] = useState(
-    'Suggested from your school name — used at sign-in',
+    'Suggested from your institution name — used at sign-in',
   );
   const organizationCodeEditedRef = useRef(false);
 
@@ -90,7 +93,7 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
           }
           setOrganizationCodeHint(
             result.available
-              ? 'Your school sign-in code (fixed after approval). Lowercase letters, numbers, hyphens.'
+              ? 'Your institution sign-in code (fixed after approval). Lowercase letters, numbers, hyphens.'
               : 'That code is taken — we suggested the next available option.',
           );
         })
@@ -104,14 +107,14 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
     const newErrors: FormErrors = {};
 
     if (!formData.organizationName.trim()) {
-      newErrors.organizationName = 'School name is required';
+      newErrors.organizationName = 'Institution name is required';
     } else if (formData.organizationName.length < 3) {
       newErrors.organizationName = 'At least 3 characters';
     }
 
     const normalizedCode = normalizeOrganizationCodeInput(formData.organizationCode);
     if (!normalizedCode) {
-      newErrors.organizationCode = 'School sign-in code is required';
+      newErrors.organizationCode = 'Institution sign-in code is required';
     } else if (!isValidOrganizationCodeInput(normalizedCode)) {
       newErrors.organizationCode = 'Use 3–64 lowercase letters, numbers, or hyphens';
     }
@@ -190,6 +193,7 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
     try {
       const phoneDigits = formData.contactPhone?.replace(/\D/g, '') ?? '';
       const response = await registrationApi.submitRegistrationRequest({
+        institutionType: formData.institutionType,
         organizationName: formData.organizationName.trim(),
         preferredOrganizationCode: normalizeOrganizationCodeInput(formData.organizationCode),
         contactEmail: formData.contactEmail.trim(),
@@ -231,12 +235,34 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
     <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
       {globalError ? <Alert severity="error">{globalError}</Alert> : null}
 
-      <SectionLabel icon={ApartmentOutlined}>School</SectionLabel>
+      <SectionLabel icon={ApartmentOutlined}>Institution</SectionLabel>
+
+      <TextField
+        select
+        fullWidth
+        name="institutionType"
+        label="Institution type"
+        value={formData.institutionType}
+        onChange={(event) =>
+          setFormData((prev) => ({ ...prev, institutionType: event.target.value as InstitutionType }))
+        }
+        helperText={
+          INSTITUTION_TYPE_OPTIONS.find((option) => option.value === formData.institutionType)?.hint ??
+          'Sets the labels used across CampusOps'
+        }
+        required
+      >
+        {INSTITUTION_TYPE_OPTIONS.map((option) => (
+          <MenuItem key={option.value} value={option.value}>
+            {option.label}
+          </MenuItem>
+        ))}
+      </TextField>
 
       <TextField
         fullWidth
         name="organizationName"
-        label="School/Organization Name"
+        label="Institution name"
         value={formData.organizationName}
         onChange={handleChange}
         error={!!errors.organizationName}
@@ -247,7 +273,7 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
       <TextField
         fullWidth
         name="organizationCode"
-        label="School sign-in code"
+        label="Institution sign-in code"
         value={formData.organizationCode}
         onChange={handleChange}
         error={!!errors.organizationCode}
@@ -385,7 +411,7 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
       </Button>
 
       <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
-        Already have a school account?{' '}
+        Already have an account?{' '}
         <Link href="/login" style={{ color: 'inherit', fontWeight: 600 }}>
           Sign in
         </Link>

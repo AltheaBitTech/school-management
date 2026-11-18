@@ -64,7 +64,7 @@ export async function createApp(): Promise<INestApplication> {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CampusOps API')
-    .setDescription('School Operations Management SaaS API')
+    .setDescription('Campus Operations Management SaaS API (schools, colleges, institutes)')
     .setVersion('0.0.1')
     .addBearerAuth()
     .build();

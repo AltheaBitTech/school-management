@@ -47,7 +47,7 @@ export class OrganizationRegistrationsController {
   @Get('suggest-code')
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Suggest an available school login code from the school name' })
+  @ApiOperation({ summary: 'Suggest an available institution login code from the institution name' })
   @ApiOkResponse({ type: SuggestOrganizationCodeResponseDto })
   async suggestOrganizationCode(
     @Query('name') name: string,

@@ -17,7 +17,7 @@ export interface RegistrationApprovedEmailInput {
 }
 
 export function renderRegistrationApprovedEmail(input: RegistrationApprovedEmailInput) {
-  const subject = 'Your CampusOps school registration has been approved';
+  const subject = 'Your CampusOps institution registration has been approved';
 
   if (input.signupPreCompleted) {
     const text = [

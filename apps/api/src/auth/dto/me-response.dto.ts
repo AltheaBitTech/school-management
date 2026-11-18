@@ -1,4 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { InstitutionType } from '@prisma/client';
+import { TerminologyDto } from '../../organizations/dto/organization-response.dto';
 
 export class MeOrganizationDto {
   @ApiProperty()
@@ -12,6 +14,12 @@ export class MeOrganizationDto {
 
   @ApiProperty({ example: 'ACTIVE' })
   status!: string;
+
+  @ApiProperty({ enum: InstitutionType, example: InstitutionType.SCHOOL })
+  institutionType!: InstitutionType;
+
+  @ApiProperty({ type: TerminologyDto })
+  terminology!: TerminologyDto;
 }
 
 export class MeStaffDto {

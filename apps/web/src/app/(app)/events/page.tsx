@@ -100,7 +100,7 @@ export default function EventsPage() {
   return (
     <ListPageShell
       title="Events"
-      description="Plan school events in a date-aware operational calendar."
+      description="Plan events in a date-aware operational calendar."
       icon={EventOutlined}
       actions={
         canCreate ? (

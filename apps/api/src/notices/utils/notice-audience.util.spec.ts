@@ -12,7 +12,7 @@ describe('notice-audience.util', () => {
   it('matches entire school audience for any user', () => {
     expect(
       userMatchesAudiences(
-        [{ audienceType: NoticeAudienceType.ENTIRE_SCHOOL, departmentId: null }],
+        [{ audienceType: NoticeAudienceType.ENTIRE_ORGANIZATION, departmentId: null }],
         noProfiles,
       ),
     ).toBe(true);

@@ -48,6 +48,7 @@ vi.mock('@/components/providers/AuthSessionProvider', () => ({
     },
     signOut: vi.fn(),
   }),
+  useOptionalAuthSession: () => null,
 }));
 
 describe('AppShell', () => {
@@ -63,7 +64,7 @@ describe('AppShell', () => {
     expect(screen.getAllByText('People').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Workflows').length).toBeGreaterThan(0);
     expect(screen.getAllByText('admin').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('School operations').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Operations').length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: 'Sign out' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/reports');

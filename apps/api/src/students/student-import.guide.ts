@@ -36,7 +36,7 @@ export const STUDENT_IMPORT_GUIDE: { title: string; introduction: string; sectio
     {
       heading: 'Required columns',
       paragraphs: [
-        'studentCode: the admission code for this school. Use 2 to 32 letters, numbers, or hyphens. Codes are stored in lowercase, so STU-2026-001 and stu-2026-001 are the same code.',
+        'studentCode: the admission code for this institution. Use 2 to 32 letters, numbers, or hyphens. Codes are stored in lowercase, so STU-2026-001 and stu-2026-001 are the same code.',
         'firstName: the student’s given name.',
         'lastName: the student’s family name.',
         'studentClass: the class label, such as Grade 8. Maximum 20 characters.',
@@ -73,8 +73,8 @@ export const STUDENT_IMPORT_GUIDE: { title: string; introduction: string; sectio
     {
       heading: 'Duplicates',
       paragraphs: [
-        'A student code must be unique in the school and in the file. The first row that uses a code is imported when that row is valid. Later rows with the same code are duplicates and are not saved.',
-        'An existing student is not updated. Import does not create a second profile for a code that is already in the school.',
+        'A student code must be unique in the institution and in the file. The first row that uses a code is imported when that row is valid. Later rows with the same code are duplicates and are not saved.',
+        'An existing student is not updated. Import does not create a second profile for a code that is already in the institution.',
       ],
     },
     {

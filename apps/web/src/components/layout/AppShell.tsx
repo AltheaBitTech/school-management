@@ -49,6 +49,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { NotificationMenu } from '@/components/notifications/NotificationMenu';
+import { useTerminology } from '@/lib/terminology/use-terminology';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
 import type { AuthUser } from '@/lib/auth/auth-client';
 import {
@@ -153,7 +154,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/audit', label: 'Audit log', icon: ManageSearchOutlined, requiredPermission: 'audit.view' },
       {
         href: '/settings/logo',
-        label: 'School logo',
+        label: 'Logo',
         icon: ImageOutlined,
         requiredPermission: 'organization.settings.update',
       },
@@ -179,7 +180,7 @@ const PLATFORM_NAV_GROUP: NavGroup = {
   items: [
     {
       href: '/organizations/new',
-      label: 'Create school',
+      label: 'Create institution',
       icon: DomainAddOutlined,
       requiredPermission: 'platform.organization.create',
     },
@@ -351,6 +352,7 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { isReady, isAuthenticated, user, signOut } = useAuthSession();
+  const terms = useTerminology();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isStaffNav = isStaffSelfServiceUser(user?.permissions);
   const isStudentNav = isStudentSelfServiceUser(user?.permissions);
@@ -375,6 +377,14 @@ export function AppShell({ children }: AppShellProps) {
     }
 
     const groups = NAV_GROUPS.map((group) => {
+      if (group.title === 'People') {
+        return {
+          ...group,
+          items: group.items.map((item) =>
+            item.href === '/classes' ? { ...item, label: `${terms.unitPlural} & ${terms.groupPlural}` } : item,
+          ),
+        };
+      }
       if (group.title !== 'Finance & records') {
         return group;
       }
@@ -387,7 +397,7 @@ export function AppShell({ children }: AppShellProps) {
     });
 
     return filterNavGroups(groups, user?.permissions);
-  }, [isStaffNav, isStudentNav, isParentNav, isPlatformOrg, user?.permissions]);
+  }, [isStaffNav, isStudentNav, isParentNav, isPlatformOrg, user?.permissions, terms.unitPlural, terms.groupPlural]);
   const homeHref = isStaffNav
     ? '/staff/dashboard'
     : isStudentNav
@@ -411,7 +421,7 @@ export function AppShell({ children }: AppShellProps) {
       ? 'Staff self-service'
       : isStudentNav
         ? 'Student portal'
-        : 'School operations';
+        : 'Operations';
 
   const displayName = user ? getUserDisplayName(user) : '';
   const roleLabel = user ? getUserRoleLabel(user) : '';
@@ -574,7 +584,7 @@ export function AppShell({ children }: AppShellProps) {
               </Typography>
             </Stack>
             <Button component={Link} href="/register-organization" size="small">
-              Register Your School
+              Register Your Institution
             </Button>
             <Button component={Link} href="/login" variant="contained" size="small">
               Sign in

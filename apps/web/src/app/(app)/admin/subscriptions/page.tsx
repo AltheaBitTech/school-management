@@ -87,7 +87,7 @@ export default function SubscriptionsPage() {
   return (
     <ListPageShell
       title="Subscriptions"
-      description="Plans are records for each school. Changing a plan does not delete school data and does not collect payment."
+      description="Plans are records for each institution. Changing a plan does not delete institution data and does not collect payment."
       icon={ReceiptLongOutlined}
     >
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
@@ -99,7 +99,7 @@ export default function SubscriptionsPage() {
         <AppTable minWidth={760} aria-label="Subscriptions">
           <TableHead>
             <TableRow>
-              <TableCell>School</TableCell>
+              <TableCell>Institution</TableCell>
               <TableCell>Plan</TableCell>
               <TableCell>Students</TableCell>
               <TableCell>Staff</TableCell>

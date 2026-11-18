@@ -190,7 +190,7 @@ function LoginForm() {
               }
             }}
             onBlur={() => setEmailError(validateEmail(email) ?? null)}
-            helperText={emailError ?? 'The work email registered with your school account'}
+            helperText={emailError ?? 'The work email registered with your institution account'}
             error={Boolean(emailError)}
             required
             fullWidth

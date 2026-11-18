@@ -125,7 +125,7 @@ function LimitedRoleHome({ permissions }: { permissions: string[] | undefined })
       label: 'Notices',
       href: '/notices',
       icon: AnnouncementOutlined,
-      description: 'School announcements',
+      description: 'Announcements',
     });
   }
   if (hasPermission(permissions, 'visitor.create')) {
@@ -157,7 +157,7 @@ function LimitedRoleHome({ permissions }: { permissions: string[] | undefined })
       label: 'Events',
       href: '/events',
       icon: CheckCircleOutlined,
-      description: 'School calendar events',
+      description: 'Calendar events',
     });
   }
   if (hasPermission(permissions, 'complaint.view')) {
@@ -181,7 +181,7 @@ function LimitedRoleHome({ permissions }: { permissions: string[] | undefined })
       label: 'Assets',
       href: '/assets',
       icon: BuildOutlined,
-      description: 'School property and assignments',
+      description: 'Property and assignments',
     });
   }
   if (hasPermission(permissions, 'document.view')) {
@@ -250,7 +250,7 @@ function LimitedRoleHome({ permissions }: { permissions: string[] | undefined })
       ) : (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography color="text.secondary">
-            This account does not include the school operations dashboard. Open a module from the navigation menu to
+            This account does not include the operations dashboard. Open a module from the navigation menu to
             continue.
           </Typography>
         </Paper>

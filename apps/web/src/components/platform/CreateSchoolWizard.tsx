@@ -9,7 +9,9 @@ import Stack from '@mui/material/Stack';
 import Step from '@mui/material/Step';
 import StepLabel from '@mui/material/StepLabel';
 import Stepper from '@mui/material/Stepper';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import { INSTITUTION_TYPE_OPTIONS, type InstitutionType } from '@/lib/terminology/terminology';
 import Typography from '@mui/material/Typography';
 import { FormEvent, useMemo, useState } from 'react';
 import { FormActions } from '@/components/forms/FormActions';
@@ -31,11 +33,12 @@ import {
 import { normalizeOrganizationCodeInput } from '@/lib/organizations/organization-code';
 import { bootstrapOrganization } from '@/lib/organizations/organizations-client';
 
-const STEPS = ['School details', 'Address (optional)', 'School administrator', 'Review & create'] as const;
+const STEPS = ['Institution details', 'Address (optional)', 'Administrator', 'Review & create'] as const;
 
 interface WizardFormState {
   platformEmail: string;
   platformPassword: string;
+  institutionType: InstitutionType;
   schoolName: string;
   schoolCode: string;
   addressLine: string;
@@ -52,6 +55,7 @@ type FieldKey = keyof WizardFormState;
 const INITIAL_STATE: WizardFormState = {
   platformEmail: '',
   platformPassword: '',
+  institutionType: 'SCHOOL',
   schoolName: '',
   schoolCode: '',
   addressLine: '',
@@ -196,6 +200,7 @@ export function CreateSchoolWizard() {
       const result = await bootstrapOrganization({
         name: trimToEmpty(values.schoolName),
         code: normalizedCode,
+        institutionType: values.institutionType,
         admin: {
           email: trimToEmpty(values.adminEmail),
           password: values.adminPassword,
@@ -203,7 +208,7 @@ export function CreateSchoolWizard() {
       });
 
       setSuccessMessage(
-        `Created ${result.organization.name} (${result.organization.code}). School admin: ${result.admin.email}`,
+        `Created ${result.organization.name} (${result.organization.code}). Admin: ${result.admin.email}`,
       );
     } catch (error) {
       resetSubmitting(setIsSubmitting);
@@ -214,8 +219,8 @@ export function CreateSchoolWizard() {
 
   return (
     <FormPageShell
-      title="Create school organization"
-      description="Provision a new tenant and its initial School Admin in a guided flow. Address fields are optional and kept for your review only until organization settings support them in the API."
+      title="Create institution"
+      description="Provision a new tenant and its initial administrator in a guided flow. Address fields are optional and kept for your review only until organization settings support them in the API."
       icon={DomainAddOutlined}
       maxWidth={760}
     >
@@ -235,11 +240,30 @@ export function CreateSchoolWizard() {
       <Box component="form" onSubmit={(event) => void handleSubmit(event)} noValidate>
         <Stack spacing={3}>
           {activeStep === 0 ? (
-            <FormSection title="School details">
+            <FormSection title="Institution details">
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <TextField
-                    label="School name *"
+                    select
+                    label="Institution type *"
+                    value={values.institutionType}
+                    onChange={(event) =>
+                      setValues((prev) => ({ ...prev, institutionType: event.target.value as InstitutionType }))
+                    }
+                    fullWidth
+                    variant="filled"
+                    helperText={INSTITUTION_TYPE_OPTIONS.find((option) => option.value === values.institutionType)?.hint}
+                  >
+                    {INSTITUTION_TYPE_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label="Institution name *"
                     value={values.schoolName}
                     onChange={(event) => updateField('schoolName', event.target.value)}
                     onBlur={() => markTouched('schoolName')}
@@ -381,7 +405,7 @@ export function CreateSchoolWizard() {
                 </Grid>
               </FormSection>
 
-              <FormSection title="Initial School Admin">
+              <FormSection title="Initial administrator">
                 <Grid container spacing={2}>
                   <Grid item xs={12}>
                     <TextField
@@ -424,7 +448,8 @@ export function CreateSchoolWizard() {
             <FormSection title="Review">
               <Stack spacing={1}>
                 <Typography variant="body2">
-                  <strong>School:</strong> {trimToEmpty(values.schoolName) || '—'} ({normalizedCode || '—'})
+                  <strong>Institution:</strong> {trimToEmpty(values.schoolName) || '—'} ({normalizedCode || '—'}) ·{' '}
+                  {INSTITUTION_TYPE_OPTIONS.find((option) => option.value === values.institutionType)?.label}
                 </Typography>
                 <Typography variant="body2">
                   <strong>Address note:</strong>{' '}

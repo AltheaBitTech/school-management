@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-import { OrganizationStatus, UserStatus } from '@prisma/client';
+import { InstitutionType, OrganizationStatus, UserStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
 import { AppConfig, CONFIGURATION_KEY } from '../config/configuration';
@@ -122,7 +122,7 @@ export class OrganizationRegistrationsService {
     if (preferredOrganizationCode && !isValidOrganizationCode(preferredOrganizationCode)) {
       throw new BadRequestException({
         code: 'INVALID_ORGANIZATION_CODE',
-        message: 'School code must be 3-64 characters of lowercase letters, numbers, or hyphens',
+        message: 'Institution code must be 3-64 characters of lowercase letters, numbers, or hyphens',
       });
     }
 
@@ -132,7 +132,7 @@ export class OrganizationRegistrationsService {
     ) {
       throw new ConflictException({
         code: 'ORGANIZATION_CODE_UNAVAILABLE',
-        message: 'This school code is already taken. Choose another code.',
+        message: 'This institution code is already taken. Choose another code.',
       });
     }
 
@@ -143,6 +143,7 @@ export class OrganizationRegistrationsService {
         data: {
           organizationName: dto.organizationName,
           preferredOrganizationCode,
+          institutionType: dto.institutionType ?? InstitutionType.SCHOOL,
           contactEmail: normalizedEmail,
           contactFirstName: dto.contactFirstName,
           contactLastName: dto.contactLastName,
@@ -161,7 +162,7 @@ export class OrganizationRegistrationsService {
         status: request.status,
         createdAt: request.createdAt,
         message:
-          'Registration request submitted successfully. We will review and contact you within 1-2 business days. After approval, sign in with your school code, email, and the password you chose.',
+          'Registration request submitted successfully. We will review and contact you within 1-2 business days. After approval, sign in with your institution code, email, and the password you chose.',
       };
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -284,6 +285,7 @@ export class OrganizationRegistrationsService {
         data: {
           name: registration.organizationName,
           code,
+          institutionType: registration.institutionType,
           status: OrganizationStatus.ACTIVE,
         },
       });
@@ -485,7 +487,7 @@ export class OrganizationRegistrationsService {
     if (trimmedName.length < 3) {
       throw new BadRequestException({
         code: 'INVALID_ORGANIZATION_NAME',
-        message: 'School name must be at least 3 characters to suggest a code',
+        message: 'Institution name must be at least 3 characters to suggest a code',
       });
     }
 
@@ -496,7 +498,7 @@ export class OrganizationRegistrationsService {
     if (preferred && !isValidOrganizationCode(preferred)) {
       throw new BadRequestException({
         code: 'INVALID_ORGANIZATION_CODE',
-        message: 'School code must be 3-64 characters of lowercase letters, numbers, or hyphens',
+        message: 'Institution code must be 3-64 characters of lowercase letters, numbers, or hyphens',
       });
     }
 

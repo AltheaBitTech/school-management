@@ -5,7 +5,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Organization, OrganizationStatus, Prisma, UserStatus } from '@prisma/client';
+import { InstitutionType, Organization, OrganizationStatus, Prisma, UserStatus } from '@prisma/client';
+import { resolveTerminology } from '../common/terminology/terminology';
 import { PasswordService } from '../auth/services/password.service';
 import { normalizeEmail } from '../auth/utils/email.util';
 import { ensureDefaultAssetCategories } from '../assets/utils/asset-category-seed.util';
@@ -34,7 +35,7 @@ export interface OrganizationBootstrapResult {
 }
 
 type OrganizationWithTimezone = Organization & {
-  settings?: { timezone: string; logoFileId?: string | null } | null;
+  settings?: { timezone: string; logoFileId?: string | null; terminology?: Prisma.JsonValue | null } | null;
 };
 
 @Injectable()
@@ -61,6 +62,7 @@ export class OrganizationsService {
           data: {
             name: dto.name.trim(),
             code: normalizedCode,
+            institutionType: dto.institutionType ?? InstitutionType.SCHOOL,
             status: OrganizationStatus.ACTIVE,
           },
         });
@@ -160,7 +162,7 @@ export class OrganizationsService {
   async getOrganizationForAuthenticatedUser(organizationId: string): Promise<OrganizationWithTimezone> {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
-      include: { settings: { select: { timezone: true, logoFileId: true } } },
+      include: { settings: { select: { timezone: true, logoFileId: true, terminology: true } } },
     });
 
     if (!organization) {
@@ -179,6 +181,8 @@ export class OrganizationsService {
       name: organization.name,
       code: organization.code,
       status: organization.status,
+      institutionType: organization.institutionType,
+      terminology: resolveTerminology(organization.institutionType, organization.settings?.terminology),
       timezone: organization.settings?.timezone ?? 'UTC',
       logoFileId: organization.settings?.logoFileId ?? null,
     };

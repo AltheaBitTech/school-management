@@ -3,7 +3,7 @@ import type { PaginationMeta } from '@/lib/departments/departments-client';
 
 export type NoticeStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
 
-export type NoticeAudienceType = 'ENTIRE_SCHOOL' | 'STAFF' | 'DEPARTMENT' | 'STUDENT' | 'PARENT';
+export type NoticeAudienceType = 'ENTIRE_ORGANIZATION' | 'STAFF' | 'DEPARTMENT' | 'STUDENT' | 'PARENT';
 
 export interface NoticeAudienceInput {
   audienceType: NoticeAudienceType;
@@ -154,8 +154,8 @@ export function formatNoticeStatus(status: NoticeStatus): string {
 
 export function formatAudienceType(type: NoticeAudienceType): string {
   switch (type) {
-    case 'ENTIRE_SCHOOL':
-      return 'Entire school';
+    case 'ENTIRE_ORGANIZATION':
+      return 'Everyone';
     case 'STAFF':
       return 'All staff';
     case 'DEPARTMENT':
@@ -180,7 +180,7 @@ export function formatAudienceLabel(audience: NoticeAudience): string {
 export const NOTICE_STATUSES: NoticeStatus[] = ['DRAFT', 'SCHEDULED', 'PUBLISHED', 'ARCHIVED'];
 
 export const NOTICE_AUDIENCE_TYPES: NoticeAudienceType[] = [
-  'ENTIRE_SCHOOL',
+  'ENTIRE_ORGANIZATION',
   'STAFF',
   'STUDENT',
   'PARENT',

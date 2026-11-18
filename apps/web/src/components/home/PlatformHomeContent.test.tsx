@@ -57,7 +57,7 @@ describe('PlatformHomeContent', () => {
     expect(screen.getByText('Pending registrations', { selector: 'p' })).toBeInTheDocument();
     expect(screen.getByText('1,250')).toBeInTheDocument();
     expect(screen.getByText('Green Valley School')).toBeInTheDocument();
-    expect(screen.getByText('Schools by plan')).toBeInTheDocument();
+    expect(screen.getByText('Institutions by plan')).toBeInTheDocument();
     expect(screen.getByText('Standard')).toBeInTheDocument();
     expect(screen.queryByText('org-1')).not.toBeInTheDocument();
   });
@@ -98,6 +98,6 @@ describe('PlatformHomeContent', () => {
     render(<PlatformHomeContent userEmail="admin@campusops.test" permissions={[]} />);
 
     expect(getPlatformAnalytics).not.toHaveBeenCalled();
-    expect(screen.getByRole('link', { name: 'Create school' })).toHaveAttribute('href', '/organizations/new');
+    expect(screen.getByRole('link', { name: 'Create institution' })).toHaveAttribute('href', '/organizations/new');
   });
 });

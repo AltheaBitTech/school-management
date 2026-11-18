@@ -11,7 +11,7 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: 'CampusOps',
-  description: 'School Operations Management SaaS',
+  description: 'Operations management for schools, colleges and institutes',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

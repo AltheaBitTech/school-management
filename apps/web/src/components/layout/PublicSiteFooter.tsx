@@ -19,7 +19,7 @@ export function PublicSiteFooter() {
       <Stack spacing={1.5} alignItems="center">
         <Stack direction="row" spacing={2} flexWrap="wrap" justifyContent="center" useFlexGap>
           <Typography component={Link} href="/register-organization" variant="body2" color="text.secondary">
-            Register your school
+            Register your institution
           </Typography>
           <Typography component={Link} href="/login" variant="body2" color="text.secondary">
             Sign in
@@ -29,7 +29,7 @@ export function PublicSiteFooter() {
           </Typography>
         </Stack>
         <Typography variant="body2" color="text.secondary">
-          CampusOps © 2026 · One platform for school operations
+          CampusOps © 2026 · One platform for schools, colleges & institutes
         </Typography>
       </Stack>
     </Box>

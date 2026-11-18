@@ -17,7 +17,7 @@ export type StudentProfileField = keyof StudentProfileFormValues;
 export function academicYearMessage(value: string): string | null {
   const match = ACADEMIC_YEAR_PATTERN.exec(value.trim());
   if (!match) {
-    return 'Use a school year such as 2025-2026';
+    return 'Use an academic year such as 2025-2026';
   }
 
   const startYear = Number(match[1]);

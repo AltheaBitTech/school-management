@@ -60,6 +60,7 @@ import {
 } from './utils/document-format.util';
 import { ensureDefaultDocumentTemplates } from './utils/document-template-seed.util';
 import { DocumentNotificationService } from './document-notification.service';
+import { resolveTerminology } from '../common/terminology/terminology';
 
 type GeneratedDocumentFileSummary = {
   id: string;
@@ -257,6 +258,10 @@ export class DocumentsService {
     const documentId = randomUUID();
     const common = {
       organization: organizationContext.organizationBlock,
+      unitLabel: resolveTerminology(
+        organizationContext.organization.institutionType,
+        organizationContext.organization.settings?.terminology,
+      ).unit,
       generatedDate: formatDocumentDate(generatedAt),
       documentId: shortDocumentReference(documentId),
       logo: organizationContext.logo,

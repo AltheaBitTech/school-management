@@ -39,7 +39,7 @@ export const STAFF_IMPORT_GUIDE: { title: string; introduction: string; sections
       paragraphs: [
         'Download the sample CSV from the Staff page. Open it in a spreadsheet, replace the sample people with your staff, and save it again as CSV.',
         'Keep the header row exactly as it is. Optional cells may be blank. Do not rename columns and do not add columns that are not in the sample.',
-        'The sample leaves departmentCode blank so it can be imported before you create departments. When you use a department, type a code that already exists in your school.',
+        'The sample leaves departmentCode blank so it can be imported before you create departments. When you use a department, type a code that already exists in your institution.',
       ],
     },
     {
@@ -55,7 +55,7 @@ export const STAFF_IMPORT_GUIDE: { title: string; introduction: string; sections
       heading: 'Optional columns',
       paragraphs: [
         'designation: the job title, such as Class teacher. This is not the system role. Maximum 120 characters.',
-        'departmentCode: the code of a department that already exists in this school. Matching ignores letter case. An unknown code is not created for you. Inactive departments are rejected. Leave the cell blank when there is no department.',
+        'departmentCode: the code of a department that already exists in this institution. Matching ignores letter case. An unknown code is not created for you. Inactive departments are rejected. Leave the cell blank when there is no department.',
         'joiningDate: the joining date.',
         'phone: digits, spaces, plus signs, hyphens, or parentheses. Maximum 20 characters.',
         'roleCode: the system role for the login. Leave it blank to use TEACHER.',
@@ -65,7 +65,7 @@ export const STAFF_IMPORT_GUIDE: { title: string; introduction: string; sections
       heading: 'Dates, departments, and roles',
       paragraphs: [
         'Dates must be YYYY-MM-DD, for example 2024-06-01. Other date formats are rejected.',
-        `roleCode must be one of: ${STAFF_CSV_ROLE_CODES.join(', ')}. STUDENT and platform roles are rejected. The role must already exist for your school.`,
+        `roleCode must be one of: ${STAFF_CSV_ROLE_CODES.join(', ')}. STUDENT and platform roles are rejected. The role must already exist for your institution.`,
         'The CSV has no employment-status column. Imported staff are created as Active and receive a login invite for the email in the row.',
         'Job title and system role are different. designation is the job title. roleCode is the access role.',
       ],
@@ -73,7 +73,7 @@ export const STAFF_IMPORT_GUIDE: { title: string; introduction: string; sections
     {
       heading: 'Duplicates and existing accounts',
       paragraphs: [
-        'An employee code must be unique in the school and in the file. The first valid use of a code is imported. Later rows with that code are duplicates and are not saved.',
+        'An employee code must be unique in the institution and in the file. The first valid use of a code is imported. Later rows with that code are duplicates and are not saved.',
         'An email must be unique in the file and across CampusOps. A matching email does not update an existing person and does not create a second staff profile or user.',
         'The error report does not include invite links. Copy an invite from the import result on screen if you need to share it.',
       ],

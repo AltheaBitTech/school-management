@@ -21,6 +21,7 @@ export interface OrganizationBootstrapResult {
 export async function bootstrapOrganization(input: {
   name: string;
   code: string;
+  institutionType?: 'SCHOOL' | 'COLLEGE' | 'INSTITUTE';
   admin: {
     email: string;
     password: string;

@@ -30,9 +30,11 @@ import {
   getStudentSelfProfile,
 } from '@/lib/student-self/student-self-client';
 import type { Student } from '@/lib/students/students-client';
+import { useTerminology } from '@/lib/terminology/use-terminology';
 
 export default function StudentSelfProfilePage() {
   const { user } = useAuthSession();
+  const t = useTerminology();
   const [student, setStudent] = useState<Student | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isForbidden, setIsForbidden] = useState(false);
@@ -97,11 +99,11 @@ export default function StudentSelfProfilePage() {
             <strong>Admission number:</strong> {student.studentCode}
           </Typography>
           <Typography>
-            <strong>Class:</strong> {formatStudentClassLabel(student)}
+            <strong>{t.unit}:</strong> {formatStudentClassLabel(student)}
           </Typography>
           {student.section ? (
             <Typography>
-              <strong>Section:</strong> {student.section}
+              <strong>{t.group}:</strong> {student.section}
             </Typography>
           ) : null}
           {student.rollNumber ? (

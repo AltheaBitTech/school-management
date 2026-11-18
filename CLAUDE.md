@@ -4,12 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-CampusOps: a multi-tenant School Operations Management SaaS (staff, attendance, leave, complaints, visitors, notices, assets, fees, transport, documents, approvals, events). It complements a School ERP — do not grow it into a full academic ERP. pnpm monorepo:
+CampusOps: a multi-tenant Operations Management SaaS for schools, colleges and institutes (staff, attendance, leave, complaints, visitors, notices, assets, fees, transport, documents, approvals, events). It complements an academic ERP — do not grow it into a full academic ERP. pnpm monorepo:
 
 - `apps/api` — NestJS 11 modular monolith, Prisma 6, PostgreSQL (`@campusops/api`)
 - `apps/web` — Next.js 15 App Router, React 19, MUI v6 (`@campusops/web`)
 
 Design docs live in `docs/` (`00-IMPLEMENTATION-BLUEPRINT.md` … `17-APPROVAL-WORKFLOW.md`). Read the relevant domain doc before changing a module or the schema. `.cursor/rules/*.mdc` holds the project's coding rules; the important parts are summarized below.
+
+## Institution types and terminology
+
+Each organization has an `institutionType` (`SCHOOL`, `COLLEGE`, `INSTITUTE`; default `SCHOOL`), chosen at registration. Labels that differ by type (School/College/Institute, Class/Program/Course, Section/Division/Batch, Principal/Dean/Director, Term/Semester/Module) come from one terminology dictionary:
+
+- API: `apps/api/src/common/terminology/terminology.ts` (`resolveTerminology(type, settings.terminology)`), exposed on `/auth/me` as `organization.terminology`.
+- Web: `useTerminology()` from `apps/web/src/lib/terminology/use-terminology.ts`.
+
+Never hard-code "School", "Class", "Section" or "Principal" in user-facing copy. Role codes (`SCHOOL_ADMIN`, `PRINCIPAL`), API routes (`/classes`) and permissions (`class.*`) stay stable; only display labels change. The Prisma model `AcademicUnit` is mapped to the legacy `SchoolClass` table.
 
 ## Commands
 
