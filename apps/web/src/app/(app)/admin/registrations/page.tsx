@@ -177,7 +177,7 @@ export default function RegistrationsPage() {
           ) : (
             <Table>
               <TableHead>
-                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
                   <TableCell>School Name</TableCell>
                   <TableCell>Contact Name</TableCell>
                   <TableCell>Email</TableCell>

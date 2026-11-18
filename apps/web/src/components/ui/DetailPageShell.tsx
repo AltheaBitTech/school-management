@@ -23,8 +23,14 @@ interface DetailFactRowProps {
 
 export function DetailFactRow({ label, children }: DetailFactRowProps) {
   return (
-    <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-      <Typography component="span" color="text.secondary" sx={{ minWidth: 128 }}>
+    <Stack
+      direction="row"
+      spacing={1.5}
+      flexWrap="wrap"
+      useFlexGap
+      sx={{ py: 0.75, borderBottom: 1, borderColor: 'divider', '&:last-of-type': { borderBottom: 0 } }}
+    >
+      <Typography component="span" variant="body2" color="text.secondary" sx={{ minWidth: 128, fontWeight: 500 }}>
         {label}
       </Typography>
       <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>

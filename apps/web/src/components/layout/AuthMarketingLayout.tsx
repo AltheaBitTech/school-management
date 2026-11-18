@@ -2,9 +2,10 @@
 
 import SchoolOutlined from '@mui/icons-material/SchoolOutlined';
 import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { ThemeProvider } from '@mui/material/styles';
+import { ThemeProvider, alpha } from '@mui/material/styles';
 import Link from 'next/link';
 import { authGlassTheme } from '@/theme/auth-glass-theme';
 
@@ -17,7 +18,7 @@ interface AuthMarketingLayoutProps {
 export function AuthMarketingLayout({ children, maxWidth = 440 }: AuthMarketingLayoutProps) {
   return (
     <Box
-      sx={{
+      sx={(theme) => ({
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
@@ -26,77 +27,69 @@ export function AuthMarketingLayout({ children, maxWidth = 440 }: AuthMarketingL
         py: { xs: 4, md: 6 },
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(165deg, #070d18 0%, #0f2044 55%, #1a2744 100%)',
-      }}
+        bgcolor: 'secondary.main',
+        backgroundImage: `radial-gradient(circle at 15% 10%, ${alpha(theme.palette.primary.main, 0.35)} 0%, transparent 45%), radial-gradient(circle at 90% 90%, ${alpha(theme.palette.primary.light, 0.12)} 0%, transparent 40%)`,
+      })}
     >
       <Box
         aria-hidden
         sx={{
           position: 'absolute',
-          width: 280,
-          height: 280,
-          borderRadius: '50%',
-          top: '-40px',
-          right: '12%',
-          bgcolor: 'rgba(232, 195, 106, 0.16)',
-          filter: 'blur(70px)',
+          inset: 0,
+          opacity: 0.06,
+          backgroundImage:
+            'linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+          maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
         }}
       />
       <Box sx={{ width: '100%', maxWidth, position: 'relative', zIndex: 1 }}>
-        <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="center" sx={{ mb: 3 }}>
-          <SchoolOutlined sx={{ color: '#e8c36a' }} />
-          <Typography
-            variant="h6"
-            component={Link}
-            href="/"
-            sx={{ color: 'common.white', fontWeight: 700, textDecoration: 'none', letterSpacing: '-0.02em' }}
+        <Stack
+          direction="row"
+          spacing={1.25}
+          alignItems="center"
+          justifyContent="center"
+          sx={{ mb: 3, textDecoration: 'none' }}
+          component={Link}
+          href="/"
+        >
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: 2.5,
+              bgcolor: 'primary.main',
+              color: 'common.white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
+            <SchoolOutlined fontSize="small" />
+          </Box>
+          <Typography variant="h6" sx={{ color: 'common.white', fontWeight: 700, letterSpacing: '-0.02em' }}>
             CampusOps
           </Typography>
         </Stack>
-        <Box
-          sx={{
-            bgcolor: '#121c33',
-            border: '1px solid rgba(232, 195, 106, 0.35)',
-            borderLeft: '4px solid #e8c36a',
-            borderRadius: '20px',
-            p: { xs: 2.5, sm: 4 },
-            boxShadow: '0 24px 50px rgba(0, 0, 0, 0.4)',
-          }}
+        <ThemeProvider theme={authGlassTheme}>
+          <Paper
+            sx={{
+              p: { xs: 2.5, sm: 4 },
+              borderRadius: 4,
+              boxShadow: '0 24px 60px -12px rgba(2, 6, 23, 0.55)',
+              '& a:not(.MuiButton-root)': { color: 'primary.main', fontWeight: 600 },
+            }}
+          >
+            {children}
+          </Paper>
+        </ThemeProvider>
+        <Typography
+          variant="caption"
+          component="p"
+          sx={{ mt: 3, textAlign: 'center', color: 'sidebar.textMuted' }}
         >
-          <ThemeProvider theme={authGlassTheme}>
-            <Box
-              sx={{
-                color: '#f8f4ea',
-                '& .MuiTypography-root': { color: '#e4d7c3' },
-                '& .MuiTypography-h4, & .MuiTypography-h5, & .MuiTypography-h6': { color: '#ffffff' },
-                '& .MuiTypography-overline': { color: '#c4b89a' },
-                '& a, & .MuiLink-root': { color: '#e8c36a' },
-                '& .MuiFormHelperText-root': { color: '#c4b89a !important' },
-                '& .MuiInputLabel-root, & .MuiFormLabel-root': { color: '#e4d7c3 !important' },
-                '& .MuiInputLabel-root.Mui-focused, & .MuiFormLabel-root.Mui-focused': {
-                  color: '#e8c36a !important',
-                },
-                '& .MuiSvgIcon-root': { color: '#e8c36a !important' },
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(8, 14, 28, 0.45)',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(232, 195, 106, 0.32)' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(232, 195, 106, 0.7)' },
-                  '&.Mui-focused': { boxShadow: '0 0 0 3.5px rgba(201, 162, 74, 0.28)' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#e8c36a', borderWidth: 1 },
-                },
-                '& .MuiOutlinedInput-input': {
-                  color: '#ffffff !important',
-                  WebkitTextFillColor: '#ffffff !important',
-                },
-                '& .MuiButton-contained': { color: '#0f2044 !important' },
-                '& .MuiButton-contained .MuiSvgIcon-root': { color: '#0f2044 !important' },
-              }}
-            >
-              {children}
-            </Box>
-          </ThemeProvider>
-        </Box>
+          One platform for school operations
+        </Typography>
       </Box>
     </Box>
   );

@@ -296,9 +296,17 @@ function navItemButtonSx(isActive: boolean) {
   return {
     mx: 1.25,
     my: 0.25,
+    py: 0.85,
     borderRadius: 2,
     color: 'sidebar.text',
     px: 1.5,
+    position: 'relative',
+    borderLeft: '3px solid',
+    borderLeftColor: isActive ? 'sidebar.activeBorder' : 'transparent',
+    '& .MuiListItemText-primary': {
+      fontSize: '0.875rem',
+      fontWeight: isActive ? 650 : 500,
+    },
     transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease',
     '&:focus-visible': {
       outline: '2px solid',
@@ -310,17 +318,18 @@ function navItemButtonSx(isActive: boolean) {
       minWidth: 36,
     },
     '&.Mui-selected': {
-      bgcolor: 'rgba(232, 195, 106, 0.18)',
-      color: '#f6e7b4',
+      bgcolor: 'sidebar.active',
+      color: 'common.white',
       '& .MuiListItemIcon-root': {
-        color: '#e8c36a',
+        color: 'common.white',
       },
       '&:hover': {
-        bgcolor: 'rgba(232, 195, 106, 0.26)',
+        bgcolor: 'sidebar.active',
       },
     },
     '&:hover': {
       bgcolor: 'sidebar.hover',
+      color: 'common.white',
     },
   };
 }
@@ -412,13 +421,20 @@ export function AppShell({ children }: AppShellProps) {
     const role = getUserRoleLabel(userContext);
 
     return (
-      <Box sx={{ px: 2, py: 2, borderTop: 1, borderColor: 'rgba(255,255,255,0.12)' }}>
-        <Typography variant="body2" noWrap sx={{ color: '#ffffff', fontWeight: 600 }}>
-          {name}
-        </Typography>
-        <Typography variant="caption" noWrap sx={{ color: 'sidebar.textSection', display: 'block', mb: 1 }}>
-          Signed in as {role}
-        </Typography>
+      <Box sx={{ px: 2, py: 2, borderTop: 1, borderColor: 'sidebar.active' }}>
+        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1, minWidth: 0 }}>
+          <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}>
+            {getUserInitials(name)}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" noWrap sx={{ color: 'common.white', fontWeight: 600 }}>
+              {name}
+            </Typography>
+            <Typography variant="caption" noWrap sx={{ color: 'sidebar.textMuted', display: 'block' }}>
+              Signed in as {role}
+            </Typography>
+          </Box>
+        </Stack>
         <Button
           onClick={() => void handleSignOut()}
           size="small"
@@ -428,7 +444,7 @@ export function AppShell({ children }: AppShellProps) {
             justifyContent: 'flex-start',
             px: 0,
             minWidth: 0,
-            '&:hover': { bgcolor: 'transparent', color: '#ffffff' },
+            '&:hover': { bgcolor: 'transparent', color: 'common.white' },
           }}
         >
           Sign out
@@ -447,19 +463,33 @@ export function AppShell({ children }: AppShellProps) {
         color: 'sidebar.text',
       }}
     >
-      <Toolbar sx={{ px: 2.5, gap: 1 }}>
-        <SchoolOutlined sx={{ color: '#ffffff' }} />
+      <Toolbar sx={{ px: 2.5, gap: 1.25 }}>
+        <Box
+          sx={{
+            width: 34,
+            height: 34,
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+            color: 'common.white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <SchoolOutlined fontSize="small" />
+        </Box>
         <Typography
           variant="h6"
           component={Link}
           href={homeHref}
           onClick={handleNavClick}
-          sx={{ color: '#ffffff', textDecoration: 'none', fontWeight: 700 }}
+          sx={{ color: 'common.white', textDecoration: 'none', fontWeight: 700, letterSpacing: '-0.02em' }}
         >
           CampusOps
         </Typography>
       </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)' }} />
+      <Divider sx={{ borderColor: 'sidebar.active' }} />
       <Box sx={{ overflowY: 'auto', py: 1.5, flex: 1 }}>
         <List disablePadding>
           <ListItemButton
@@ -479,7 +509,14 @@ export function AppShell({ children }: AppShellProps) {
           <Box key={group.title} sx={{ mt: 1.5 }}>
             <Typography
               variant="overline"
-              sx={{ px: 3, color: 'sidebar.textSection', letterSpacing: '0.08em', display: 'block' }}
+              sx={{
+                px: 3,
+                pb: 0.25,
+                color: 'sidebar.textSection',
+                letterSpacing: '0.1em',
+                fontSize: '0.6875rem',
+                display: 'block',
+              }}
             >
               {group.title}
             </Typography>
@@ -551,7 +588,7 @@ export function AppShell({ children }: AppShellProps) {
           ml: { md: `${DRAWER_WIDTH}px` },
         }}
       >
-        <Toolbar sx={{ gap: 1 }}>
+        <Toolbar sx={{ gap: 1, px: { xs: 2, sm: 3, lg: 4 } }}>
           {!isDesktop ? (
             <IconButton
               color="inherit"
@@ -572,7 +609,7 @@ export function AppShell({ children }: AppShellProps) {
           <NotificationMenu />
           {isReady && isAuthenticated && user ? (
             <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: 0.5 }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark', fontSize: 13 }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}>
                 {getUserInitials(displayName)}
               </Avatar>
               <Box sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 0, maxWidth: 220 }}>

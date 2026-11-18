@@ -19,24 +19,28 @@ export function PageHeader({ title, description, icon: Icon, actions }: PageHead
       alignItems={{ xs: 'stretch', sm: 'flex-start' }}
       spacing={2}
     >
-      <Stack direction="row" spacing={1.25} sx={{ minWidth: 0, alignItems: 'flex-start' }}>
-        {Icon ? <Icon sx={{ color: 'primary.main', mt: 0.6, fontSize: 28 }} /> : null}
-        <Box sx={{ minWidth: 0 }}>
-          <Typography
-            variant="h4"
-            component="h1"
+      <Stack direction="row" spacing={1.75} sx={{ minWidth: 0, alignItems: 'center' }}>
+        {Icon ? (
+          <Box
+            aria-hidden
             sx={{
-              '&::after': {
-                content: '""',
-                display: 'block',
-                width: 40,
-                height: 3,
-                mt: 1,
-                borderRadius: 1,
-                bgcolor: '#e8c36a',
-              },
+              width: 48,
+              height: 48,
+              flexShrink: 0,
+              borderRadius: 3,
+              bgcolor: 'primary.light',
+              color: 'primary.main',
+              display: { xs: 'none', sm: 'flex' },
+              alignItems: 'center',
+              justifyContent: 'center',
+              alignSelf: 'flex-start',
             }}
           >
+            <Icon sx={{ fontSize: 26 }} />
+          </Box>
+        ) : null}
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h4" component="h1" sx={{ wordBreak: 'break-word' }}>
             {title}
           </Typography>
           {description ? (

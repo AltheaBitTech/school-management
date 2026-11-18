@@ -7,6 +7,7 @@ import HourglassEmptyOutlined from '@mui/icons-material/HourglassEmptyOutlined';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import Chip from '@mui/material/Chip';
 import type { ChipProps } from '@mui/material/Chip';
+import { alpha } from '@mui/material/styles';
 
 type StatusTone = NonNullable<ChipProps['color']>;
 
@@ -91,13 +92,23 @@ export function getStatusTone(status: string): StatusTone {
 
 export function StatusChip({ status, label }: StatusChipProps) {
   const Icon = STATUS_ICONS[status] ?? InfoOutlined;
+  const tone = getStatusTone(status);
 
   return (
     <Chip
       size="small"
       label={label ?? status}
-      color={getStatusTone(status)}
-      icon={<Icon sx={{ fontSize: '16px !important' }} />}
+      color={tone}
+      icon={<Icon sx={{ fontSize: '16px !important', color: 'inherit !important' }} />}
+      sx={(theme) => {
+        const palette = tone === 'default' ? null : theme.palette[tone];
+        return {
+          bgcolor: palette ? alpha(palette.main, 0.12) : theme.palette.action.hover,
+          color: palette ? palette.dark : theme.palette.text.secondary,
+          border: '1px solid',
+          borderColor: palette ? alpha(palette.main, 0.24) : theme.palette.divider,
+        };
+      }}
     />
   );
 }

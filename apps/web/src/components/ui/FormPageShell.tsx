@@ -31,7 +31,14 @@ export function FormPageShell({
       {footer ? (
         <Paper
           variant="outlined"
-          sx={{ p: 2 }}
+          sx={{
+            p: 2,
+            position: 'sticky',
+            bottom: 16,
+            zIndex: 2,
+            bgcolor: 'background.paper',
+            boxShadow: '0 -4px 20px -8px rgba(15, 23, 42, 0.12)',
+          }}
         >
           {footer}
         </Paper>

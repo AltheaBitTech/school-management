@@ -109,14 +109,14 @@ export default function VisitorBadgePage() {
       <Box
         sx={{
           width: 340,
-          border: '2px solid #0f2044',
+          border: '2px solid', borderColor: 'secondary.main',
           borderRadius: 2,
           overflow: 'hidden',
           bgcolor: '#fff',
           '@media print': { boxShadow: 'none' },
         }}
       >
-        <Box sx={{ bgcolor: '#0f2044', color: '#fff', px: 2, py: 1 }}>
+        <Box sx={{ bgcolor: 'secondary.main', color: 'common.white', px: 2, py: 1 }}>
           <Typography variant="caption">{pass.organization.name}</Typography>
           <Typography variant="subtitle2" fontWeight={700}>
             VISITOR BADGE

@@ -17,6 +17,13 @@ const TONE_COLOR: Record<StatTone, string> = {
   warning: 'warning.main',
 };
 
+const TONE_TINT: Record<StatTone, string> = {
+  primary: 'primary.light',
+  secondary: 'action.hover',
+  success: 'success.light',
+  warning: 'warning.light',
+};
+
 export interface StatTileProps {
   label: string;
   value: string;
@@ -42,9 +49,9 @@ export function StatTile({
         sx={{
           width: 44,
           height: 44,
-          borderRadius: 2,
-          bgcolor: TONE_COLOR[tone],
-          color: 'common.white',
+          borderRadius: 2.5,
+          bgcolor: TONE_TINT[tone],
+          color: TONE_COLOR[tone],
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -53,7 +60,11 @@ export function StatTile({
       >
         <Icon fontSize="small" />
       </Box>
-      <Typography variant="h4" component="p" sx={{ fontWeight: 700, lineHeight: 1.1, mb: 0.5 }}>
+      <Typography
+        variant="h4"
+        component="p"
+        sx={{ fontWeight: 750, lineHeight: 1.1, mb: 0.5, fontVariantNumeric: 'tabular-nums' }}
+      >
         {value}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>

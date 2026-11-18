@@ -110,9 +110,25 @@ interface EmptyStateProps {
 
 export function EmptyState({ message, icon: Icon = InboxOutlined, action }: EmptyStateProps) {
   return (
-    <Paper variant="outlined" sx={{ px: 3, py: 5, textAlign: 'center' }}>
-      <Icon sx={{ fontSize: 48, color: 'text.disabled', mb: 1.5 }} />
-      <Typography color="text.secondary" sx={{ mb: action ? 2 : 0 }}>
+    <Paper variant="outlined" sx={{ px: 3, py: { xs: 5, sm: 7 }, textAlign: 'center' }}>
+      <Box
+        aria-hidden
+        sx={{
+          width: 64,
+          height: 64,
+          mx: 'auto',
+          mb: 2,
+          borderRadius: '50%',
+          bgcolor: 'primary.light',
+          color: 'primary.main',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon sx={{ fontSize: 30 }} />
+      </Box>
+      <Typography color="text.secondary" sx={{ mb: action ? 2.5 : 0, maxWidth: 420, mx: 'auto' }}>
         {message}
       </Typography>
       {action ? <Box>{action}</Box> : null}

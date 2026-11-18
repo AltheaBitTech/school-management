@@ -22,11 +22,11 @@ export function FormSection({
   maxWidth = 560,
 }: FormSectionProps) {
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, maxWidth, width: '100%' }}>
-      <Stack spacing={2}>
+    <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 3 }, maxWidth, width: '100%' }}>
+      <Stack spacing={2.25}>
         {title ? (
-          <Box sx={{ pb: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-            <Typography variant="subtitle1" component="h2">
+          <Box sx={{ pb: 1.75, borderBottom: 1, borderColor: 'divider' }}>
+            <Typography variant="subtitle1" component="h2" sx={{ fontSize: '1.0625rem' }}>
               {title}
             </Typography>
             {description ? (
@@ -83,7 +83,8 @@ export function FormPageFooter({
     <Stack
       direction="row"
       spacing={1.5}
-      justifyContent="flex-end"
+      justifyContent="space-between"
+      alignItems="center"
       flexWrap="wrap"
       useFlexGap
       sx={{ width: '100%' }}
