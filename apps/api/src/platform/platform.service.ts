@@ -1,8 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { SubscriptionStatus } from '@prisma/client';
+import { PLATFORM_ORGANIZATION_CODE } from '../organizations/constants/organization.constants';
 import { PrismaService } from '../prisma/prisma.service';
 
 const TRIAL_CODE = 'TRIAL';
+const DAY_MS = 24 * 60 * 60 * 1000;
+const NEW_ORGANIZATION_WINDOW_DAYS = 30;
+const TRIAL_ENDING_WINDOW_DAYS = 14;
+const RECENT_ORGANIZATIONS_LIMIT = 5;
 
 @Injectable()
 export class PlatformService {
@@ -58,13 +63,50 @@ export class PlatformService {
     };
   }
 
-  async analytics() {
-    const [organizations, subscriptions, pendingRegistrations, students, staff] = await Promise.all([
-      this.prisma.organization.groupBy({ by: ['status'], _count: { _all: true } }),
-      this.prisma.organizationSubscription.findMany({ include: { plan: true } }),
+  async analytics(now: Date = new Date()) {
+    const tenantWhere = { code: { not: PLATFORM_ORGANIZATION_CODE } };
+    const newSince = new Date(now.getTime() - NEW_ORGANIZATION_WINDOW_DAYS * DAY_MS);
+    const trialsEndBefore = new Date(now.getTime() + TRIAL_ENDING_WINDOW_DAYS * DAY_MS);
+
+    const [
+      organizations,
+      subscriptions,
+      pendingRegistrations,
+      students,
+      staff,
+      newOrganizationsLast30Days,
+      recentOrganizations,
+      trialsEndingSoon,
+    ] = await Promise.all([
+      this.prisma.organization.groupBy({ by: ['status'], where: tenantWhere, _count: { _all: true } }),
+      this.prisma.organizationSubscription.findMany({
+        where: { organization: tenantWhere },
+        include: { plan: true },
+      }),
       this.prisma.organizationRegistrationRequest.count({ where: { status: 'PENDING' } }),
       this.prisma.student.count(),
       this.prisma.staff.count(),
+      this.prisma.organization.count({ where: { ...tenantWhere, createdAt: { gte: newSince } } }),
+      this.prisma.organization.findMany({
+        where: tenantWhere,
+        orderBy: { createdAt: 'desc' },
+        take: RECENT_ORGANIZATIONS_LIMIT,
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          status: true,
+          createdAt: true,
+          subscription: { select: { status: true, plan: { select: { code: true, name: true } } } },
+        },
+      }),
+      this.prisma.organizationSubscription.count({
+        where: {
+          organization: tenantWhere,
+          status: 'TRIAL',
+          currentPeriodEnd: { gte: now, lte: trialsEndBefore },
+        },
+      }),
     ]);
     const byPlan: Record<string, number> = {};
     for (const row of subscriptions) {
@@ -76,6 +118,18 @@ export class PlatformService {
       pendingRegistrations,
       totalStudents: students,
       totalStaff: staff,
+      newOrganizationsLast30Days,
+      trialsEndingSoon,
+      recentOrganizations: recentOrganizations.map((org) => ({
+        id: org.id,
+        name: org.name,
+        code: org.code,
+        status: org.status,
+        createdAt: org.createdAt,
+        planCode: org.subscription?.plan.code ?? null,
+        planName: org.subscription?.plan.name ?? null,
+        subscriptionStatus: org.subscription?.status ?? null,
+      })),
     };
   }
 

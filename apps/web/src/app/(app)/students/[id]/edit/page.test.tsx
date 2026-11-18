@@ -25,30 +25,43 @@ vi.mock('@/lib/students/students-client', () => ({
   STUDENT_STATUSES: ['ACTIVE', 'INACTIVE'],
 }));
 
+vi.mock('@/lib/classes/classes-client', () => ({
+  listClasses: vi.fn(),
+}));
+
+import { listClasses } from '@/lib/classes/classes-client';
 import { getStudent, updateStudent } from '@/lib/students/students-client';
+import { CLASS_FIXTURES } from '@/test/class-fixtures';
+
+const baseStudent = {
+  id: 'student-1',
+  studentCode: 'adm-001',
+  firstName: 'Ravi',
+  lastName: 'Kumar',
+  rollNumber: '14',
+  academicYear: '2025-2026',
+  guardianName: 'Avinash',
+  guardianPhone: '7893446784',
+  status: 'ACTIVE' as const,
+  createdAt: '2026-09-17T10:00:00.000Z',
+  updatedAt: '2026-09-17T10:00:00.000Z',
+};
 
 describe('EditStudentPage', () => {
   beforeEach(() => {
     vi.mocked(getStudent).mockReset();
     vi.mocked(updateStudent).mockReset();
     push.mockReset();
+    vi.mocked(listClasses).mockReset();
+    vi.mocked(listClasses).mockResolvedValue(CLASS_FIXTURES);
   });
 
   it('loads student and saves changes', async () => {
     vi.mocked(getStudent).mockResolvedValue({
-      id: 'student-1',
-      studentCode: 'adm-001',
-      firstName: 'Ravi',
-      lastName: 'Kumar',
+      ...baseStudent,
       studentClass: '10',
       section: 'A',
-      rollNumber: '14',
-      academicYear: '2025-2026',
-      guardianName: 'Avinash',
-      guardianPhone: '7893446784',
-      status: 'ACTIVE',
-      createdAt: '2026-09-17T10:00:00.000Z',
-      updatedAt: '2026-09-17T10:00:00.000Z',
+      sectionId: 'sec-a',
     });
     vi.mocked(updateStudent).mockResolvedValue({
       id: 'student-1',
@@ -74,9 +87,33 @@ describe('EditStudentPage', () => {
     await waitFor(() => {
       expect(updateStudent).toHaveBeenCalledWith(
         'student-1',
-        expect.objectContaining({ lastName: 'Patel' }),
+        expect.objectContaining({ lastName: 'Patel', sectionId: 'sec-a' }),
       );
       expect(push).toHaveBeenCalledWith('/students/student-1');
+    });
+  });
+
+  it('matches an older student to the right section by its saved labels', async () => {
+    vi.mocked(getStudent).mockResolvedValue({
+      ...baseStudent,
+      studentClass: '10 ',
+      section: 'b',
+      sectionId: null,
+    });
+    vi.mocked(updateStudent).mockResolvedValue({ ...baseStudent });
+
+    renderWithAppProviders(<EditStudentPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Section' })).toHaveTextContent('B');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => {
+      expect(updateStudent).toHaveBeenCalledWith(
+        'student-1',
+        expect.objectContaining({ sectionId: 'sec-b' }),
+      );
     });
   });
 

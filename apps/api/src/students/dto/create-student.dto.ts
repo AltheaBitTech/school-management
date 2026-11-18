@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import { Trim } from '../../common/transforms/trim.decorator';
 import { VISITOR_MOBILE_PATTERN } from '../../visitors/constants/visitor-mobile.constants';
 import { ROLL_NUMBER_PATTERN } from '../utils/student-profile.util';
@@ -42,17 +50,32 @@ export class CreateStudentDto {
   @MaxLength(100)
   className?: string;
 
-  @ApiProperty({ example: 'Grade 8' })
+  @ApiPropertyOptional({
+    description: 'Section ID from Classes & Sections. Preferred over studentClass/section.',
+  })
+  @IsOptional()
+  @IsUUID()
+  sectionId?: string;
+
+  @ApiPropertyOptional({
+    example: 'Grade 8',
+    description: 'Legacy: class name. Must match an existing class when sectionId is not sent.',
+  })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)
-  studentClass!: string;
+  studentClass?: string;
 
-  @ApiProperty({ example: 'A' })
+  @ApiPropertyOptional({
+    example: 'A',
+    description: 'Legacy: section name. Must match an existing section when sectionId is not sent.',
+  })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   @MaxLength(10)
-  section!: string;
+  section?: string;
 
   @ApiProperty({ example: '12' })
   @IsString()

@@ -56,6 +56,8 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       'department.create',
       'department.update',
       'department.deactivate',
+      'class.view',
+      'class.manage',
       'staff.view',
       'staff.create',
       'staff.update',
@@ -140,6 +142,8 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     name: 'Principal',
     permissions: [
       'dashboard.view',
+      'class.view',
+      'class.manage',
       'staff.view',
       'department.view',
       'student.view',
@@ -175,6 +179,7 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     code: ORGANIZATION_ROLE_CODES.TEACHER,
     name: 'Teacher',
     permissions: [
+      'class.view',
       'staff.self.view',
       'staff.self.attendance.view',
       'staff.self.leave.view',
@@ -211,6 +216,7 @@ export const ORGANIZATION_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     code: ORGANIZATION_ROLE_CODES.ACCOUNTANT,
     name: 'Accountant',
     permissions: [
+      'class.view',
       'fee.view',
       'fee.create',
       'fee.assign',

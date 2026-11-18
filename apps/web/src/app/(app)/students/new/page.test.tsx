@@ -23,9 +23,15 @@ vi.mock('@/lib/students/students-client', () => ({
   suggestNextStudentCode: vi.fn().mockReturnValue(new Promise(() => undefined)),
 }));
 
-import { createStudent, provisionStudentLogin } from '@/lib/students/students-client';
+vi.mock('@/lib/classes/classes-client', () => ({
+  listClasses: vi.fn(),
+}));
 
-function fillValidStudentForm(): void {
+import { listClasses } from '@/lib/classes/classes-client';
+import { createStudent, provisionStudentLogin } from '@/lib/students/students-client';
+import { CLASS_FIXTURES } from '@/test/class-fixtures';
+
+async function fillValidStudentForm(): Promise<void> {
   fireEvent.change(screen.getByRole('textbox', { name: 'Student code' }), {
     target: { value: 'adm-001' },
   });
@@ -38,12 +44,13 @@ function fillValidStudentForm(): void {
   fireEvent.change(screen.getByRole('textbox', { name: 'Login email' }), {
     target: { value: 'ravi.student@example.com' },
   });
-  fireEvent.change(screen.getByRole('textbox', { name: 'Class' }), {
-    target: { value: '10' },
+  await waitFor(() => {
+    expect(screen.getByRole('combobox', { name: 'Class' })).not.toHaveAttribute('aria-disabled');
   });
-  fireEvent.change(screen.getByRole('textbox', { name: 'Section' }), {
-    target: { value: 'A' },
-  });
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Class' }));
+  fireEvent.click(await screen.findByRole('option', { name: '10' }));
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Section' }));
+  fireEvent.click(await screen.findByRole('option', { name: /^A/ }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Roll number' }), {
     target: { value: '14' },
   });
@@ -62,16 +69,20 @@ describe('NewStudentPage', () => {
   beforeEach(() => {
     vi.mocked(createStudent).mockReset();
     vi.mocked(provisionStudentLogin).mockReset();
+    vi.mocked(listClasses).mockReset();
+    vi.mocked(listClasses).mockResolvedValue(CLASS_FIXTURES);
     push.mockReset();
     sessionStorage.clear();
   });
 
-  it('renders the create student form', () => {
+  it('renders the create student form', async () => {
     renderWithAppProviders(<NewStudentPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Class' })).toBeRequired();
+    });
     expect(screen.getByRole('textbox', { name: 'Student code' })).toBeRequired();
     expect(screen.getByRole('textbox', { name: 'First name' })).toBeRequired();
     expect(screen.getByRole('textbox', { name: 'Last name' })).toBeRequired();
-    expect(screen.getByRole('textbox', { name: 'Class' })).toBeRequired();
     expect(screen.getByRole('textbox', { name: 'Academic year' })).toBeRequired();
     expect(screen.getByRole('textbox', { name: 'Guardian name' })).toBeRequired();
     expect(screen.getByRole('textbox', { name: 'Login email' })).toBeRequired();
@@ -79,7 +90,7 @@ describe('NewStudentPage', () => {
 
   it('blocks a year that is not two consecutive years', async () => {
     renderWithAppProviders(<NewStudentPage />);
-    fillValidStudentForm();
+    await fillValidStudentForm();
     fireEvent.change(screen.getByRole('textbox', { name: 'Academic year' }), {
       target: { value: '2025' },
     });
@@ -108,7 +119,7 @@ describe('NewStudentPage', () => {
     });
 
     renderWithAppProviders(<NewStudentPage />);
-    fillValidStudentForm();
+    await fillValidStudentForm();
     fireEvent.click(screen.getByRole('button', { name: 'Create student' }));
 
     await waitFor(() => {
@@ -116,8 +127,7 @@ describe('NewStudentPage', () => {
         studentCode: 'adm-001',
         firstName: 'Ravi',
         lastName: 'Kumar',
-        studentClass: '10',
-        section: 'A',
+        sectionId: 'sec-a',
         rollNumber: '14',
         academicYear: '2025-2026',
         guardianName: 'Avinash',
@@ -132,7 +142,7 @@ describe('NewStudentPage', () => {
     vi.mocked(createStudent).mockRejectedValue(new Error('Student code already exists'));
 
     renderWithAppProviders(<NewStudentPage />);
-    fillValidStudentForm();
+    await fillValidStudentForm();
     fireEvent.click(screen.getByRole('button', { name: 'Create student' }));
 
     await waitFor(() => {
@@ -144,11 +154,27 @@ describe('NewStudentPage', () => {
     vi.mocked(createStudent).mockRejectedValue(new ApiError('Forbidden', 403));
 
     renderWithAppProviders(<NewStudentPage />);
-    fillValidStudentForm();
+    await fillValidStudentForm();
     fireEvent.click(screen.getByRole('button', { name: 'Create student' }));
 
     await waitFor(() => {
       expect(screen.getByText('Access denied')).toBeInTheDocument();
     });
+  });
+
+  it('picks the only section automatically', async () => {
+    renderWithAppProviders(<NewStudentPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Class' })).not.toHaveAttribute('aria-disabled');
+    });
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Class' }));
+    fireEvent.click(await screen.findByRole('option', { name: '9' }));
+    expect(screen.getByRole('combobox', { name: 'Section' })).toHaveTextContent('A');
+  });
+
+  it('tells the user to set up classes first when none exist', async () => {
+    vi.mocked(listClasses).mockResolvedValue([]);
+    renderWithAppProviders(<NewStudentPage />);
+    expect(await screen.findByText(/No classes are set up yet/)).toBeInTheDocument();
   });
 });

@@ -22,6 +22,7 @@ import { SYSTEM_PERMISSIONS } from '../permissions/constants/system-permissions'
 import { PrismaService } from '../prisma/prisma.service';
 import { DepartmentsService } from '../departments/departments.service';
 import { StaffService } from '../staff/staff.service';
+import { ClassesService } from '../classes/classes.service';
 import { StudentsService } from '../students/students.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { VisitorNotificationService } from '../visitors/visitor-notification.service';
@@ -180,7 +181,10 @@ describeIfDatabase('Documents integration', () => {
       fileStorageService,
       configService,
     );
-    studentsService = new StudentsService(prisma as unknown as PrismaService);
+    studentsService = new StudentsService(
+      prisma as unknown as PrismaService,
+      new ClassesService(prisma as unknown as PrismaService),
+    );
     const departmentsService = new DepartmentsService(prisma as unknown as PrismaService);
     staffService = new StaffService(prisma as unknown as PrismaService, departmentsService);
     const emailProvider = { sendEmail: jest.fn().mockResolvedValue(undefined) };

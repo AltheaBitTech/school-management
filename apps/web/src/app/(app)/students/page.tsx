@@ -19,7 +19,8 @@ import AddOutlined from '@mui/icons-material/AddOutlined';
 import UploadFileOutlined from '@mui/icons-material/UploadFileOutlined';
 import SchoolOutlined from '@mui/icons-material/SchoolOutlined';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { listClasses, type SchoolClass } from '@/lib/classes/classes-client';
 import { StudentImportDialog } from '@/app/(app)/students/StudentImportDialog';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { AppTable, EmptyState, LoadingState, TableIconLink } from '@/components/ui/AppTable';
@@ -48,11 +49,22 @@ export default function StudentsPage() {
   const [statusFilter, setStatusFilter] = useState<StudentStatus | ''>('');
   const [classFilter, setClassFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
+  const [classOptions, setClassOptions] = useState<SchoolClass[]>([]);
+  const sectionOptions = useMemo(
+    () => classOptions.find((item) => item.id === classFilter)?.sections ?? [],
+    [classOptions, classFilter],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    listClasses()
+      .then(setClassOptions)
+      .catch(() => setClassOptions([]));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,8 +80,8 @@ export default function StudentsPage() {
           pageSize: 100,
           search: search.trim() || undefined,
           status: statusFilter || undefined,
-          studentClass: classFilter.trim() || undefined,
-          section: sectionFilter.trim() || undefined,
+          classId: classFilter || undefined,
+          sectionId: sectionFilter || undefined,
         });
         if (!cancelled) {
           setStudents(response.data);
@@ -135,19 +147,38 @@ export default function StudentsPage() {
           sx={{ minWidth: { sm: 280 }, flex: 1 }}
         />
         <TextField
-          label="Class filter"
+          select
+          label="Class"
           value={classFilter}
-          onChange={(event) => setClassFilter(event.target.value)}
-          placeholder="e.g. Grade 8"
+          onChange={(event) => {
+            setClassFilter(event.target.value);
+            setSectionFilter('');
+          }}
           sx={{ minWidth: 180 }}
-        />
+        >
+          <MenuItem value="">All classes</MenuItem>
+          {classOptions.map((item) => (
+            <MenuItem key={item.id} value={item.id}>
+              {item.name}
+              {item.status !== 'ACTIVE' ? ' (inactive)' : ''}
+            </MenuItem>
+          ))}
+        </TextField>
         <TextField
+          select
           label="Section"
           value={sectionFilter}
           onChange={(event) => setSectionFilter(event.target.value)}
-          placeholder="e.g. A"
+          disabled={!classFilter}
           sx={{ minWidth: 140 }}
-        />
+        >
+          <MenuItem value="">All sections</MenuItem>
+          {sectionOptions.map((section) => (
+            <MenuItem key={section.id} value={section.id}>
+              {section.name}
+            </MenuItem>
+          ))}
+        </TextField>
         <TextField
           select
           label="Status"

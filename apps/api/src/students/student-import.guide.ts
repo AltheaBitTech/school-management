@@ -58,7 +58,7 @@ export const STUDENT_IMPORT_GUIDE: { title: string; introduction: string; sectio
       heading: 'Dates, class, section, and academic year',
       paragraphs: [
         'Dates must be YYYY-MM-DD, for example 2012-05-10. Dates such as 10/05/2012 or 10-05-2012 are rejected. A date of birth cannot be in the future.',
-        'CampusOps does not keep a separate class or section list. studentClass and section are stored exactly as typed after spaces are trimmed. Grade 8 and grade 8 are different values. Use one spelling for every student in that class.',
+        'studentClass and section must match a class and section that already exist under Classes & Sections. Matching ignores upper and lower case, so grade 8 matches Grade 8. Rows with a class or section that is not set up are rejected. Add the class first, then import again.',
         'Academic year must be two consecutive years written as 2025-2026. Use the same year for students in the same class.',
         'The CSV has no status column. Every imported student is created as Active.',
       ],

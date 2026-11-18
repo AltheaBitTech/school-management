@@ -13,6 +13,7 @@ import Button from '@mui/material/Button';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { ClassSectionPicker } from '@/components/students/ClassSectionPicker';
 import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
 import { FormPageShell } from '@/components/ui/FormPageShell';
@@ -40,6 +41,10 @@ export default function EditStudentPage() {
   const [lastName, setLastName] = useState('');
   const [studentClass, setStudentClass] = useState('');
   const [section, setSection] = useState('');
+  const [sectionId, setSectionId] = useState('');
+  const [legacyLabels, setLegacyLabels] = useState<{ studentClass: string; section: string } | null>(
+    null,
+  );
   const [rollNumber, setRollNumber] = useState('');
   const [academicYear, setAcademicYear] = useState('');
   const [guardianName, setGuardianName] = useState('');
@@ -67,8 +72,18 @@ export default function EditStudentPage() {
           setStudentCode(student.studentCode);
           setFirstName(student.firstName);
           setLastName(student.lastName);
-          setStudentClass(student.studentClass ?? '');
-          setSection(student.section ?? '');
+          // Class/section are only treated as filled when linked to a real section; older
+          // records are matched by label in the picker and otherwise must be re-picked.
+          if (student.sectionId) {
+            setSectionId(student.sectionId);
+            setStudentClass(student.studentClass ?? '');
+            setSection(student.section ?? '');
+          } else {
+            setLegacyLabels({
+              studentClass: student.studentClass ?? '',
+              section: student.section ?? '',
+            });
+          }
           setRollNumber(student.rollNumber ?? '');
           setAcademicYear(student.academicYear ?? '');
           setGuardianName(student.guardianName ?? '');
@@ -123,8 +138,7 @@ export default function EditStudentPage() {
       await updateStudent(params.id, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        studentClass: studentClass.trim(),
-        section: section.trim(),
+        sectionId,
         rollNumber: rollNumber.trim(),
         academicYear: academicYear.trim(),
         guardianName: guardianName.trim(),
@@ -213,25 +227,23 @@ export default function EditStudentPage() {
         </FormSection>
 
         <FormSection title="Academic details" maxWidth="100%">
-          <TextField
-            label="Class"
-            value={studentClass}
-            onChange={(event) => setStudentClass(event.target.value)}
-            required
-            error={Boolean(fieldErrors.studentClass)}
-            inputProps={{ maxLength: 20 }}
-            helperText={fieldErrors.studentClass ?? 'For example Grade 8'}
-            fullWidth
-          />
-          <TextField
-            label="Section"
-            value={section}
-            onChange={(event) => setSection(event.target.value)}
-            required
-            error={Boolean(fieldErrors.section)}
-            inputProps={{ maxLength: 10 }}
-            helperText={fieldErrors.section ?? 'For example A'}
-            fullWidth
+          {legacyLabels && !sectionId && (legacyLabels.studentClass || legacyLabels.section) ? (
+            <Alert severity="warning">
+              Saved as &quot;{[legacyLabels.studentClass, legacyLabels.section].filter(Boolean).join(' - ')}
+              &quot;, which does not match any class set up yet. Pick the correct class and section.
+            </Alert>
+          ) : null}
+          <ClassSectionPicker
+            sectionId={sectionId}
+            fallbackClassName={legacyLabels?.studentClass}
+            fallbackSectionName={legacyLabels?.section}
+            onChange={(selection) => {
+              setSectionId(selection?.sectionId ?? '');
+              setStudentClass(selection?.className ?? '');
+              setSection(selection?.sectionName ?? '');
+            }}
+            classError={fieldErrors.studentClass}
+            sectionError={fieldErrors.section}
           />
           <TextField
             label="Roll number"

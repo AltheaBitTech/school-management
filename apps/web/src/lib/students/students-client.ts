@@ -18,6 +18,7 @@ export interface Student {
   className?: string | null;
   studentClass?: string | null;
   section?: string | null;
+  sectionId?: string | null;
   rollNumber?: string | null;
   guardianName?: string | null;
   guardianPhone?: string | null;
@@ -44,6 +45,8 @@ export async function listStudents(params?: {
   search?: string;
   studentClass?: string;
   section?: string;
+  classId?: string;
+  sectionId?: string;
 }): Promise<PaginatedStudentsResponse> {
   const searchParams = new URLSearchParams();
   if (params?.page) searchParams.set('page', String(params.page));
@@ -52,6 +55,8 @@ export async function listStudents(params?: {
   if (params?.search) searchParams.set('search', params.search);
   if (params?.studentClass) searchParams.set('studentClass', params.studentClass);
   if (params?.section) searchParams.set('section', params.section);
+  if (params?.classId) searchParams.set('classId', params.classId);
+  if (params?.sectionId) searchParams.set('sectionId', params.sectionId);
 
   const query = searchParams.toString();
   return apiClient.get<PaginatedStudentsResponse>(`/students${query ? `?${query}` : ''}`, {
@@ -78,8 +83,9 @@ export async function createStudent(payload: {
   displayName?: string;
   dateOfBirth?: string;
   className?: string;
-  studentClass: string;
-  section: string;
+  sectionId?: string;
+  studentClass?: string;
+  section?: string;
   rollNumber: string;
   guardianName: string;
   guardianPhone: string;
@@ -97,6 +103,7 @@ export async function updateStudent(
     displayName?: string | null;
     dateOfBirth?: string | null;
     className?: string | null;
+    sectionId?: string;
     studentClass?: string | null;
     section?: string | null;
     rollNumber?: string | null;

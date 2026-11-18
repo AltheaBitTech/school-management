@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { StudentStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 export class ListStudentsQueryDto extends PaginationQueryDto {
@@ -26,4 +26,14 @@ export class ListStudentsQueryDto extends PaginationQueryDto {
   @IsString()
   @MaxLength(20)
   section?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by class ID' })
+  @IsOptional()
+  @IsUUID()
+  classId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by section ID' })
+  @IsOptional()
+  @IsUUID()
+  sectionId?: string;
 }

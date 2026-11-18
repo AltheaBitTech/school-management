@@ -15,12 +15,26 @@ describe('StudentImportService', () => {
   let studentsService: { create: jest.Mock };
   let prisma: { student: { findFirst: jest.Mock } };
   let auditService: { record: jest.Mock };
+  let classesService: { findActiveSectionByNames: jest.Mock };
 
   beforeEach(() => {
     studentsService = { create: jest.fn().mockResolvedValue({ id: 'student-1' }) };
     prisma = { student: { findFirst: jest.fn().mockResolvedValue(null) } };
     auditService = { record: jest.fn().mockResolvedValue(undefined) };
-    service = new StudentImportService(prisma as never, studentsService as never, auditService as never);
+    classesService = {
+      findActiveSectionByNames: jest.fn().mockResolvedValue({
+        id: 'section-a',
+        name: 'A',
+        classId: 'class-8',
+        className: 'Grade 8',
+      }),
+    };
+    service = new StudentImportService(
+      prisma as never,
+      studentsService as never,
+      auditService as never,
+      classesService as never,
+    );
   });
 
   function file(csv: string): Express.Multer.File {
@@ -86,5 +100,35 @@ describe('StudentImportService', () => {
     expect(result.duplicateCount).toBe(1);
     expect(result.rows[1]?.category).toBe('duplicate');
     expect(result.rows[1]?.reason).toMatch(/studentCode/);
+  });
+
+  it('rejects rows whose class and section are not set up', async () => {
+    classesService.findActiveSectionByNames.mockImplementation(
+      (_org: string, className: string) =>
+        Promise.resolve(
+          className === 'Grade 8'
+            ? { id: 'section-a', name: 'A', classId: 'class-8', className: 'Grade 8' }
+            : null,
+        ),
+    );
+    const csv = [
+      importHeader,
+      `stu-2026-001,Riya,Patel${importProfile}`,
+      `stu-2026-002,Arjun,Mehta${importProfile.replace('Grade 8', 'Grade 9')}`,
+    ].join('\n');
+
+    const preview = await service.previewFromCsv(actor, file(csv));
+
+    expect(preview.validRows).toBe(1);
+    expect(preview.invalidRows).toBe(1);
+    const invalid = preview.rows.find((row) => row.status === 'invalid');
+    expect(invalid?.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          column: 'studentClass',
+          message: expect.stringContaining('is not set up'),
+        }),
+      ]),
+    );
   });
 });

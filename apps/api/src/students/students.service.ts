@@ -12,7 +12,8 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { ListStudentsQueryDto } from './dto/list-students-query.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { StudentResponseDto } from './dto/student-response.dto';
-import { buildStudentClassName } from './utils/student-class.util';
+import { ClassesService, ResolvedSection } from '../classes/classes.service';
+import { sectionDisplayFields } from '../classes/utils/section-display.util';
 import { suggestNextPrefixedCode } from '../common/utils/sequential-code.util';
 import { DEFAULT_STUDENT_CODE_PREFIX } from './constants/student.constants';
 import { isValidStudentCode, normalizeStudentCode } from './utils/student-code.util';
@@ -20,7 +21,10 @@ import { studentProfileFieldErrors } from './utils/student-profile.util';
 
 @Injectable()
 export class StudentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly classesService: ClassesService,
+  ) {}
 
   async create(organizationId: string, dto: CreateStudentDto): Promise<Student> {
     const normalizedCode = normalizeStudentCode(dto.studentCode);
@@ -32,15 +36,12 @@ export class StudentsService {
       });
     }
 
-    const profile = this.requireProfile(dto);
-    const studentClass = profile.studentClass;
-    const section = profile.section;
-    const className =
-      buildStudentClassName({
-        className: dto.className,
-        studentClass,
-        section,
-      }) ?? null;
+    const resolved = await this.resolveSection(organizationId, dto);
+    const profile = this.requireProfile({
+      ...dto,
+      studentClass: resolved.className,
+      section: resolved.name,
+    });
 
     try {
       return await this.prisma.student.create({
@@ -51,9 +52,8 @@ export class StudentsService {
           lastName: dto.lastName.trim(),
           displayName: dto.displayName?.trim() || null,
           dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
-          className,
-          studentClass,
-          section,
+          sectionId: resolved.id,
+          ...sectionDisplayFields(resolved.className, resolved.name),
           rollNumber: profile.rollNumber,
           guardianName: profile.guardianName,
           guardianPhone: profile.guardianPhone,
@@ -77,6 +77,8 @@ export class StudentsService {
       ...(query.section
         ? { section: { equals: query.section.trim(), mode: 'insensitive' } }
         : {}),
+      ...(query.sectionId ? { sectionId: query.sectionId } : {}),
+      ...(query.classId ? { sectionRef: { classId: query.classId } } : {}),
       ...(query.search
         ? {
             OR: [
@@ -125,34 +127,32 @@ export class StudentsService {
   async update(organizationId: string, studentId: string, dto: UpdateStudentDto): Promise<Student> {
     const existing = await this.findById(organizationId, studentId);
 
+    const classChanged =
+      dto.sectionId !== undefined || dto.studentClass !== undefined || dto.section !== undefined;
+    const resolved = classChanged
+      ? await this.resolveSection(organizationId, {
+          sectionId: dto.sectionId,
+          studentClass: dto.studentClass ?? existing.studentClass ?? undefined,
+          section: dto.section ?? existing.section ?? undefined,
+        })
+      : null;
+
     const profileTouched =
-      dto.studentClass !== undefined ||
-      dto.section !== undefined ||
+      classChanged ||
       dto.rollNumber !== undefined ||
       dto.academicYear !== undefined ||
       dto.guardianName !== undefined ||
       dto.guardianPhone !== undefined;
     const profile = profileTouched
       ? this.requireProfile({
-          studentClass: dto.studentClass !== undefined ? dto.studentClass : existing.studentClass,
-          section: dto.section !== undefined ? dto.section : existing.section,
+          studentClass: resolved ? resolved.className : existing.studentClass,
+          section: resolved ? resolved.name : existing.section,
           rollNumber: dto.rollNumber !== undefined ? dto.rollNumber : existing.rollNumber,
           academicYear: dto.academicYear !== undefined ? dto.academicYear : existing.academicYear,
           guardianName: dto.guardianName !== undefined ? dto.guardianName : existing.guardianName,
           guardianPhone: dto.guardianPhone !== undefined ? dto.guardianPhone : existing.guardianPhone,
         })
       : null;
-    const nextStudentClass = profile ? profile.studentClass : existing.studentClass;
-    const nextSection = profile ? profile.section : existing.section;
-    const shouldRebuildClassName =
-      dto.className !== undefined || dto.studentClass !== undefined || dto.section !== undefined;
-    const className = shouldRebuildClassName
-      ? (buildStudentClassName({
-          className: dto.className !== undefined ? dto.className : existing.className,
-          studentClass: nextStudentClass,
-          section: nextSection,
-        }) ?? null)
-      : undefined;
 
     try {
       return await this.prisma.student.update({
@@ -164,9 +164,12 @@ export class StudentsService {
           ...(dto.dateOfBirth !== undefined
             ? { dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null }
             : {}),
-          ...(className !== undefined ? { className } : {}),
-          ...(dto.studentClass !== undefined ? { studentClass: nextStudentClass } : {}),
-          ...(dto.section !== undefined ? { section: nextSection } : {}),
+          ...(resolved
+            ? {
+                sectionId: resolved.id,
+                ...sectionDisplayFields(resolved.className, resolved.name),
+              }
+            : {}),
           ...(profile
             ? {
                 rollNumber: profile.rollNumber,
@@ -208,6 +211,7 @@ export class StudentsService {
       className: student.className,
       studentClass: student.studentClass,
       section: student.section,
+      sectionId: student.sectionId,
       rollNumber: student.rollNumber,
       guardianName: student.guardianName,
       guardianPhone: student.guardianPhone,
@@ -229,6 +233,41 @@ export class StudentsService {
       rows.map((row) => row.studentCode),
       { prefix: DEFAULT_STUDENT_CODE_PREFIX },
     );
+  }
+
+  /**
+   * Resolves the student's section from a section ID (preferred) or from class/section
+   * names, which must match a section already set up under Classes & Sections.
+   */
+  private async resolveSection(
+    organizationId: string,
+    input: { sectionId?: string; studentClass?: string; section?: string },
+  ): Promise<ResolvedSection> {
+    if (input.sectionId) {
+      return this.classesService.resolveActiveSectionById(organizationId, input.sectionId);
+    }
+
+    const studentClass = input.studentClass?.trim();
+    const section = input.section?.trim();
+    if (!studentClass || !section) {
+      throw new BadRequestException({
+        code: STUDENT_ERROR_CODES.INVALID_STUDENT_PROFILE,
+        message: 'Class and section are required',
+      });
+    }
+
+    const resolved = await this.classesService.findActiveSectionByNames(
+      organizationId,
+      studentClass,
+      section,
+    );
+    if (!resolved) {
+      throw new BadRequestException({
+        code: STUDENT_ERROR_CODES.SECTION_NOT_SET_UP,
+        message: `Class "${studentClass}" section "${section}" is not set up. Add it under Classes & Sections first.`,
+      });
+    }
+    return resolved;
   }
 
   private requireProfile(input: {

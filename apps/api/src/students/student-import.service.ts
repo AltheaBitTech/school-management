@@ -13,6 +13,7 @@ import {
   readCsvRow,
 } from '../common/utils/csv-import.util';
 import { renderImportGuidePdf } from '../common/utils/import-guide-pdf.util';
+import { ClassesService } from '../classes/classes.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { isValidStudentCode, normalizeStudentCode } from './utils/student-code.util';
 import { studentProfileFieldErrors } from './utils/student-profile.util';
@@ -73,6 +74,7 @@ export class StudentImportService {
     private readonly prisma: PrismaService,
     private readonly studentsService: StudentsService,
     private readonly auditService: AuditService,
+    private readonly classesService: ClassesService,
   ) {}
 
   getSampleCsv(): string {
@@ -247,6 +249,24 @@ export class StudentImportService {
       guardianPhone: values.guardianPhone,
     })) {
       errors.push({ column: profileError.field, message: profileError.message });
+    }
+
+    if (
+      values.studentClass &&
+      values.section &&
+      !errors.some((error) => error.column === 'studentClass' || error.column === 'section')
+    ) {
+      const section = await this.classesService.findActiveSectionByNames(
+        organizationId,
+        values.studentClass,
+        values.section,
+      );
+      if (!section) {
+        errors.push({
+          column: 'studentClass',
+          message: `Class "${values.studentClass}" section "${values.section}" is not set up. Add it under Classes & Sections first`,
+        });
+      }
     }
 
     if (values.dateOfBirth) {

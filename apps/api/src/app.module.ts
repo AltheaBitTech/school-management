@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { ClassesModule } from './classes/classes.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { StaffModule } from './staff/staff.module';
 import { AttendanceModule } from './attendance/attendance.module';
@@ -67,6 +68,7 @@ import { PlatformModule } from './platform/platform.module';
     StudentSelfModule,
     OrganizationsModule,
     DepartmentsModule,
+    ClassesModule,
     StaffModule,
     AttendanceModule,
     LeaveModule,

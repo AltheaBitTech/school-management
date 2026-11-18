@@ -2,6 +2,7 @@
 
 import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
 import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
+import ClassOutlined from '@mui/icons-material/ClassOutlined';
 import ApprovalOutlined from '@mui/icons-material/ApprovalOutlined';
 import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
 import BarChartOutlined from '@mui/icons-material/BarChartOutlined';
@@ -83,6 +84,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/staff', label: 'Staff', icon: PeopleAltOutlined, requiredPermission: 'staff.view' },
       { href: '/students', label: 'Students', icon: SchoolOutlined, requiredPermission: 'student.view' },
+      {
+        href: '/classes',
+        label: 'Classes & Sections',
+        icon: ClassOutlined,
+        requiredPermission: 'class.view',
+      },
       {
         href: '/departments',
         label: 'Departments',
@@ -388,14 +395,16 @@ export function AppShell({ children }: AppShellProps) {
       : isParentNav
         ? '/parent'
         : '/';
-  const homeLabel = isStaffNav
+  const homeLabel = isPlatformOrg
+    ? 'Dashboard'
+    : isStaffNav
     ? 'My dashboard'
     : isStudentNav
       ? 'My profile'
       : isParentNav
         ? 'My children'
         : 'Home';
-  const HomeNavIcon = isStaffNav ? DashboardOutlined : isStudentNav ? PersonOutlined : HomeOutlined;
+  const HomeNavIcon = isStaffNav || isPlatformOrg ? DashboardOutlined : isStudentNav ? PersonOutlined : HomeOutlined;
   const appBarTitle = isPlatformOrg
     ? 'CampusOps platform'
     : isStaffNav

@@ -25,6 +25,11 @@ enum DepartmentStatus {
   INACTIVE
 }
 
+enum ClassStatus {
+  ACTIVE
+  INACTIVE
+}
+
 enum EmploymentStatus {
   ACTIVE
   OFFBOARDING
@@ -265,6 +270,8 @@ model Organization {
   assetHistories AssetHistory[]
   files       File[]
   students    Student[]
+  schoolClasses SchoolClass[]
+  sections      Section[]
   documentTemplates DocumentTemplate[]
   generatedDocuments GeneratedDocument[]
   approvalWorkflows ApprovalWorkflow[]
@@ -589,6 +596,7 @@ model Staff {
   department       Department?  @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   reportingManager Staff?       @relation("StaffReportingHierarchy", fields: [reportingManagerId], references: [id], onDelete: Restrict)
   directReports    Staff[]      @relation("StaffReportingHierarchy")
+  classTeacherOf   Section[]    @relation("SectionClassTeacher")
   attendance       StaffAttendance[]
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]
@@ -753,12 +761,14 @@ model Student {
   guardianName   String?
   guardianPhone  String?
   academicYear   String?
+  sectionId      String?       @db.Uuid
   status         StudentStatus @default(ACTIVE)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sectionRef   Section?     @relation(fields: [sectionId], references: [id], onDelete: Restrict)
   studentFees      StudentFee[]
   assignedAssets   Asset[]      @relation("AssetAssignedStudent")
   parentLinks      ParentStudentLink[]
@@ -768,6 +778,44 @@ model Student {
   @@index([organizationId, status])
   @@index([organizationId, lastName])
   @@index([organizationId, studentClass])
+  @@index([organizationId, sectionId])
+}
+
+model SchoolClass {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid
+  name           String
+  displayOrder   Int         @default(0)
+  status         ClassStatus @default(ACTIVE)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  sections     Section[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status])
+}
+
+model Section {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid
+  classId        String      @db.Uuid
+  name           String
+  classTeacherId String?     @db.Uuid
+  capacity       Int?
+  status         ClassStatus @default(ACTIVE)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  schoolClass  SchoolClass  @relation(fields: [classId], references: [id], onDelete: Restrict)
+  classTeacher Staff?       @relation("SectionClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
+  students     Student[]
+
+  @@unique([classId, name])
+  @@index([organizationId, status])
+  @@index([classTeacherId])
 }
 
 model DocumentTemplate {

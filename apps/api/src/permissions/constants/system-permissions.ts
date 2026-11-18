@@ -29,6 +29,8 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'student.self.transport.view', description: 'View own transport assignment' },
   { code: 'parent.portal.view', description: 'View linked students in the parent portal' },
   { code: 'parent.link.manage', description: 'Link parent users to students' },
+  { code: 'class.view', description: 'View classes and sections' },
+  { code: 'class.manage', description: 'Create and update classes and sections' },
   { code: 'department.view', description: 'View departments' },
   { code: 'department.create', description: 'Create departments' },
   { code: 'department.update', description: 'Update departments' },

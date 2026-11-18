@@ -30,6 +30,9 @@ export class StudentResponseDto {
   @ApiPropertyOptional()
   section?: string | null;
 
+  @ApiPropertyOptional({ description: 'Linked section ID (Classes & Sections)' })
+  sectionId?: string | null;
+
   @ApiPropertyOptional()
   rollNumber?: string | null;
 

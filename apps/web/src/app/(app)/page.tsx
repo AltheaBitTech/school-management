@@ -336,7 +336,7 @@ export default function HomePage() {
   }
 
   if (isPlatformOrganization(user.organization?.code)) {
-    return <PlatformHomeContent userEmail={user.email} />;
+    return <PlatformHomeContent userEmail={user.email} permissions={user.permissions} />;
   }
 
   if (!isOperationalDashboardUser(user.permissions)) {

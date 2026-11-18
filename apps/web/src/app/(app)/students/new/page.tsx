@@ -8,6 +8,7 @@ import PersonAddOutlined from '@mui/icons-material/PersonAddOutlined';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { ClassSectionPicker } from '@/components/students/ClassSectionPicker';
 import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { FormPageFooter, FormSection } from '@/components/ui/FormSection';
 import { FormPageShell } from '@/components/ui/FormPageShell';
@@ -32,6 +33,7 @@ export default function NewStudentPage() {
   const [lastName, setLastName] = useState('');
   const [studentClass, setStudentClass] = useState('');
   const [section, setSection] = useState('');
+  const [sectionId, setSectionId] = useState('');
   const [rollNumber, setRollNumber] = useState('');
   const [academicYear, setAcademicYear] = useState('');
   const [guardianName, setGuardianName] = useState('');
@@ -86,8 +88,7 @@ export default function NewStudentPage() {
         studentCode: studentCode.trim(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        studentClass: studentClass.trim(),
-        section: section.trim(),
+        sectionId,
         rollNumber: rollNumber.trim(),
         academicYear: academicYear.trim(),
         guardianName: guardianName.trim(),
@@ -186,25 +187,15 @@ export default function NewStudentPage() {
         </FormSection>
 
         <FormSection title="Academic details" maxWidth="100%">
-          <TextField
-            label="Class"
-            value={studentClass}
-            onChange={(event) => setStudentClass(event.target.value)}
-            required
-            error={Boolean(fieldErrors.studentClass)}
-            inputProps={{ maxLength: 20 }}
-            helperText={fieldErrors.studentClass ?? 'For example Grade 8'}
-            fullWidth
-          />
-          <TextField
-            label="Section"
-            value={section}
-            onChange={(event) => setSection(event.target.value)}
-            required
-            error={Boolean(fieldErrors.section)}
-            inputProps={{ maxLength: 10 }}
-            helperText={fieldErrors.section ?? 'For example A'}
-            fullWidth
+          <ClassSectionPicker
+            sectionId={sectionId}
+            onChange={(selection) => {
+              setSectionId(selection?.sectionId ?? '');
+              setStudentClass(selection?.className ?? '');
+              setSection(selection?.sectionName ?? '');
+            }}
+            classError={fieldErrors.studentClass}
+            sectionError={fieldErrors.section}
           />
           <TextField
             label="Roll number"

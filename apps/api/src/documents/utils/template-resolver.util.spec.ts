@@ -13,6 +13,7 @@ describe('template-resolver.util', () => {
     className: 'Grade 8-A',
     userId: null,
     studentClass: null,
+    sectionId: null,
     section: null,
     rollNumber: null,
     guardianName: null,
