@@ -46,6 +46,15 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: 'attendance.view', description: 'View staff attendance' },
   { code: 'attendance.mark', description: 'Mark staff attendance' },
   { code: 'attendance.update', description: 'Update staff attendance' },
+  { code: 'student.attendance.view', description: 'View student attendance' },
+  {
+    code: 'student.attendance.mark',
+    description: 'Mark student attendance for own or substitute sections',
+  },
+  {
+    code: 'student.attendance.manage',
+    description: 'Mark student attendance for any section and assign substitutes',
+  },
   { code: 'complaint.view', description: 'View complaints' },
   { code: 'complaint.create', description: 'Create complaints' },
   { code: 'complaint.assign', description: 'Assign complaints' },

@@ -258,6 +258,8 @@ model Organization {
   departments Department[]
   staff       Staff[]
   attendance  StaffAttendance[]
+  studentAttendance StudentAttendance[]
+  sectionAttendanceSubstitutes SectionAttendanceSubstitute[]
   leaveTypes  LeaveType[]
   leaveBalances LeaveBalance[]
   leaveRequests LeaveRequest[]
@@ -457,6 +459,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   submittedOperationalRequests OperationalRequest[] @relation("OperationalRequestSubmittedBy")
   parentStudentLinks ParentStudentLink[] @relation("ParentStudentLinkParent")
+  markedStudentAttendance StudentAttendance[] @relation("StudentAttendanceMarkedBy")
+  createdSectionSubstitutes SectionAttendanceSubstitute[] @relation("SectionSubstituteCreatedBy")
 
   @@unique([organizationId, email])
   @@unique([email])
@@ -606,6 +610,7 @@ model Staff {
   reportingManager Staff?       @relation("StaffReportingHierarchy", fields: [reportingManagerId], references: [id], onDelete: Restrict)
   directReports    Staff[]      @relation("StaffReportingHierarchy")
   classTeacherOf   Section[]    @relation("SectionClassTeacher")
+  substituteFor    SectionAttendanceSubstitute[] @relation("SectionSubstituteStaff")
   attendance       StaffAttendance[]
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]
@@ -783,6 +788,7 @@ model Student {
   assignedAssets   Asset[]      @relation("AssetAssignedStudent")
   parentLinks      ParentStudentLink[]
   transportAssignments StudentTransportAssignment[]
+  attendance       StudentAttendance[]
 
   @@unique([organizationId, studentCode])
   @@index([organizationId, status])
@@ -826,10 +832,57 @@ model Section {
   academicUnit AcademicUnit @relation(fields: [classId], references: [id], onDelete: Restrict)
   classTeacher Staff?       @relation("SectionClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
   students     Student[]
+  studentAttendance     StudentAttendance[]
+  attendanceSubstitutes SectionAttendanceSubstitute[]
 
   @@unique([classId, name])
   @@index([organizationId, status])
   @@index([classTeacherId])
+}
+
+model StudentAttendance {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  studentId      String           @db.Uuid
+  /// Section the student belonged to on the attendance date.
+  sectionId      String           @db.Uuid
+  attendanceDate DateTime         @db.Date
+  status         AttendanceStatus
+  remarks        String?
+  markedByUserId String           @db.Uuid
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  markedBy     User         @relation("StudentAttendanceMarkedBy", fields: [markedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, studentId, attendanceDate])
+  @@index([organizationId, sectionId, attendanceDate])
+}
+
+/// Temporary grant letting a non-class-teacher mark a section's attendance.
+model SectionAttendanceSubstitute {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @db.Uuid
+  sectionId       String    @db.Uuid
+  staffId         String    @db.Uuid
+  fromDate        DateTime  @db.Date
+  toDate          DateTime  @db.Date
+  reason          String?
+  createdByUserId String    @db.Uuid
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  staff        Staff        @relation("SectionSubstituteStaff", fields: [staffId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("SectionSubstituteCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, sectionId, fromDate, toDate])
+  @@index([organizationId, staffId, fromDate, toDate])
 }
 
 model DocumentTemplate {

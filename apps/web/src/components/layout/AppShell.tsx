@@ -15,6 +15,7 @@ import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import DirectionsBusOutlined from '@mui/icons-material/DirectionsBusOutlined';
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
+import GroupsOutlined from '@mui/icons-material/GroupsOutlined';
 import HomeOutlined from '@mui/icons-material/HomeOutlined';
 import HowToRegOutlined from '@mui/icons-material/HowToRegOutlined';
 import ImageOutlined from '@mui/icons-material/ImageOutlined';
@@ -105,9 +106,15 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/leave', label: 'Leave', icon: EventAvailableOutlined, requiredPermission: 'leave.view' },
       {
         href: '/attendance',
-        label: 'Attendance',
+        label: 'Staff attendance',
         icon: FactCheckOutlined,
         requiredPermission: 'attendance.view',
+      },
+      {
+        href: '/attendance/students',
+        label: 'Student attendance',
+        icon: GroupsOutlined,
+        requiredPermission: 'student.attendance.view',
       },
       {
         href: '/attendance/scan',
@@ -205,6 +212,10 @@ function buildStaffSelfNavGroup(permissions: string[] | undefined): NavGroup {
     { href: '/staff/attendance', label: 'My attendance', icon: CheckCircleOutlined },
     { href: '/staff/leave', label: 'My leave', icon: TimelapseOutlined },
   ];
+
+  if (isAttendanceEnabled() && hasPermission(permissions, 'student.attendance.mark')) {
+    items.push({ href: '/attendance/students', label: 'Student attendance', icon: GroupsOutlined });
+  }
 
   if (hasPermission(permissions, 'complaint.view')) {
     items.push({ href: '/complaints', label: 'Complaints', icon: BuildOutlined });

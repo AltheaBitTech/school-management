@@ -12,6 +12,7 @@ import { ClassesModule } from './classes/classes.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { StaffModule } from './staff/staff.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { StudentAttendanceModule } from './student-attendance/student-attendance.module';
 import { LeaveModule } from './leave/leave.module';
 import { ComplaintsModule } from './complaints/complaints.module';
 import { NoticesModule } from './notices/notices.module';
@@ -71,6 +72,7 @@ import { PlatformModule } from './platform/platform.module';
     ClassesModule,
     StaffModule,
     AttendanceModule,
+    StudentAttendanceModule,
     LeaveModule,
     ComplaintsModule,
     NoticesModule,

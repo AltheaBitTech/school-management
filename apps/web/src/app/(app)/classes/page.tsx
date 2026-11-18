@@ -27,9 +27,11 @@ import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ListPageShell } from '@/components/ui/ListPageShell';
+import { SubstituteDialog } from '@/components/student-attendance/SubstituteDialog';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
 import { useCan } from '@/lib/auth/use-can';
+import { isAttendanceEnabled } from '@/lib/features/feature-flags';
 import { usesTerms } from '@/lib/terminology/terminology';
 import { useTerminology } from '@/lib/terminology/use-terminology';
 import {
@@ -66,6 +68,13 @@ function staffName(staff: StaffMember): string {
 export default function ClassesPage() {
   const canManage = useCan('class.manage');
   const canViewStaff = useCan('staff.view');
+  const canAssignSubstitute = useCan('student.attendance.manage') && isAttendanceEnabled();
+  const [substituteSection, setSubstituteSection] = useState<{
+    id: string;
+    label: string;
+    classTeacherId: string | null;
+    classTeacherName: string | null;
+  } | null>(null);
   const { showSuccess } = useAppSnackbar();
   const t = useTerminology();
   const unitLc = t.unit.toLowerCase();
@@ -397,7 +406,7 @@ export default function ClassesPage() {
                       <TableCell>{t.groupTeacher}</TableCell>
                       <TableCell>Students</TableCell>
                       <TableCell>Status</TableCell>
-                      {canManage ? <TableCell align="right">Actions</TableCell> : null}
+                      {canManage || canAssignSubstitute ? <TableCell align="right">Actions</TableCell> : null}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -417,16 +426,33 @@ export default function ClassesPage() {
                           <TableCell>
                             <StatusChip status={section.status} />
                           </TableCell>
-                          {canManage ? (
+                          {canManage || canAssignSubstitute ? (
                             <TableCell align="right">
                               <Stack direction="row" spacing={1} justifyContent="flex-end">
-                                <Button
-                                  size="small"
-                                  onClick={() => openSectionDialog({ mode: 'edit', schoolClass, section })}
-                                >
-                                  Edit
-                                </Button>
-                                {schoolClass.status === 'ACTIVE' ? (
+                                {canAssignSubstitute && section.status === 'ACTIVE' ? (
+                                  <Button
+                                    size="small"
+                                    onClick={() =>
+                                      setSubstituteSection({
+                                        id: section.id,
+                                        label: `${schoolClass.name} - ${section.name}`,
+                                        classTeacherId: section.classTeacherId,
+                                        classTeacherName: section.classTeacherName,
+                                      })
+                                    }
+                                  >
+                                    Substitute
+                                  </Button>
+                                ) : null}
+                                {canManage ? (
+                                  <Button
+                                    size="small"
+                                    onClick={() => openSectionDialog({ mode: 'edit', schoolClass, section })}
+                                  >
+                                    Edit
+                                  </Button>
+                                ) : null}
+                                {canManage && schoolClass.status === 'ACTIVE' ? (
                                   <Button
                                     size="small"
                                     color={section.status === 'ACTIVE' ? 'error' : 'primary'}
@@ -590,6 +616,12 @@ export default function ClassesPage() {
         isConfirming={isSubmitting}
         onConfirm={() => void handleConfirm()}
         onCancel={() => setConfirm(null)}
+      />
+
+      <SubstituteDialog
+        open={substituteSection !== null}
+        onClose={() => setSubstituteSection(null)}
+        section={substituteSection}
       />
     </ListPageShell>
   );
