@@ -214,4 +214,26 @@ export function formatDateTime(value: string): string {
   return new Date(value).toLocaleString();
 }
 
+/** Human-readable length of a visit, e.g. "45m", "1h 25m", "2d 3h". Returns null for invalid ranges. */
+export function formatVisitDuration(start: string, end: string): string | null {
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (!Number.isFinite(ms) || ms < 0) {
+    return null;
+  }
+  const totalMinutes = Math.round(ms / 60000);
+  if (totalMinutes < 1) {
+    return 'under a minute';
+  }
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) {
+    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  }
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  return `${minutes}m`;
+}
+
 export const VISITOR_STATUSES: VisitorStatus[] = ['CHECKED_IN', 'CHECKED_OUT'];

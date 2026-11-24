@@ -21,6 +21,7 @@ vi.mock('@/lib/visitors/visitors-client', () => ({
   formatVisitorStatus: (status: string) =>
     status === 'CHECKED_IN' ? 'Checked in' : 'Checked out',
   formatDateTime: (value: string) => value,
+  formatVisitDuration: () => '1h 5m',
   getVisitorStaffDisplayName: (staff: { firstName: string; lastName: string }) =>
     `${staff.firstName} ${staff.lastName}`,
 }));

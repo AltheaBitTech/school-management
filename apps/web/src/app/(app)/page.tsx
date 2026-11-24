@@ -1,6 +1,7 @@
 'use client';
 
 import AddOutlined from '@mui/icons-material/AddOutlined';
+import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined';
 import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
 import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
@@ -279,51 +280,73 @@ function LimitedRoleHome({ permissions }: { permissions: string[] | undefined })
   }
 
   return (
-    <Stack spacing={3} sx={{ maxWidth: 720 }}>
+    <Stack spacing={3}>
       <HomeWelcomeHero
         title="Welcome back"
         subtitle="Your CampusOps portal"
         meta="Open a module below or use the sidebar navigation."
       />
       {links.length > 0 ? (
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2,
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-          }}
-        >
-          {links.map((item) => (
-            <Card key={item.href} variant="outlined">
-              <CardActionArea component={Link} href={item.href}>
-                <CardContent>
-                  <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 1.5,
-                        bgcolor: 'primary.light',
-                        color: 'primary.main',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <item.icon fontSize="small" />
-                    </Box>
-                    <Stack spacing={0.5}>
-                      <Typography fontWeight={600}>{item.label}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {item.description}
-                      </Typography>
+        <Stack spacing={1.5}>
+          <Typography variant="h6">Your modules</Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: { xs: 1.5, sm: 2 },
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(3, minmax(0, 1fr))',
+                xl: 'repeat(4, minmax(0, 1fr))',
+              },
+            }}
+          >
+            {links.map((item) => (
+              <Card key={item.href} variant="outlined" sx={{ height: '100%' }}>
+                <CardActionArea
+                  component={Link}
+                  href={item.href}
+                  sx={{
+                    height: '100%',
+                    '&:hover .module-arrow': { transform: 'translateX(3px)', color: 'primary.main' },
+                  }}
+                >
+                  <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
+                    <Stack direction="row" spacing={1.75} alignItems="center">
+                      <Box
+                        aria-hidden
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          flexShrink: 0,
+                          borderRadius: '12px',
+                          bgcolor: 'primary.light',
+                          color: 'primary.main',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <item.icon fontSize="small" />
+                      </Box>
+                      <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography fontWeight={650}>{item.label}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {item.description}
+                        </Typography>
+                      </Stack>
+                      <ArrowForwardOutlined
+                        className="module-arrow"
+                        aria-hidden
+                        sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0, transition: 'transform 150ms ease, color 150ms ease' }}
+                      />
                     </Stack>
-                  </Stack>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          ))}
-        </Box>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            ))}
+          </Box>
+        </Stack>
       ) : (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography color="text.secondary">
