@@ -31,6 +31,7 @@ export function VisitorPhotoCapture({ photoFileId, onChange }: VisitorPhotoCaptu
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const uploadingRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -85,6 +86,11 @@ export function VisitorPhotoCapture({ photoFileId, onChange }: VisitorPhotoCaptu
   }, [cameraOpen]);
 
   async function storeFile(file: File, previewUrl: string): Promise<void> {
+    if (uploadingRef.current) {
+      URL.revokeObjectURL(previewUrl);
+      return;
+    }
+    uploadingRef.current = true;
     setIsUploading(true);
     setUploadError(null);
     try {
@@ -98,6 +104,7 @@ export function VisitorPhotoCapture({ photoFileId, onChange }: VisitorPhotoCaptu
       URL.revokeObjectURL(previewUrl);
       setUploadError(error instanceof Error ? error.message : 'Could not save the photo.');
     } finally {
+      uploadingRef.current = false;
       setIsUploading(false);
     }
   }
@@ -176,7 +183,7 @@ export function VisitorPhotoCapture({ photoFileId, onChange }: VisitorPhotoCaptu
             startIcon={isUploading ? <CircularProgress size={16} /> : <UploadFileOutlined />}
             disabled={isUploading}
           >
-            Upload photo
+            {isUploading ? 'Uploading…' : 'Upload photo'}
             <input
               type="file"
               hidden

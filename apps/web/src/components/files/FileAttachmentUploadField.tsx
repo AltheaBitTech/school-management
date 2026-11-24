@@ -3,6 +3,7 @@
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { ChangeEvent, useRef, useState } from 'react';
@@ -37,7 +38,9 @@ export function FileAttachmentUploadField({
 }: FileAttachmentUploadFieldProps) {
   const [items, setItems] = useState<AttachedFileItem[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const itemsRef = useRef(items);
+  const uploadingRef = useRef(false);
   itemsRef.current = items;
 
   function syncIds(nextItems: AttachedFileItem[]): void {
@@ -72,16 +75,25 @@ export function FileAttachmentUploadField({
         {helperText ? `${helperText} ` : ''}Maximum file size is {MAX_UPLOAD_LABEL}.
       </Typography>
       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-        <Button component="label" variant="outlined" size="small" disabled={fileIds.length >= maxFiles}>
-          Add file
+        <Button
+          component="label"
+          variant="outlined"
+          size="small"
+          disabled={isUploading || fileIds.length >= maxFiles}
+          startIcon={isUploading ? <CircularProgress size={16} /> : undefined}
+        >
+          {isUploading ? 'Uploading…' : 'Add file'}
           <input
             type="file"
             hidden
             accept={accept}
+            disabled={isUploading}
             onChange={async (event: ChangeEvent<HTMLInputElement>) => {
               const file = event.target.files?.[0];
               event.target.value = '';
-              if (!file) return;
+              if (!file || uploadingRef.current) return;
+              uploadingRef.current = true;
+              setIsUploading(true);
               setUploadError(null);
               try {
                 const uploaded: UploadedFile = await uploadFile(file);
@@ -90,7 +102,7 @@ export function FileAttachmentUploadField({
                     ? URL.createObjectURL(file)
                     : undefined;
                 syncIds([
-                  ...items,
+                  ...itemsRef.current,
                   {
                     id: uploaded.id,
                     label: uploaded.originalName,
@@ -100,6 +112,9 @@ export function FileAttachmentUploadField({
                 ]);
               } catch (error) {
                 setUploadError(error instanceof Error ? error.message : 'Upload failed');
+              } finally {
+                uploadingRef.current = false;
+                setIsUploading(false);
               }
             }}
           />

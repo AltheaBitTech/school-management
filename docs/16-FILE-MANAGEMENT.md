@@ -155,7 +155,7 @@ application/pdf
 image/jpeg
 image/png
 ```
-Initial maximum: **10 MB** per file.
+Initial maximum: **50 MB** per file, matching the Supabase bucket limit. Oversized files are rejected in the browser and again by the API. Storage failures return the provider reason (bucket name, service role key, or size) so the upload screen can show it.
 
 Reject missing, zero-byte, unsupported, oversized, or unsafe uploads. Server-side limits are authoritative. Do not rely only on client MIME/filename; where practical, inspect file signatures for supported types.
 

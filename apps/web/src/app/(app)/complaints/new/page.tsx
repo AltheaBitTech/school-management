@@ -1,6 +1,7 @@
 'use client';
 
 import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 import { resetSubmitting } from '@/lib/forms/submit-state';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -46,6 +47,8 @@ export default function NewComplaintPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadingRef = useRef(false);
 
   const attachmentFileIds = useMemo(() => attachments.map((item) => item.id), [attachments]);
   const attachmentsRef = useRef(attachments);
@@ -184,17 +187,21 @@ export default function NewComplaintPage() {
               component="label"
               variant="outlined"
               size="small"
-              disabled={attachments.length >= 5}
+              disabled={isUploading || attachments.length >= 5}
+              startIcon={isUploading ? <CircularProgress size={16} /> : undefined}
             >
-              Add photo
+              {isUploading ? 'Uploading…' : 'Add photo'}
               <input
                 type="file"
                 hidden
                 accept="image/png,image/jpeg"
+                disabled={isUploading}
                 onChange={async (event: ChangeEvent<HTMLInputElement>) => {
                   const file = event.target.files?.[0];
                   event.target.value = '';
-                  if (!file) return;
+                  if (!file || uploadingRef.current) return;
+                  uploadingRef.current = true;
+                  setIsUploading(true);
                   setUploadError(null);
                   try {
                     const uploaded = await uploadFile(file);
@@ -205,6 +212,9 @@ export default function NewComplaintPage() {
                     ]);
                   } catch (error) {
                     setUploadError(error instanceof Error ? error.message : 'Upload failed');
+                  } finally {
+                    uploadingRef.current = false;
+                    setIsUploading(false);
                   }
                 }}
               />
