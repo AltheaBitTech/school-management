@@ -8,6 +8,7 @@ export const STUDENT_ATTENDANCE_ERROR_CODES = {
   INVALID_DATE_RANGE: 'INVALID_DATE_RANGE',
   INVALID_SUBSTITUTE: 'INVALID_SUBSTITUTE',
   SUBSTITUTE_NOT_FOUND: 'SUBSTITUTE_NOT_FOUND',
+  STUDENT_NOT_FOUND: 'STUDENT_NOT_FOUND',
 } as const;
 
 /** Statuses a teacher can pick for a student (staff-only values such as WEEK_OFF are excluded). */
@@ -25,3 +26,7 @@ export const STUDENT_ATTENDANCE_PERMISSIONS = {
   MARK: 'student.attendance.mark',
   MANAGE: 'student.attendance.manage',
 } as const;
+
+/** Default and maximum window (in days, inclusive) for a single student's attendance history. */
+export const STUDENT_HISTORY_DEFAULT_DAYS = 30;
+export const STUDENT_HISTORY_MAX_DAYS = 366;

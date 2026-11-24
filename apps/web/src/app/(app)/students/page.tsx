@@ -19,11 +19,13 @@ import AddOutlined from '@mui/icons-material/AddOutlined';
 import UploadFileOutlined from '@mui/icons-material/UploadFileOutlined';
 import SchoolOutlined from '@mui/icons-material/SchoolOutlined';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { listClasses, type SchoolClass } from '@/lib/classes/classes-client';
 import { StudentImportDialog } from '@/app/(app)/students/StudentImportDialog';
+import { StudentRowActions } from '@/app/(app)/students/StudentRowActions';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { AppTable, EmptyState, LoadingState, TableIconLink } from '@/components/ui/AppTable';
+import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
 import { ListPageShell } from '@/components/ui/ListPageShell';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ApiError } from '@/lib/api/client';
@@ -43,6 +45,7 @@ import { useTerminology } from '@/lib/terminology/use-terminology';
 
 export default function StudentsPage() {
   const canCreate = useCan('student.create');
+  const router = useRouter();
   const t = useTerminology();
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
@@ -223,7 +226,12 @@ export default function StudentsPage() {
       {!isLoading && students.length > 0 && isCompact ? (
         <Stack spacing={1.5} aria-label="Students">
           {students.map((student) => (
-            <Card key={student.id} variant="outlined">
+            <Card
+              key={student.id}
+              variant="outlined"
+              onClick={() => router.push(`/students/${student.id}`)}
+              sx={{ cursor: 'pointer' }}
+            >
               <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <Avatar sx={{ bgcolor: 'primary.dark', width: 40, height: 40, fontSize: 14 }}>
@@ -242,7 +250,7 @@ export default function StudentsPage() {
                   </Stack>
                   <Stack spacing={0.5} alignItems="flex-end">
                     <StatusChip status={student.status} label={formatStudentStatus(student.status)} />
-                    <TableIconLink href={`/students/${student.id}`} label="View student" />
+                    <StudentRowActions student={student} />
                   </Stack>
                 </Stack>
               </CardContent>
@@ -266,7 +274,12 @@ export default function StudentsPage() {
           </TableHead>
           <TableBody>
             {students.map((student) => (
-              <TableRow key={student.id} hover>
+              <TableRow
+                key={student.id}
+                hover
+                onClick={() => router.push(`/students/${student.id}`)}
+                sx={{ cursor: 'pointer' }}
+              >
                 <TableCell>
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <Avatar sx={{ bgcolor: 'primary.dark', width: 36, height: 36, fontSize: 13 }}>
@@ -290,7 +303,7 @@ export default function StudentsPage() {
                 </TableCell>
                 <TableCell>{formatStudentDate(student.createdAt)}</TableCell>
                 <TableCell align="right">
-                  <TableIconLink href={`/students/${student.id}`} label="View student" />
+                  <StudentRowActions student={student} />
                 </TableCell>
               </TableRow>
             ))}

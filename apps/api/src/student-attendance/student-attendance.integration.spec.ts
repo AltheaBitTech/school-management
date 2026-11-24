@@ -120,4 +120,19 @@ describeIfDatabase('Student attendance integration', () => {
       ForbiddenException,
     );
   });
+
+  it("returns a single student's history to admins and the class teacher only", async () => {
+    await service.saveSectionAttendance(classTeacher, sectionId, {
+      attendanceDate: today,
+      entries: [{ studentId: studentIds[0], status: 'PRESENT' }],
+    });
+
+    const history = await service.getStudentHistory(admin, studentIds[0]);
+    expect(history.to).toBe(today);
+    expect(history.records).toEqual([expect.objectContaining({ date: today, status: 'PRESENT' })]);
+    expect(history.summary).toMatchObject({ total: 1, present: 1, percentage: 100 });
+
+    await expect(service.getStudentHistory(classTeacher, studentIds[0])).resolves.toBeDefined();
+    await expect(service.getStudentHistory(otherTeacher, studentIds[0])).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });

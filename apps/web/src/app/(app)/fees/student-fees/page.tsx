@@ -10,9 +10,10 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined';
 import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, Suspense, useCallback, useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { AppTable, EmptyState, LoadingState, TableIconLink } from '@/components/ui/AppTable';
@@ -37,12 +38,22 @@ import {
 import { getStudentDisplayName, listStudents, type Student } from '@/lib/students/students-client';
 
 export default function StudentFeesPage() {
+  return (
+    <Suspense fallback={<LoadingState label="Loading student fees" columnCount={6} />}>
+      <StudentFeesPageContent />
+    </Suspense>
+  );
+}
+
+function StudentFeesPageContent() {
   const canAssign = useCan('fee.assign');
+  const searchParams = useSearchParams();
+  const studentFilter = searchParams.get('studentId') ?? '';
   const { showSuccess } = useAppSnackbar();
   const [studentFees, setStudentFees] = useState<StudentFee[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [structures, setStructures] = useState<FeeStructure[]>([]);
-  const [studentId, setStudentId] = useState('');
+  const [studentId, setStudentId] = useState(studentFilter);
   const [feeStructureId, setFeeStructureId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [statusFilter, setStatusFilter] = useState<StudentFeeStatus | ''>('');
@@ -61,6 +72,7 @@ export default function StudentFeesPage() {
         listStudentFees({
           page: 1,
           pageSize: 100,
+          studentId: studentFilter || undefined,
           status: statusFilter || undefined,
         }),
         listStudents({ page: 1, pageSize: 100, status: 'ACTIVE' }),
@@ -78,7 +90,7 @@ export default function StudentFeesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, studentFilter]);
 
   useEffect(() => {
     void loadData();
@@ -99,7 +111,7 @@ export default function StudentFeesPage() {
         feeStructureId,
         dueDate: dueDate || undefined,
       });
-      setStudentId('');
+      setStudentId(studentFilter);
       setFeeStructureId('');
       setDueDate('');
       showSuccess('Fee assigned to student');
@@ -142,6 +154,18 @@ export default function StudentFeesPage() {
       </TextField>
       }
     >
+      {studentFilter ? (
+        <Alert
+          severity="info"
+          action={
+            <Button component={Link} href="/fees/student-fees" color="inherit" size="small">
+              Show all
+            </Button>
+          }
+        >
+          Showing fees for one student.
+        </Alert>
+      ) : null}
       {canAssign ? <FormSection title="Assign fee to student">
         <Stack spacing={2} component="form" onSubmit={handleAssign}>
           <TextField

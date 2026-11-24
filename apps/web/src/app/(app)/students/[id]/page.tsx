@@ -14,13 +14,15 @@ import DialogTitle from '@mui/material/DialogTitle';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import SchoolOutlined from '@mui/icons-material/SchoolOutlined';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { DetailFactRow, DetailPageShell } from '@/components/ui/DetailPageShell';
@@ -54,6 +56,19 @@ import {
 } from '@/lib/students/students-client';
 import { useTerminology } from '@/lib/terminology/use-terminology';
 import { usesTerms } from '@/lib/terminology/terminology';
+import { StudentAttendanceTab } from './StudentAttendanceTab';
+
+const STUDENT_DETAIL_TABS = ['details', 'fees', 'attendance', 'results', 'parents', 'documents'] as const;
+type StudentDetailTab = (typeof STUDENT_DETAIL_TABS)[number];
+
+const TAB_LABELS: Record<StudentDetailTab, string> = {
+  details: 'Details',
+  fees: 'Fees',
+  attendance: 'Attendance',
+  results: 'Results',
+  parents: 'Linked parents',
+  documents: 'Documents',
+};
 
 function displayValue(value?: string | null): string {
   const trimmed = value?.trim();
@@ -61,18 +76,34 @@ function displayValue(value?: string | null): string {
 }
 
 export default function StudentDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress aria-label="Loading student" />
+        </Box>
+      }
+    >
+      <StudentDetailPageContent />
+    </Suspense>
+  );
+}
+
+function StudentDetailPageContent() {
   const canEdit = useCan('student.update');
   const t = useTerminology();
   const canLinkParents = useCan('parent.link.manage');
   const canGenerate = useCan('document.generate');
-  const canViewAttendance = useCan('attendance.view');
-  const canViewStudentAttendance = useCan('student.attendance.view');
+  const canViewAttendance = useCan('student.attendance.view');
   const canViewFees = useCan('fee.view');
   const canViewDocuments = useCan('document.view');
   const canInviteParent = useCanEvery(['staff.create', 'role.assign']);
   const canSendInvite = useCanEvery(['user.create', 'role.assign']);
   const { showSuccess } = useAppSnackbar();
   const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const consumedInviteKey = useRef<string | null>(null);
   const [student, setStudent] = useState<Student | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -390,6 +421,26 @@ export default function StudentDetailPage() {
   }
 
   const hasFeeRecords = (feeSummary?.fees.length ?? 0) > 0;
+  const visibleTabs = STUDENT_DETAIL_TABS.filter((tab) => {
+    if (tab === 'attendance') return isAttendanceEnabled() && canViewAttendance;
+    if (tab === 'fees') return canViewFees;
+    if (tab === 'documents') return canViewDocuments || canGenerate;
+    return true;
+  });
+  const requestedTab = searchParams.get('tab') as StudentDetailTab | null;
+  const activeTab: StudentDetailTab =
+    requestedTab && visibleTabs.includes(requestedTab) ? requestedTab : 'details';
+
+  function selectTab(tab: StudentDetailTab): void {
+    const next = new URLSearchParams(searchParams.toString());
+    if (tab === 'details') {
+      next.delete('tab');
+    } else {
+      next.set('tab', tab);
+    }
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
   const canProvisionLogin = canSendInvite && !student.userId && student.status === 'ACTIVE';
 
   async function handleProvisionLogin(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -482,6 +533,21 @@ export default function StudentDetailPage() {
         </Stack>
       }
     >
+      <Tabs
+        value={activeTab}
+        onChange={(_, value: StudentDetailTab) => selectTab(value)}
+        variant="scrollable"
+        allowScrollButtonsMobile
+        aria-label="Student sections"
+        sx={{ borderBottom: 1, borderColor: 'divider' }}
+      >
+        {visibleTabs.map((tab) => (
+          <Tab key={tab} value={tab} label={TAB_LABELS[tab]} />
+        ))}
+      </Tabs>
+
+      {activeTab === 'details' ? (
+      <>
       <Card variant="outlined">
         <CardContent>
           <Stack spacing={1.5}>
@@ -512,7 +578,17 @@ export default function StudentDetailPage() {
             <Typography variant="body2" color="text.secondary">
               Guardian email and relationship are not stored separately from the guardian name.
             </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
+      </>
+      ) : null}
 
+      {activeTab === 'parents' ? (
+      <Card variant="outlined">
+        <CardContent>
+          <Stack spacing={1.5}>
+            <Typography variant="h6">Linked parents</Typography>
             {parentsError ? <Alert severity="warning">{parentsError}</Alert> : null}
             {!parentsError && linkedParents.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
@@ -586,31 +662,24 @@ export default function StudentDetailPage() {
           </Stack>
         </CardContent>
       </Card>
-
-      {isAttendanceEnabled() && (canViewStudentAttendance || canViewAttendance) ? (
-      <Card variant="outlined">
-        <CardContent>
-          <Stack spacing={1.5}>
-            <Typography variant="h6">Attendance</Typography>
-            {canViewStudentAttendance ? (
-              <>
-                <Typography variant="body2" color="text.secondary">
-                  Student attendance is recorded by section. Open the register to mark or review it.
-                </Typography>
-                <Button component={Link} href="/attendance/students" variant="outlined">
-                  Open student attendance
-                </Button>
-              </>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                This profile does not include a personal attendance history.
-              </Typography>
-            )}
-          </Stack>
-        </CardContent>
-      </Card>
       ) : null}
 
+      {activeTab === 'attendance' ? <StudentAttendanceTab studentId={student.id} /> : null}
+
+      {activeTab === 'results' ? (
+        <Card variant="outlined">
+          <CardContent>
+            <Stack spacing={1.5}>
+              <Typography variant="h6">Results</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Exam results and printable report cards are coming soon.
+              </Typography>
+            </Stack>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeTab === 'fees' ? (
       <Card variant="outlined">
         <CardContent>
           <Stack spacing={1.5}>
@@ -630,14 +699,18 @@ export default function StudentDetailPage() {
               </>
             ) : null}
             {canViewFees ? (
-              <Button component={Link} href="/fees" variant="outlined">
-                Open fees
-              </Button>
+              <Stack direction="row">
+                <Button component={Link} href={`/fees/student-fees?studentId=${student.id}`} variant="outlined">
+                  View fee records
+                </Button>
+              </Stack>
             ) : null}
           </Stack>
         </CardContent>
       </Card>
+      ) : null}
 
+      {activeTab === 'documents' ? (
       <Card variant="outlined">
         <CardContent>
           <Stack spacing={1.5}>
@@ -680,10 +753,20 @@ export default function StudentDetailPage() {
                   Generate document
                 </Button>
               ) : null}
+              {canGenerate && student.status === 'ACTIVE' ? (
+                <Button
+                  component={Link}
+                  href={`/documents/generate?studentId=${student.id}&type=STUDENT_ID_CARD`}
+                  variant="outlined"
+                >
+                  Generate ID card
+                </Button>
+              ) : null}
             </Stack>
           </Stack>
         </CardContent>
       </Card>
+      ) : null}
 
       {student.status !== 'ACTIVE' ? (
         <Alert severity="info">

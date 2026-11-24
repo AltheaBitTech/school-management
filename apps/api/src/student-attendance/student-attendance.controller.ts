@@ -25,6 +25,7 @@ import {
   CreateSectionSubstituteDto,
   SaveSectionAttendanceDto,
   StudentAttendanceDateQueryDto,
+  StudentAttendanceHistoryQueryDto,
 } from './dto/student-attendance.dto';
 import { StudentAttendanceActor, StudentAttendanceService } from './student-attendance.service';
 
@@ -56,6 +57,20 @@ export class StudentAttendanceController {
     @Query() query: StudentAttendanceDateQueryDto,
   ) {
     return { data: await this.service.getSectionAttendance(this.actor(user, request), sectionId, query.date) };
+  }
+
+  @Get('students/:studentId')
+  @RequirePermissions('student.attendance.view')
+  @ApiOperation({ summary: "A single student's attendance records and summary over a date range" })
+  async getStudentHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() request: AuthenticatedRequest,
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Query() query: StudentAttendanceHistoryQueryDto,
+  ) {
+    return {
+      data: await this.service.getStudentHistory(this.actor(user, request), studentId, query.from, query.to),
+    };
   }
 
   @Put('sections/:sectionId')

@@ -5,6 +5,11 @@ import StudentFeesPage from '@/app/(app)/fees/student-fees/page';
 import { ApiError } from '@/lib/api/client';
 import { renderWithAppProviders } from '@/test/render-app';
 
+let currentSearch = '';
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(currentSearch),
+}));
+
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
@@ -34,6 +39,7 @@ import { listStudents } from '@/lib/students/students-client';
 
 describe('StudentFeesPage', () => {
   beforeEach(() => {
+    currentSearch = '';
     vi.mocked(listStudentFees).mockReset();
     vi.mocked(listStudents).mockReset();
     vi.mocked(listFeeStructures).mockReset();
@@ -131,5 +137,18 @@ describe('StudentFeesPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Access denied')).toBeInTheDocument();
     });
+  });
+
+  it('filters by the student in the URL', async () => {
+    currentSearch = 'studentId=student-1';
+    const empty = { data: [], meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 } };
+    vi.mocked(listStudentFees).mockResolvedValue(empty);
+    vi.mocked(listStudents).mockResolvedValue(empty);
+    vi.mocked(listFeeStructures).mockResolvedValue(empty);
+
+    renderWithAppProviders(<StudentFeesPage />);
+
+    expect(await screen.findByText('Showing fees for one student.')).toBeInTheDocument();
+    expect(listStudentFees).toHaveBeenCalledWith(expect.objectContaining({ studentId: 'student-1' }));
   });
 });

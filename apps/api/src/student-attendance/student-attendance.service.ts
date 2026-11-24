@@ -4,13 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ClassStatus, EmploymentStatus, Prisma, StudentStatus } from '@prisma/client';
+import { AttendanceStatus, ClassStatus, EmploymentStatus, Prisma, StudentStatus } from '@prisma/client';
 import { formatAttendanceDate, parseAttendanceDate } from '../attendance/utils/attendance-date.util';
 import { getLocalDateString } from '../dashboard/utils/dashboard-date.util';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   STUDENT_ATTENDANCE_ERROR_CODES,
   STUDENT_ATTENDANCE_PERMISSIONS,
+  STUDENT_HISTORY_DEFAULT_DAYS,
+  STUDENT_HISTORY_MAX_DAYS,
 } from './constants/student-attendance.constants';
 import { CreateSectionSubstituteDto, SaveSectionAttendanceDto } from './dto/student-attendance.dto';
 
@@ -20,6 +22,8 @@ export type StudentAttendanceActor = {
   organizationId: string;
   permissions: string[];
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type SectionAccessRole = 'ADMIN' | 'CLASS_TEACHER' | 'SUBSTITUTE';
 
@@ -253,6 +257,88 @@ export class StudentAttendanceService {
       where: { id: existing.id },
       data: { revokedAt: new Date() },
     });
+  }
+
+  /**
+   * Attendance history for one student. Admins (manage permission) see any student;
+   * other users only students currently in a section where they are the class teacher.
+   * Percentage = (present + half-day × 0.5) / all marked days (leave counts as not attended).
+   */
+  async getStudentHistory(actor: StudentAttendanceActor, studentId: string, from?: string, to?: string) {
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, organizationId: actor.organizationId },
+      select: { id: true, sectionId: true, sectionRef: { select: { classTeacherId: true } } },
+    });
+    if (!student) {
+      throw new NotFoundException({
+        code: STUDENT_ATTENDANCE_ERROR_CODES.STUDENT_NOT_FOUND,
+        message: 'Student not found',
+      });
+    }
+
+    if (!this.isAdmin(actor)) {
+      const staffId = await this.findStaffId(actor);
+      if (!staffId || student.sectionRef?.classTeacherId !== staffId) {
+        throw new ForbiddenException({
+          code: STUDENT_ATTENDANCE_ERROR_CODES.NOT_SECTION_TEACHER,
+          message: "Only the class teacher can view this student's attendance",
+        });
+      }
+    }
+
+    const toDate = parseAttendanceDate(to ?? (await this.todayFor(actor.organizationId)));
+    const fromDate = from
+      ? parseAttendanceDate(from)
+      : new Date(toDate.getTime() - (STUDENT_HISTORY_DEFAULT_DAYS - 1) * DAY_MS);
+    const spanDays = Math.round((toDate.getTime() - fromDate.getTime()) / DAY_MS) + 1;
+    if (spanDays < 1 || spanDays > STUDENT_HISTORY_MAX_DAYS) {
+      throw new BadRequestException({
+        code: STUDENT_ATTENDANCE_ERROR_CODES.INVALID_DATE_RANGE,
+        message: `Date range must be between 1 and ${STUDENT_HISTORY_MAX_DAYS} days`,
+      });
+    }
+
+    const records = await this.prisma.studentAttendance.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        studentId: student.id,
+        attendanceDate: { gte: fromDate, lte: toDate },
+      },
+      orderBy: { attendanceDate: 'desc' },
+      select: {
+        id: true,
+        attendanceDate: true,
+        status: true,
+        remarks: true,
+        section: { select: { name: true, academicUnit: { select: { name: true } } } },
+      },
+    });
+
+    const summary = { total: records.length, present: 0, absent: 0, halfDay: 0, onLeave: 0, percentage: null as number | null };
+    for (const record of records) {
+      if (record.status === AttendanceStatus.PRESENT) summary.present += 1;
+      else if (record.status === AttendanceStatus.ABSENT) summary.absent += 1;
+      else if (record.status === AttendanceStatus.HALF_DAY) summary.halfDay += 1;
+      else if (record.status === AttendanceStatus.ON_LEAVE) summary.onLeave += 1;
+    }
+    if (summary.total > 0) {
+      const attended = summary.present + summary.halfDay * 0.5;
+      summary.percentage = Math.round((attended / summary.total) * 1000) / 10;
+    }
+
+    return {
+      studentId: student.id,
+      from: formatAttendanceDate(fromDate),
+      to: formatAttendanceDate(toDate),
+      summary,
+      records: records.map((record) => ({
+        id: record.id,
+        date: formatAttendanceDate(record.attendanceDate),
+        status: record.status,
+        remarks: record.remarks,
+        sectionLabel: `${record.section.academicUnit.name} - ${record.section.name}`,
+      })),
+    };
   }
 
   /**

@@ -27,6 +27,18 @@ export class StudentAttendanceDateQueryDto {
   date?: string;
 }
 
+export class StudentAttendanceHistoryQueryDto {
+  @ApiPropertyOptional({ example: '2026-10-20', description: 'Defaults to 30 days before `to`' })
+  @IsOptional()
+  @Matches(ATTENDANCE_DATE_PATTERN, { message: DATE_MESSAGE })
+  from?: string;
+
+  @ApiPropertyOptional({ example: '2026-11-18', description: 'Defaults to today in the institution timezone' })
+  @IsOptional()
+  @Matches(ATTENDANCE_DATE_PATTERN, { message: DATE_MESSAGE })
+  to?: string;
+}
+
 export class StudentAttendanceEntryDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()

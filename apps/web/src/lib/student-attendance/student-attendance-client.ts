@@ -117,3 +117,45 @@ export function formatAttendanceDateLabel(date: string): string {
   const [year, month, day] = date.split('-').map(Number);
   return new Date(year, month - 1, day).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
+
+export interface StudentAttendanceHistoryRecord {
+  id: string;
+  date: string;
+  status: StudentAttendanceStatus;
+  remarks: string | null;
+  sectionLabel: string;
+}
+
+export interface StudentAttendanceHistory {
+  studentId: string;
+  from: string;
+  to: string;
+  summary: {
+    total: number;
+    present: number;
+    absent: number;
+    halfDay: number;
+    onLeave: number;
+    percentage: number | null;
+  };
+  records: StudentAttendanceHistoryRecord[];
+}
+
+export async function getStudentAttendanceHistory(
+  studentId: string,
+  range?: { from?: string; to?: string },
+): Promise<StudentAttendanceHistory> {
+  const params = new URLSearchParams();
+  if (range?.from) params.set('from', range.from);
+  if (range?.to) params.set('to', range.to);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const response = await apiClient.get<{ data: StudentAttendanceHistory }>(
+    `/student-attendance/students/${studentId}${query}`,
+    { auth: true },
+  );
+  return response.data;
+}
+
+export function formatStudentAttendanceStatus(status: StudentAttendanceStatus): string {
+  return STUDENT_ATTENDANCE_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+}

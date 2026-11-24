@@ -1,12 +1,31 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import StudentDetailPage from '@/app/(app)/students/[id]/page';
 import { ApiError } from '@/lib/api/client';
 import { renderWithAppProviders } from '@/test/render-app';
 
+let currentSearch = '';
+const replace = vi.fn();
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'student-1' }),
+  useRouter: () => ({ replace, push: vi.fn() }),
+  usePathname: () => '/students/student-1',
+  useSearchParams: () => new URLSearchParams(currentSearch),
+}));
+
+vi.mock('@/lib/student-attendance/student-attendance-client', () => ({
+  getStudentAttendanceHistory: vi.fn().mockResolvedValue({
+    studentId: 'student-1',
+    from: '2026-10-26',
+    to: '2026-11-24',
+    summary: { total: 2, present: 1, absent: 1, halfDay: 0, onLeave: 0, percentage: 50 },
+    records: [
+      { id: 'r1', date: '2026-11-24', status: 'PRESENT', remarks: null, sectionLabel: '10 - A' },
+      { id: 'r2', date: '2026-11-23', status: 'ABSENT', remarks: 'Sick', sectionLabel: '10 - A' },
+    ],
+  }),
+  formatStudentAttendanceStatus: (status: string) => (status === 'PRESENT' ? 'Present' : 'Absent'),
 }));
 
 vi.mock('next/link', () => ({
@@ -53,8 +72,21 @@ import {
 } from '@/lib/features/feature-flags';
 
 describe('StudentDetailPage', () => {
+  const activeStudent = {
+    id: 'student-1',
+    studentCode: 'adm-001',
+    firstName: 'Ravi',
+    lastName: 'Kumar',
+    className: '10-A',
+    status: 'ACTIVE' as const,
+    createdAt: '2026-09-17T10:00:00.000Z',
+    updatedAt: '2026-09-17T10:00:00.000Z',
+  };
+
   beforeEach(() => {
     vi.mocked(getStudent).mockReset();
+    currentSearch = '';
+    replace.mockReset();
   });
 
   it('renders student details', async () => {
@@ -81,10 +113,7 @@ describe('StudentDetailPage', () => {
       'href',
       '/documents/generate?studentId=student-1',
     );
-    expect(screen.getByRole('link', { name: 'Open student attendance' })).toHaveAttribute(
-      'href',
-      '/attendance/students',
-    );
+    expect(screen.getByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument();
   });
 
   it('hides attendance section when attendance feature is disabled', async () => {
@@ -105,8 +134,7 @@ describe('StudentDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Ravi Kumar' })).toBeInTheDocument();
     });
-    expect(screen.queryByRole('link', { name: 'Open student attendance' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Attendance')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Attendance' })).not.toBeInTheDocument();
     resetFeatureFlagsCacheForTests();
   });
 
@@ -125,9 +153,7 @@ describe('StudentDetailPage', () => {
 
     renderWithAppProviders(<StudentDetailPage />);
 
-    await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Open student attendance' })).toBeInTheDocument();
-    });
+    expect(await screen.findByRole('tab', { name: 'Attendance' })).toBeInTheDocument();
     resetFeatureFlagsCacheForTests();
   });
 
@@ -149,5 +175,53 @@ describe('StudentDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Access denied')).toBeInTheDocument();
     });
+  });
+
+  it('opens the tab named in the URL', async () => {
+    currentSearch = 'tab=fees';
+    vi.mocked(getStudent).mockResolvedValue(activeStudent);
+
+    renderWithAppProviders(<StudentDetailPage />);
+
+    expect(await screen.findByRole('tab', { name: 'Fees', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View fee records' })).toHaveAttribute(
+      'href',
+      '/fees/student-fees?studentId=student-1',
+    );
+    expect(screen.queryByText('Academic details')).not.toBeInTheDocument();
+  });
+
+  it('shows attendance history on the attendance tab', async () => {
+    setFeatureFlagsFromSession({ attendanceEnabled: true });
+    currentSearch = 'tab=attendance';
+    vi.mocked(getStudent).mockResolvedValue(activeStudent);
+
+    renderWithAppProviders(<StudentDetailPage />);
+
+    expect(await screen.findByText('Attendance 50%')).toBeInTheDocument();
+    expect(screen.getByText('Sick')).toBeInTheDocument();
+    resetFeatureFlagsCacheForTests();
+  });
+
+  it('shows the results placeholder and updates the URL when switching tabs', async () => {
+    currentSearch = 'tab=results';
+    vi.mocked(getStudent).mockResolvedValue(activeStudent);
+
+    renderWithAppProviders(<StudentDetailPage />);
+
+    expect(await screen.findByText(/report cards are coming soon/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+    expect(replace).toHaveBeenCalledWith('/students/student-1?tab=documents', { scroll: false });
+  });
+
+  it('falls back to details for an unknown tab', async () => {
+    currentSearch = 'tab=nope';
+    vi.mocked(getStudent).mockResolvedValue(activeStudent);
+
+    renderWithAppProviders(<StudentDetailPage />);
+
+    expect(await screen.findByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument();
+    expect(screen.getByText('Academic details')).toBeInTheDocument();
   });
 });

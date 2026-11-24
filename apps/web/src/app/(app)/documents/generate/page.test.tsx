@@ -5,9 +5,10 @@ import GenerateDocumentPage from '@/app/(app)/documents/generate/page';
 import { ApiError } from '@/lib/api/client';
 import { renderWithAppProviders } from '@/test/render-app';
 
+let currentSearch = '';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(currentSearch),
 }));
 
 vi.mock('next/link', () => ({
@@ -38,6 +39,12 @@ vi.mock('@/lib/documents/documents-client', () => ({
       type: 'BONAFIDE_CERTIFICATE',
       name: 'Bonafide Certificate',
       description: 'Certifies student enrollment for official use.',
+      ownerType: 'STUDENT',
+    },
+    {
+      type: 'STUDENT_ID_CARD',
+      name: 'Student ID Card',
+      description: 'Printable student identification card.',
       ownerType: 'STUDENT',
     },
   ],
@@ -133,5 +140,48 @@ describe('GenerateDocumentPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/do not have permission/i)).toBeInTheDocument();
     });
+  });
+
+  it('preselects the student and document type from the URL', async () => {
+    currentSearch = 'studentId=student-1&type=STUDENT_ID_CARD';
+    vi.mocked(listStudents).mockResolvedValue({
+      data: [
+        {
+          id: 'student-1',
+          studentCode: 'adm-001',
+          firstName: 'Card',
+          lastName: 'Student',
+          status: 'ACTIVE',
+          createdAt: '2026-09-17T10:00:00.000Z',
+          updatedAt: '2026-09-17T10:00:00.000Z',
+        },
+      ],
+      meta: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+    });
+    vi.mocked(generateDocument).mockResolvedValue({
+      id: 'doc-2',
+      documentType: 'STUDENT_ID_CARD',
+      ownerType: 'STUDENT',
+      ownerId: 'student-1',
+      templateId: 'template-2',
+      templateVersion: 1,
+      status: 'GENERATED',
+      generatedByUserId: 'user-1',
+      createdAt: '2026-09-17T10:00:00.000Z',
+    });
+
+    renderWithAppProviders(<GenerateDocumentPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Card Student \(adm-001\)/)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate PDF' }));
+
+    await waitFor(() => {
+      expect(generateDocument).toHaveBeenCalledWith(
+        expect.objectContaining({ documentType: 'STUDENT_ID_CARD', ownerId: 'student-1' }),
+      );
+    });
+    currentSearch = '';
   });
 });

@@ -23,8 +23,8 @@ describe('StudentAttendanceService', () => {
     organizationSettings: { findUnique: jest.fn() },
     section: { findFirst: jest.fn(), findMany: jest.fn() },
     staff: { findFirst: jest.fn() },
-    student: { findMany: jest.fn() },
-    studentAttendance: { upsert: jest.fn() },
+    student: { findMany: jest.fn(), findFirst: jest.fn() },
+    studentAttendance: { upsert: jest.fn(), findMany: jest.fn() },
     sectionAttendanceSubstitute: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -175,6 +175,79 @@ describe('StudentAttendanceService', () => {
           toDate: '2026-11-18',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+  describe('getStudentHistory', () => {
+    const studentId = 'student-1';
+    const studentRow = { id: studentId, sectionId, sectionRef: { classTeacherId: classTeacherStaffId } };
+    const record = (date: string, status: string) => ({
+      id: `rec-${date}`,
+      attendanceDate: parseAttendanceDate(date),
+      status,
+      remarks: null,
+      section: { name: 'A', academicUnit: { name: 'Grade 5' } },
+    });
+
+    beforeEach(() => {
+      prisma.student.findFirst.mockResolvedValue(studentRow);
+      prisma.studentAttendance.findMany.mockResolvedValue([]);
+    });
+
+    it('scopes the lookup to the organization and 404s for unknown students', async () => {
+      prisma.student.findFirst.mockResolvedValue(null);
+      await expect(service.getStudentHistory(admin, studentId)).rejects.toMatchObject({
+        response: { code: 'STUDENT_NOT_FOUND' },
+      });
+      expect(prisma.student.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: studentId, organizationId } }),
+      );
+    });
+
+    it('defaults to the last 30 days ending today', async () => {
+      const result = await service.getStudentHistory(admin, studentId);
+      const to = parseAttendanceDate(today);
+      const from = new Date(to.getTime() - 29 * 24 * 60 * 60 * 1000);
+      expect(result.to).toBe(today);
+      expect(prisma.studentAttendance.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organizationId, studentId, attendanceDate: { gte: from, lte: to } },
+        }),
+      );
+      expect(result.summary).toEqual({ total: 0, present: 0, absent: 0, halfDay: 0, onLeave: 0, percentage: null });
+    });
+
+    it('rejects ranges that are reversed or longer than 366 days', async () => {
+      await expect(service.getStudentHistory(admin, studentId, '2026-11-10', '2026-11-01')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      await expect(service.getStudentHistory(admin, studentId, '2025-01-01', '2026-11-01')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it('summarises statuses and computes the percentage', async () => {
+      prisma.studentAttendance.findMany.mockResolvedValue([
+        record('2026-11-04', 'PRESENT'),
+        record('2026-11-03', 'HALF_DAY'),
+        record('2026-11-02', 'ABSENT'),
+        record('2026-11-01', 'ON_LEAVE'),
+      ]);
+      const result = await service.getStudentHistory(admin, studentId, '2026-11-01', '2026-11-04');
+      expect(result.summary).toEqual({ total: 4, present: 1, absent: 1, halfDay: 1, onLeave: 1, percentage: 37.5 });
+      expect(result.records[0]).toEqual({
+        id: 'rec-2026-11-04',
+        date: '2026-11-04',
+        status: 'PRESENT',
+        remarks: null,
+        sectionLabel: 'Grade 5 - A',
+      });
+    });
+
+    it('allows the class teacher but forbids other teachers', async () => {
+      await expect(service.getStudentHistory(teacher(classTeacherStaffId), studentId)).resolves.toBeDefined();
+      await expect(service.getStudentHistory(teacher(otherStaffId), studentId)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
   });
 });

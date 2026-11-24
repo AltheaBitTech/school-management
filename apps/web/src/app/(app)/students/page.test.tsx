@@ -5,9 +5,16 @@ import StudentsPage from '@/app/(app)/students/page';
 import { ApiError } from '@/lib/api/client';
 import { renderWithAppProviders } from '@/test/render-app';
 
+const push = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace: vi.fn() }),
+}));
+
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
   ),
 }));
 
@@ -27,6 +34,10 @@ vi.mock('@/lib/students/students-client', () => ({
 }));
 
 import { listStudents } from '@/lib/students/students-client';
+import {
+  resetFeatureFlagsCacheForTests,
+  setFeatureFlagsFromSession,
+} from '@/lib/features/feature-flags';
 
 describe('StudentsPage', () => {
   beforeEach(() => {
@@ -116,5 +127,63 @@ describe('StudentsPage', () => {
         expect.objectContaining({ search: 'ravi' }),
       );
     });
+  });
+
+  it('offers quick options for each student row', async () => {
+    setFeatureFlagsFromSession({ attendanceEnabled: true });
+    vi.mocked(listStudents).mockResolvedValue({
+      data: [
+        {
+          id: 'student-1',
+          studentCode: 'adm-001',
+          firstName: 'Ravi',
+          lastName: 'Kumar',
+          className: '10-A',
+          status: 'ACTIVE',
+          createdAt: '2026-09-17T10:00:00.000Z',
+          updatedAt: '2026-09-17T10:00:00.000Z',
+        },
+      ],
+      meta: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+    });
+
+    renderWithAppProviders(<StudentsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Options for Ravi Kumar' }));
+
+    const expected: Array<[string, string]> = [
+      ['Student details', '/students/student-1'],
+      ['Fees', '/students/student-1?tab=fees'],
+      ['Attendance', '/students/student-1?tab=attendance'],
+      ['Results', '/students/student-1?tab=results'],
+      ['Linked parents', '/students/student-1?tab=parents'],
+      ['Student ID card', '/documents/generate?studentId=student-1&type=STUDENT_ID_CARD'],
+    ];
+    for (const [name, href] of expected) {
+      expect(screen.getByRole('menuitem', { name })).toHaveAttribute('href', href);
+    }
+    resetFeatureFlagsCacheForTests();
+  });
+
+  it('opens the student when a row is clicked', async () => {
+    vi.mocked(listStudents).mockResolvedValue({
+      data: [
+        {
+          id: 'student-1',
+          studentCode: 'adm-001',
+          firstName: 'Ravi',
+          lastName: 'Kumar',
+          status: 'ACTIVE',
+          createdAt: '2026-09-17T10:00:00.000Z',
+          updatedAt: '2026-09-17T10:00:00.000Z',
+        },
+      ],
+      meta: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+    });
+
+    renderWithAppProviders(<StudentsPage />);
+
+    fireEvent.click(await screen.findByText('adm-001'));
+    expect(push).toHaveBeenCalledWith('/students/student-1');
   });
 });

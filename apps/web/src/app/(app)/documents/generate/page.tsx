@@ -56,6 +56,8 @@ export default function GenerateDocumentPage() {
 function GenerateDocumentPageContent() {
   const searchParams = useSearchParams();
   const preselectedStudentId = searchParams.get('studentId') ?? '';
+  const requestedType = searchParams.get('type');
+  const preselectedType = DOCUMENT_TEMPLATE_OPTIONS.find((option) => option.type === requestedType)?.type;
   const { showSuccess } = useAppSnackbar();
   const session = useOptionalAuthSession();
   const templates = useMemo(() => {
@@ -68,7 +70,7 @@ function GenerateDocumentPageContent() {
     return documentTemplatesForPermissions(session.user.permissions);
   }, [session]);
 
-  const [selectedType, setSelectedType] = useState<DocumentType>('BONAFIDE_CERTIFICATE');
+  const [selectedType, setSelectedType] = useState<DocumentType>(preselectedType ?? 'BONAFIDE_CERTIFICATE');
   const [students, setStudents] = useState<Student[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
