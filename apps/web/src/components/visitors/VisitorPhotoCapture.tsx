@@ -14,10 +14,9 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, useState } from 'react';
-import { ApiError } from '@/lib/api/client';
 import { getApiV1BaseUrl } from '@/lib/api/config';
 import { getAccessToken } from '@/lib/auth/session';
-import { uploadFile } from '@/lib/files/files-client';
+import { MAX_UPLOAD_LABEL, uploadFile } from '@/lib/files/files-client';
 
 interface VisitorPhotoCaptureProps {
   photoFileId?: string;
@@ -97,7 +96,7 @@ export function VisitorPhotoCapture({ photoFileId, onChange }: VisitorPhotoCaptu
       onChange(uploaded.id);
     } catch (error) {
       URL.revokeObjectURL(previewUrl);
-      setUploadError(error instanceof ApiError ? error.message : 'Could not save the photo.');
+      setUploadError(error instanceof Error ? error.message : 'Could not save the photo.');
     } finally {
       setIsUploading(false);
     }
@@ -146,6 +145,9 @@ export function VisitorPhotoCapture({ photoFileId, onChange }: VisitorPhotoCaptu
       </Typography>
       <Typography variant="caption" color="text.secondary">
         Optional. A clear face photo prints on the visitor badge. Upload a file if the camera is unavailable.
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        PNG or JPEG, up to {MAX_UPLOAD_LABEL}.
       </Typography>
       {uploadError ? <Alert severity="error">{uploadError}</Alert> : null}
       <Stack direction="row" spacing={2} alignItems="center">

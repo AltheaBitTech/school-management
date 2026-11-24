@@ -16,7 +16,9 @@ export const ALLOWED_MIME_TYPES = [
 
 export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
 
-export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+/** Matches the Supabase bucket file size limit (50 MB). */
+export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+export const MAX_FILE_SIZE_LABEL = '50 MB';
 
 export const LOCAL_STORAGE_PROVIDER = 'local';
 

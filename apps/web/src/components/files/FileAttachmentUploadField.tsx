@@ -7,7 +7,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { ChangeEvent, useRef, useState } from 'react';
 import { ImageAttachmentPreviewList } from '@/components/ui/ImageAttachmentPreviewList';
-import { uploadFile, type UploadedFile } from '@/lib/files/files-client';
+import { MAX_UPLOAD_LABEL, uploadFile, type UploadedFile } from '@/lib/files/files-client';
 
 export interface AttachedFileItem {
   id: string;
@@ -68,11 +68,9 @@ export function FileAttachmentUploadField({
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      {helperText ? (
-        <Typography variant="caption" color="text.secondary">
-          {helperText}
-        </Typography>
-      ) : null}
+      <Typography variant="caption" color="text.secondary">
+        {helperText ? `${helperText} ` : ''}Maximum file size is {MAX_UPLOAD_LABEL}.
+      </Typography>
       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
         <Button component="label" variant="outlined" size="small" disabled={fileIds.length >= maxFiles}>
           Add file

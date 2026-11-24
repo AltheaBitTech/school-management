@@ -177,7 +177,7 @@ export default function NewComplaintPage() {
 
         <FormSection title="Photos" maxWidth="100%">
           <Typography variant="body2" color="text.secondary">
-            Optional — up to 5 images (PNG or JPEG).
+            Optional — up to 5 images (PNG or JPEG, 50 MB each).
           </Typography>
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             <Button
@@ -204,7 +204,6 @@ export default function NewComplaintPage() {
                       { id: uploaded.id, label: uploaded.originalName, previewUrl },
                     ]);
                   } catch (error) {
-      resetSubmitting(setIsSubmitting);
                     setUploadError(error instanceof Error ? error.message : 'Upload failed');
                   }
                 }}

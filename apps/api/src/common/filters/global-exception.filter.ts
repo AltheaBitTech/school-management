@@ -34,6 +34,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const isProduction = appConfig?.isProduction ?? false;
 
     const { statusCode, code, message, details } = this.resolveException(exception);
+    const exposeMessage = !isProduction || statusCode < 500 || code !== 'INTERNAL_SERVER_ERROR';
 
     if (statusCode >= 500) {
       this.logger.error(
@@ -65,7 +66,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const body: ApiErrorBody = {
       statusCode,
       code,
-      message: isProduction && statusCode >= 500 ? 'Internal server error' : message,
+      message: exposeMessage ? message : 'Internal server error',
       ...(details ? { details } : {}),
       ...(requestId ? { requestId } : {}),
     };
@@ -79,6 +80,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     message: string;
     details?: Record<string, unknown>;
   } {
+    if (isFileTooLarge(exception)) {
+      return {
+        statusCode: HttpStatus.PAYLOAD_TOO_LARGE,
+        code: 'FILE_TOO_LARGE',
+        message: 'This file is larger than the 50 MB limit.',
+      };
+    }
+
     if (exception instanceof HttpException) {
       const statusCode = exception.getStatus();
       const exceptionResponse = exception.getResponse();
@@ -121,4 +130,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       message: exception instanceof Error ? exception.message : 'Internal server error',
     };
   }
+}
+
+function isFileTooLarge(exception: unknown): boolean {
+  if (
+    typeof exception === 'object' &&
+    exception !== null &&
+    'code' in exception &&
+    (exception as { code?: unknown }).code === 'LIMIT_FILE_SIZE'
+  ) {
+    return true;
+  }
+
+  return exception instanceof HttpException && exception.getStatus() === HttpStatus.PAYLOAD_TOO_LARGE;
 }

@@ -3,6 +3,7 @@ import {
   AllowedMimeType,
   FILE_ERROR_CODES,
   MAX_FILE_SIZE_BYTES,
+  MAX_FILE_SIZE_LABEL,
 } from '../constants/file.constants';
 
 const PDF_SIGNATURE = Buffer.from('%PDF');
@@ -29,7 +30,7 @@ export function validateUploadBuffer(
   if (buffer.length > MAX_FILE_SIZE_BYTES) {
     throw new BadRequestException({
       code: FILE_ERROR_CODES.FILE_TOO_LARGE,
-      message: 'Uploaded file exceeds the 10 MB limit',
+      message: `This file is larger than the ${MAX_FILE_SIZE_LABEL} limit`,
     });
   }
 

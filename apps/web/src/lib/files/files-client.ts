@@ -1,6 +1,10 @@
+import { ApiError, createApiError } from '@/lib/api/client';
 import { getApiV1BaseUrl } from '@/lib/api/config';
-import { createApiError } from '@/lib/api/client';
 import { getAccessToken } from '@/lib/auth/session';
+
+/** Matches the API and the Supabase bucket file size limit. */
+export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+export const MAX_UPLOAD_LABEL = '50 MB';
 
 export interface UploadedFile {
   id: string;
@@ -15,6 +19,14 @@ interface UploadFileResponse {
 }
 
 export async function uploadFile(file: File): Promise<UploadedFile> {
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new ApiError(
+      `This file is larger than the ${MAX_UPLOAD_LABEL} limit.`,
+      413,
+      'FILE_TOO_LARGE',
+    );
+  }
+
   const formData = new FormData();
   formData.append('file', file);
 

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { STORAGE_CONFIG_KEY, StorageConfig } from '../../config/storage.configuration';
 import { FILE_ERROR_CODES } from '../constants/file.constants';
 import { assertSafeStorageKey } from '../utils/storage-key.util';
+import { describeStorageFailure } from './storage-error.util';
 import { StorageProvider } from './storage-provider.interface';
 
 interface ResolvedSupabaseConfig {
@@ -38,11 +39,7 @@ export class SupabaseFileStorageProvider implements StorageProvider {
     });
 
     if (!response.ok) {
-      this.logFailure('upload', storageKey, response.status);
-      throw new InternalServerErrorException({
-        code: FILE_ERROR_CODES.FILE_STORAGE_FAILED,
-        message: 'Failed to store uploaded file',
-      });
+      throw await this.storageFailure('upload', storageKey, response);
     }
   }
 
@@ -58,11 +55,7 @@ export class SupabaseFileStorageProvider implements StorageProvider {
     });
 
     if (!response.ok) {
-      this.logFailure('read', storageKey, response.status);
-      throw new InternalServerErrorException({
-        code: FILE_ERROR_CODES.FILE_STORAGE_FAILED,
-        message: 'Failed to read stored file',
-      });
+      throw await this.storageFailure('read', storageKey, response);
     }
 
     const arrayBuffer = await response.arrayBuffer();
@@ -105,11 +98,7 @@ export class SupabaseFileStorageProvider implements StorageProvider {
     }
 
     if (!response.ok) {
-      this.logFailure('check', storageKey, response.status);
-      throw new InternalServerErrorException({
-        code: FILE_ERROR_CODES.FILE_STORAGE_FAILED,
-        message: 'Failed to check stored file',
-      });
+      throw await this.storageFailure('check', storageKey, response);
     }
 
     return true;
@@ -121,7 +110,8 @@ export class SupabaseFileStorageProvider implements StorageProvider {
     if (!config?.supabaseUrl || !config.supabaseServiceRoleKey || !config.supabaseBucket) {
       throw new InternalServerErrorException({
         code: FILE_ERROR_CODES.FILE_STORAGE_FAILED,
-        message: 'Supabase storage provider is not configured',
+        message:
+          'Storage is not configured. Set STORAGE_PROVIDER=supabase, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_STORAGE_BUCKET on the API.',
       });
     }
 
@@ -142,6 +132,22 @@ export class SupabaseFileStorageProvider implements StorageProvider {
 
   private objectInfoUrl(config: ResolvedSupabaseConfig, storageKey: string): string {
     return `${config.supabaseUrl}/storage/v1/object/info/${config.supabaseBucket}/${this.encodeKey(storageKey)}`;
+  }
+
+  private async storageFailure(
+    action: string,
+    storageKey: string,
+    response: Response,
+  ): Promise<InternalServerErrorException> {
+    const bodyText = await response.text().catch(() => '');
+    const message = describeStorageFailure(response.status, bodyText);
+    this.logger.error(
+      `Supabase storage ${action} failed for key ${storageKey}: HTTP ${response.status} ${message}`,
+    );
+    return new InternalServerErrorException({
+      code: FILE_ERROR_CODES.FILE_STORAGE_FAILED,
+      message,
+    });
   }
 
   private logFailure(action: string, storageKey: string, statusCode: number): void {

@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'crypto';
 import {
+  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -52,7 +53,7 @@ export class FilesService {
     try {
       await this.fileStorageService.put(storageKey, validated.buffer);
     } catch (error: unknown) {
-      if (error instanceof InternalServerErrorException) {
+      if (error instanceof HttpException) {
         throw error;
       }
 
@@ -109,7 +110,7 @@ export class FilesService {
     try {
       await this.fileStorageService.put(storageKey, validated.buffer);
     } catch (error: unknown) {
-      if (error instanceof InternalServerErrorException) {
+      if (error instanceof HttpException) {
         throw error;
       }
 

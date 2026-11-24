@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { MAX_FILE_SIZE_BYTES } from '../constants/file.constants';
 import { validateUploadBuffer } from './file-validation.util';
 
 describe('file-validation.util', () => {
@@ -33,9 +34,9 @@ describe('file-validation.util', () => {
   });
 
   it('rejects oversized uploads', () => {
-    const oversized = Buffer.alloc(10 * 1024 * 1024 + 1, 0x25);
+    const oversized = Buffer.alloc(MAX_FILE_SIZE_BYTES + 1);
     oversized.write('%PDF', 0);
 
-    expect(() => validateUploadBuffer(oversized)).toThrow(BadRequestException);
+    expect(() => validateUploadBuffer(oversized)).toThrow(/50 MB/);
   });
 });
