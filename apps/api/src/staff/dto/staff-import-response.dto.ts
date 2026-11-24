@@ -26,6 +26,12 @@ export class StaffImportRowResultDto {
   inviteExpiresAt?: string;
 
   @ApiPropertyOptional()
+  emailSent?: boolean;
+
+  @ApiPropertyOptional()
+  emailError?: { code: string; message: string };
+
+  @ApiPropertyOptional()
   employeeCode?: string;
 
   @ApiPropertyOptional()

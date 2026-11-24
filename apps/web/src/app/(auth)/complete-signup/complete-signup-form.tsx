@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button, TextField, Alert, Box, CircularProgress, Stack } from '@mui/material';
+import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
 import { validateConfirmPassword, validatePassword } from '@/lib/forms/validators';
 
@@ -146,6 +147,11 @@ export function CompleteSignupForm() {
     <Box component="form" onSubmit={handleSubmit}>
       <Stack spacing={2}>
       {error ? <Alert severity="error">{error}</Alert> : null}
+      {error ? (
+        <Button component={Link} href="/forgot-password" variant="outlined">
+          Send me a new link
+        </Button>
+      ) : null}
 
       {signupContext ? (
         <Alert severity="info">

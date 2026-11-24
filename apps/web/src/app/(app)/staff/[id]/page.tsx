@@ -24,6 +24,7 @@ import MarkEmailReadOutlined from '@mui/icons-material/MarkEmailReadOutlined';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
+import { InviteDeliveryNotice } from '@/components/auth/InviteDeliveryNotice';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { AppTable } from '@/components/ui/AppTable';
@@ -99,10 +100,13 @@ export default function StaffDetailPage() {
   const [provisionRoleId, setProvisionRoleId] = useState('');
   const [inviteDialogData, setInviteDialogData] = useState<{
     name: string;
+    loginEmail: string;
     inviteUrl: string;
     inviteExpiresAt: string;
+    emailSent: boolean;
+    emailError?: { code: string; message: string };
+    deliveryNote?: string;
   } | null>(null);
-  const [inviteCopied, setInviteCopied] = useState(false);
   const [roles, setRoles] = useState<OrganizationRole[]>([]);
   const [isRolesLoading, setIsRolesLoading] = useState(false);
   const [rolesError, setRolesError] = useState<string | null>(null);
@@ -271,11 +275,15 @@ export default function StaffDetailPage() {
       });
       setStaff(result.staff);
       setProvisionDialogOpen(false);
-      showSuccess('Login invite sent');
+      showSuccess(result.emailSent ? 'Login invite emailed' : 'Login created');
       setInviteDialogData({
         name: getStaffDisplayName(staff),
+        loginEmail: result.loginEmail,
         inviteUrl: result.inviteUrl,
         inviteExpiresAt: result.inviteExpiresAt,
+        emailSent: Boolean(result.emailSent),
+        emailError: result.emailError,
+        deliveryNote: result.deliveryNote,
       });
     } catch (error) {
       if (error instanceof ApiError && error.statusCode === 403) {
@@ -659,33 +667,11 @@ export default function StaffDetailPage() {
       <Dialog open={Boolean(inviteDialogData)} onClose={() => setInviteDialogData(null)} fullWidth maxWidth="sm">
         <DialogTitle>Login created for {inviteDialogData?.name}</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <Alert severity="success">
-              Share this invite link — it expires in 60 minutes.
-            </Alert>
-            <TextField
-              value={inviteDialogData?.inviteUrl ?? ''}
-              fullWidth
-              InputProps={{ readOnly: true }}
-            />
-            <Button
-              variant="outlined"
-              onClick={() => {
-                if (!inviteDialogData?.inviteUrl) {
-                  return;
-                }
-                void navigator.clipboard.writeText(inviteDialogData.inviteUrl).then(() => {
-                  setInviteCopied(true);
-                  window.setTimeout(() => setInviteCopied(false), 2000);
-                });
-              }}
-            >
-              {inviteCopied ? 'Copied!' : 'Copy link'}
-            </Button>
-            <Typography variant="body2" color="text.secondary">
-              The staff member will be prompted to set their own password when they open the link.
-            </Typography>
-          </Stack>
+          {inviteDialogData ? (
+            <Box sx={{ mt: 1 }}>
+              <InviteDeliveryNotice delivery={inviteDialogData} audience="staff member" />
+            </Box>
+          ) : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInviteDialogData(null)}>Done</Button>

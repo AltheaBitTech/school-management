@@ -54,7 +54,8 @@ function ForgotPasswordForm() {
         <Stack spacing={2}>
           <Alert severity="success">{successMessage}</Alert>
           <Alert severity="info">
-            The link expires in 60 minutes. Open it promptly to set or reset your password.
+            If you already have a password, the link expires in 60 minutes. If you have not set a
+            password yet, the link is valid for 7 days. Check spam if it does not arrive.
           </Alert>
         </Stack>
       ) : (

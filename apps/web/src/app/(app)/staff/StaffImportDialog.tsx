@@ -47,9 +47,15 @@ export function StaffImportDialog({ open, onClose, onImported }: StaffImportDial
       onDownloadGuide={downloadStaffImportGuidePdf}
       onPreview={previewStaffCsv}
       onCommit={importStaffCsv}
-      renderImportedExtra={(row: ImportCommitRow) =>
-        row.inviteUrl ? <CopyLinkButton inviteUrl={row.inviteUrl} /> : '—'
-      }
+      renderImportedExtra={(row: ImportCommitRow) => {
+        if (row.emailError) {
+          return row.emailError.message;
+        }
+        if (row.emailSent && !row.inviteUrl) {
+          return 'Emailed';
+        }
+        return row.inviteUrl ? <CopyLinkButton inviteUrl={row.inviteUrl} /> : '—';
+      }}
     />
   );
 }

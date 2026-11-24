@@ -24,6 +24,8 @@ export interface SubmitRegistrationResponse {
   status: string;
   createdAt: string;
   message: string;
+  emailSent?: boolean;
+  emailError?: { code: string; message: string };
 }
 
 export interface RegistrationSignupContext {

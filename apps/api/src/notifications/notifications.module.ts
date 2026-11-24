@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { EMAIL_CONFIG_KEY, EmailConfig, EmailProviderType } from '../config/email.configuration';
@@ -22,9 +22,12 @@ import { ResendEmailProvider } from './providers/resend-email.provider';
         resendProvider: ResendEmailProvider,
       ) => {
         const emailConfig = configService.get<EmailConfig>(EMAIL_CONFIG_KEY);
-        return emailConfig?.provider === EmailProviderType.Resend
-          ? resendProvider
-          : consoleProvider;
+        const useResend = emailConfig?.provider === EmailProviderType.Resend;
+        const from = emailConfig?.resendFromEmail ?? 'unset';
+        new Logger('EmailProvider').log(
+          `Email provider: ${useResend ? 'resend' : 'console'}${useResend ? ` (from ${from})` : ''}`,
+        );
+        return useResend ? resendProvider : consoleProvider;
       },
       inject: [ConfigService, ConsoleEmailProvider, ResendEmailProvider],
     },

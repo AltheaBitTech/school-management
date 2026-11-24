@@ -1,4 +1,5 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsString, ValidateIf } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { IsMailbox } from './is-mailbox.validator';
 
 export enum EmailProviderType {
   Console = 'console',
@@ -16,8 +17,12 @@ export class EnvironmentEmailVariables {
 
   @ValidateIf((values: EnvironmentEmailVariables) => values.EMAIL_PROVIDER === EmailProviderType.Resend)
   @IsString()
-  @IsEmail()
+  @IsMailbox()
   RESEND_FROM_EMAIL?: string;
+
+  @IsOptional()
+  @IsEmail()
+  EMAIL_REPLY_TO?: string;
 }
 
 export const EMAIL_CONFIG_KEY = 'email';
@@ -26,6 +31,7 @@ export interface EmailConfig {
   provider: EmailProviderType;
   resendApiKey?: string;
   resendFromEmail?: string;
+  replyTo?: string;
 }
 
 export default (): { [EMAIL_CONFIG_KEY]: EmailConfig } => {
@@ -37,8 +43,9 @@ export default (): { [EMAIL_CONFIG_KEY]: EmailConfig } => {
   return {
     [EMAIL_CONFIG_KEY]: {
       provider,
-      resendApiKey: process.env.RESEND_API_KEY,
-      resendFromEmail: process.env.RESEND_FROM_EMAIL,
+      resendApiKey: process.env.RESEND_API_KEY?.trim() || undefined,
+      resendFromEmail: process.env.RESEND_FROM_EMAIL?.trim() || undefined,
+      replyTo: process.env.EMAIL_REPLY_TO?.trim() || undefined,
     },
   };
 };

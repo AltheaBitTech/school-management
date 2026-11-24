@@ -23,6 +23,7 @@ import SchoolOutlined from '@mui/icons-material/SchoolOutlined';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
+import { InviteDeliveryNotice } from '@/components/auth/InviteDeliveryNotice';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { useAppSnackbar } from '@/components/providers/AppSnackbarProvider';
 import { DetailFactRow, DetailPageShell } from '@/components/ui/DetailPageShell';
@@ -134,11 +135,13 @@ function StudentDetailPageContent() {
   const [provisionEmailError, setProvisionEmailError] = useState<string | null>(null);
   const [provisionError, setProvisionError] = useState<string | null>(null);
   const [isProvisioning, setIsProvisioning] = useState(false);
-  const [inviteCopied, setInviteCopied] = useState(false);
   const [inviteDialogData, setInviteDialogData] = useState<{
     name: string;
+    loginEmail: string;
     inviteUrl: string;
     inviteExpiresAt: string;
+    emailSent: boolean;
+    emailError?: { code: string; message: string };
   } | null>(null);
 
   useEffect(() => {
@@ -201,8 +204,10 @@ function StudentDetailPageContent() {
         inviteExpiresAt?: string;
         userId?: string;
         loginEmail?: string;
+        emailSent?: boolean;
+        emailError?: { code: string; message: string };
       };
-      if (!parsed.inviteUrl) {
+      if (!parsed.inviteUrl && !parsed.emailSent && !parsed.emailError) {
         return;
       }
       if (parsed.loginEmail) {
@@ -217,8 +222,11 @@ function StudentDetailPageContent() {
       }
       setInviteDialogData({
         name: parsed.name?.trim() || getStudentDisplayName(student),
-        inviteUrl: parsed.inviteUrl,
+        loginEmail: parsed.loginEmail ?? '',
+        inviteUrl: parsed.inviteUrl ?? '',
         inviteExpiresAt: parsed.inviteExpiresAt ?? '',
+        emailSent: Boolean(parsed.emailSent),
+        emailError: parsed.emailError,
       });
     } catch {
       // Ignore a stored invite the browser cannot read.
@@ -463,11 +471,14 @@ function StudentDetailPageContent() {
       setLoginEmail(result.loginEmail);
       setProvisionDialogOpen(false);
       setProvisionEmail('');
-      showSuccess('Login invite sent');
+      showSuccess(result.emailSent ? 'Login invite emailed' : 'Login created');
       setInviteDialogData({
         name: studentName,
+        loginEmail: result.loginEmail,
         inviteUrl: result.inviteUrl,
         inviteExpiresAt: result.inviteExpiresAt,
+        emailSent: Boolean(result.emailSent),
+        emailError: result.emailError,
       });
     } catch (error) {
       if (error instanceof ApiError && error.statusCode === 403) {
@@ -820,27 +831,11 @@ function StudentDetailPageContent() {
     <Dialog open={Boolean(inviteDialogData)} onClose={() => setInviteDialogData(null)} fullWidth maxWidth="sm">
       <DialogTitle>Login created for {inviteDialogData?.name}</DialogTitle>
       <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <Alert severity="success">Share this invite link — it expires in 60 minutes.</Alert>
-          <TextField value={inviteDialogData?.inviteUrl ?? ''} fullWidth InputProps={{ readOnly: true }} />
-          <Button
-            variant="outlined"
-            onClick={() => {
-              if (!inviteDialogData?.inviteUrl) {
-                return;
-              }
-              void navigator.clipboard.writeText(inviteDialogData.inviteUrl).then(() => {
-                setInviteCopied(true);
-                window.setTimeout(() => setInviteCopied(false), 2000);
-              });
-            }}
-          >
-            {inviteCopied ? 'Copied!' : 'Copy link'}
-          </Button>
-          <Typography variant="body2" color="text.secondary">
-            The student will be prompted to set their own password when they open the link.
-          </Typography>
-        </Stack>
+        {inviteDialogData ? (
+          <Box sx={{ mt: 1 }}>
+            <InviteDeliveryNotice delivery={inviteDialogData} audience="student" />
+          </Box>
+        ) : null}
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setInviteDialogData(null)}>Done</Button>

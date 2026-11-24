@@ -12,4 +12,10 @@ export class OrganizationRegistrationResponseDto {
 
   @ApiProperty()
   message!: string;
+
+  @ApiProperty({ required: false })
+  emailSent?: boolean;
+
+  @ApiProperty({ required: false })
+  emailError?: { code: string; message: string };
 }

@@ -49,6 +49,8 @@ interface ApproveRegistrationResponse {
   signupPreCompleted: boolean;
   loginUrl: string;
   completeSignupUrl?: string;
+  emailSent?: boolean;
+  emailError?: { code: string; message: string };
 }
 
 function CreateSchoolLink() {
@@ -249,6 +251,14 @@ export default function RegistrationsPage() {
               <Alert severity="success">
                 Organization code: <strong>{approvalResult.organizationCode}</strong>
               </Alert>
+              {approvalResult.emailError ? (
+                <Alert severity="error">
+                  The institution was approved, but the email could not be sent.{' '}
+                  {approvalResult.emailError.message}
+                </Alert>
+              ) : approvalResult.emailSent ? (
+                <Alert severity="success">Approval email sent to {approvalResult.adminEmail}.</Alert>
+              ) : null}
               {approvalResult.signupPreCompleted ? (
                 <>
                   <Alert severity="info">

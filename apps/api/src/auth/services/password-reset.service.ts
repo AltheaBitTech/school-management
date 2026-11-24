@@ -4,7 +4,8 @@ import { OrganizationStatus, User, UserStatus } from '@prisma/client';
 import { AuditService } from '../../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../../audit/constants/audit.constants';
 import { AppConfig, CONFIGURATION_KEY } from '../../config/configuration';
-import { primaryFrontendOrigin } from '../../config/cors.util';
+import { resolveFrontendBaseUrl } from '../../config/frontend-url.util';
+import { EmailDeliveryError } from '../../notifications/email-delivery.error';
 import {
   EMAIL_PROVIDER,
   EmailProvider,
@@ -12,7 +13,9 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   AUTH_ERROR_CODES,
+  INVITE_TOKEN_TTL_MS,
   PASSWORD_RESET_GENERIC_MESSAGE,
+  PASSWORD_RESET_RESEND_COOLDOWN_MS,
   PASSWORD_RESET_TOKEN_TTL_MS,
   RefreshRevokeReason,
 } from '../constants/auth.constants';
@@ -21,8 +24,10 @@ import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { normalizeEmail } from '../utils/email.util';
 import {
   buildPasswordResetUrl,
+  renderActivateAccountEmail,
   renderPasswordResetEmail,
 } from '../utils/password-reset-email.util';
+import { buildStaffInviteUrl } from '../../staff/utils/staff-invite.util';
 import { generateRefreshToken, hashRefreshToken, normalizeResetToken } from '../utils/token-hash.util';
 import { PasswordService } from './password.service';
 import { RefreshSessionService } from './refresh-session.service';
@@ -47,9 +52,26 @@ export class PasswordResetService {
       return { message: PASSWORD_RESET_GENERIC_MESSAGE };
     }
 
+    const latestToken = await this.prisma.passwordResetToken.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    if (
+      latestToken &&
+      Date.now() - latestToken.createdAt.getTime() < PASSWORD_RESET_RESEND_COOLDOWN_MS
+    ) {
+      this.logger.log(
+        JSON.stringify({ action: 'password_reset.cooldown', userId: user.id }),
+      );
+      return { message: PASSWORD_RESET_GENERIC_MESSAGE };
+    }
+
+    const activating = !user.passwordHash;
+    const ttlMs = activating ? INVITE_TOKEN_TTL_MS : PASSWORD_RESET_TOKEN_TTL_MS;
     const rawToken = generateRefreshToken();
     const tokenHash = hashRefreshToken(rawToken);
-    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
+    const expiresAt = new Date(Date.now() + ttlMs);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.passwordResetToken.updateMany({
@@ -73,18 +95,25 @@ export class PasswordResetService {
 
     const organization = await this.prisma.organization.findUnique({
       where: { id: user.organizationId },
+      select: { name: true, code: true },
     });
 
     const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
-    const resetUrl = buildPasswordResetUrl(
-      primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000'),
-      rawToken,
-    );
-    const emailContent = renderPasswordResetEmail({
-      organizationName: organization?.name ?? 'your institution',
-      resetUrl,
-      expiresInMinutes: PASSWORD_RESET_TOKEN_TTL_MS / 60_000,
-    });
+    const frontendBaseUrl = resolveFrontendBaseUrl(appConfig?.corsOrigin, appConfig?.frontendUrl);
+    const organizationName = organization?.name ?? 'your institution';
+    const emailContent = activating
+      ? renderActivateAccountEmail({
+          recipientName: 'there',
+          organizationName,
+          roleName: 'member',
+          inviteUrl: buildStaffInviteUrl(frontendBaseUrl, rawToken, organization?.code ?? ''),
+          expiresInDays: INVITE_TOKEN_TTL_MS / (24 * 60 * 60 * 1000),
+        })
+      : renderPasswordResetEmail({
+          organizationName,
+          resetUrl: buildPasswordResetUrl(frontendBaseUrl, rawToken),
+          expiresInMinutes: PASSWORD_RESET_TOKEN_TTL_MS / 60_000,
+        });
 
     try {
       await this.emailProvider.sendEmail({
@@ -92,10 +121,19 @@ export class PasswordResetService {
         subject: emailContent.subject,
         text: emailContent.text,
         html: emailContent.html,
+        purpose: activating ? 'account_activate' : 'password_reset',
       });
     } catch (error: unknown) {
+      const code = error instanceof EmailDeliveryError ? error.code : 'UNKNOWN';
       const message = error instanceof Error ? error.message : 'Unknown email error';
-      this.logger.warn(`Failed to send password reset email for user ${user.id}: ${message}`);
+      this.logger.warn(
+        JSON.stringify({
+          action: 'password_reset.email_failed',
+          userId: user.id,
+          code,
+          message,
+        }),
+      );
     }
 
     await this.auditService.record({

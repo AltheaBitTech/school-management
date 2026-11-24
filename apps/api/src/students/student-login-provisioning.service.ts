@@ -4,20 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Prisma, StudentStatus, UserStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
-import { PASSWORD_RESET_TOKEN_TTL_MS } from '../auth/constants/auth.constants';
+import { AccountInviteService, EmailProblem } from '../auth/services/account-invite.service';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { normalizeEmail } from '../auth/utils/email.util';
-import { generateRefreshToken, hashRefreshToken } from '../auth/utils/token-hash.util';
-import { AppConfig, CONFIGURATION_KEY } from '../config/configuration';
-import { primaryFrontendOrigin } from '../config/cors.util';
 import { ORGANIZATION_ROLE_CODES } from '../permissions/constants/system-roles';
 import { PrismaService } from '../prisma/prisma.service';
 import { RolesService } from '../roles/roles.service';
-import { buildStaffInviteUrl, logStaffInviteToConsole } from '../staff/utils/staff-invite.util';
 import { STUDENT_ERROR_CODES } from './constants/student.constants';
 import { ProvisionStudentLoginDto } from './dto/provision-student-login.dto';
 
@@ -26,6 +21,8 @@ export interface ProvisionStudentLoginResult {
   loginEmail: string;
   inviteUrl: string;
   inviteExpiresAt: string;
+  emailSent: boolean;
+  emailError?: EmailProblem;
 }
 
 @Injectable()
@@ -34,7 +31,7 @@ export class StudentLoginProvisioningService {
     private readonly prisma: PrismaService,
     private readonly rolesService: RolesService,
     private readonly auditService: AuditService,
-    private readonly configService: ConfigService,
+    private readonly accountInvites: AccountInviteService,
   ) {}
 
   async provisionLogin(
@@ -47,7 +44,7 @@ export class StudentLoginProvisioningService {
     const normalizedEmail = normalizeEmail(dto.email);
     const student = await this.prisma.student.findFirst({
       where: { id: studentId, organizationId },
-      include: { organization: { select: { code: true } } },
+      include: { organization: { select: { code: true, name: true } } },
     });
 
     if (!student) {
@@ -91,15 +88,8 @@ export class StudentLoginProvisioningService {
       });
     }
 
-    const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
-    const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
-    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
-    const rawToken = generateRefreshToken();
-    const tokenHash = hashRefreshToken(rawToken);
-    const inviteUrl = buildStaffInviteUrl(frontendBaseUrl, rawToken, student.organization.code);
-
     try {
-      const user = await this.prisma.$transaction(async (tx) => {
+      const created = await this.prisma.$transaction(async (tx) => {
         const created = await tx.user.create({
           data: {
             organizationId,
@@ -114,13 +104,10 @@ export class StudentLoginProvisioningService {
         await tx.userRole.create({
           data: { userId: created.id, roleId: role.id },
         });
-        await tx.passwordResetToken.create({
-          data: {
-            userId: created.id,
-            organizationId,
-            tokenHash,
-            expiresAt,
-          },
+        const issued = await this.accountInvites.issueInviteToken(tx, {
+          userId: created.id,
+          organizationId,
+          organizationCode: student.organization.code,
         });
         await tx.student.update({
           where: { id: student.id },
@@ -140,25 +127,26 @@ export class StudentLoginProvisioningService {
           tx,
         );
 
-        return created;
+        return { user: created, issued };
       });
 
-      const invite = {
-        userId: user.id,
-        loginEmail: normalizedEmail,
-        inviteUrl,
-        inviteExpiresAt: expiresAt.toISOString(),
-      };
-      logStaffInviteToConsole({
-        firstName: student.firstName,
-        lastName: student.lastName,
-        email: normalizedEmail,
+      const delivery = await this.accountInvites.sendInviteEmail({
+        to: normalizedEmail,
+        recipientName: `${student.firstName} ${student.lastName}`.trim(),
+        organizationName: student.organization.name,
         roleName: 'Student',
-        heading: 'Student Login Invite',
-        inviteUrl,
-        expiresInMinutes: PASSWORD_RESET_TOKEN_TTL_MS / 60_000,
+        inviteUrl: created.issued.inviteUrl,
+        expiresAt: created.issued.expiresAt,
       });
-      return invite;
+
+      return {
+        userId: created.user.id,
+        loginEmail: normalizedEmail,
+        inviteUrl: delivery.inviteUrl ?? '',
+        inviteExpiresAt: created.issued.expiresAt.toISOString(),
+        emailSent: delivery.emailSent,
+        emailError: delivery.emailError,
+      };
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException({

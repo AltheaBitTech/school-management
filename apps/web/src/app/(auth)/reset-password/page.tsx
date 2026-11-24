@@ -16,20 +16,17 @@ import { validateConfirmPassword, validatePassword } from '@/lib/forms/validator
 
 function InviteRecoveryHelp() {
   return (
-    <Alert severity="info">
-      <Typography variant="body2" component="span">
-        Invite link expired or not working? Use{' '}
-        <Typography
-          component={Link}
-          href="/forgot-password"
-          variant="body2"
-          sx={{ fontWeight: 600 }}
-        >
-          Forgot password
-        </Typography>{' '}
-        with your account email to get a new set-password link (valid for 60 minutes).
-      </Typography>
-    </Alert>
+    <Stack spacing={1.5}>
+      <Alert severity="info">
+        <Typography variant="body2">
+          This link is invalid or has expired. Request a new one with the same email. A first-time
+          set-password link is valid for 7 days. A password reset link is valid for 60 minutes.
+        </Typography>
+      </Alert>
+      <Button component={Link} href="/forgot-password" variant="contained">
+        Send me a new link
+      </Button>
+    </Stack>
   );
 }
 

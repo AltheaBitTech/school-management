@@ -76,6 +76,8 @@ export interface ImportCommitRow {
   employeeCode?: string;
   email?: string;
   inviteUrl?: string;
+  emailSent?: boolean;
+  emailError?: { code: string; message: string };
 }
 
 export interface ImportCommitResult {

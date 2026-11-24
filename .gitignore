@@ -7,6 +7,9 @@ node_modules/
 .env.local
 .env.*.local
 .env.vercel
+
+# Local-only mailbox helpers. Not shipped and not for Vercel testers.
+apps/api/scripts/local/
 !.env.example
 
 # Build output

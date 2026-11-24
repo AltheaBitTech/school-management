@@ -214,6 +214,9 @@ export class StaffController {
         loginEmail: result.loginEmail,
         inviteUrl: result.inviteUrl,
         inviteExpiresAt: result.inviteExpiresAt,
+        emailSent: result.emailSent,
+        emailError: result.emailError,
+        deliveryNote: result.deliveryNote,
       },
     };
   }

@@ -155,9 +155,23 @@ export async function searchParentCandidates(
 export async function provisionStudentLogin(
   id: string,
   email: string,
-): Promise<{ userId: string; loginEmail: string; inviteUrl: string; inviteExpiresAt: string }> {
+): Promise<{
+  userId: string;
+  loginEmail: string;
+  inviteUrl: string;
+  inviteExpiresAt: string;
+  emailSent?: boolean;
+  emailError?: { code: string; message: string };
+}> {
   const response = await apiClient.post<{
-    data: { userId: string; loginEmail: string; inviteUrl: string; inviteExpiresAt: string };
+    data: {
+      userId: string;
+      loginEmail: string;
+      inviteUrl: string;
+      inviteExpiresAt: string;
+      emailSent?: boolean;
+      emailError?: { code: string; message: string };
+    };
   }>(`/students/${id}/provision-login`, { email }, { auth: true });
   return response.data;
 }

@@ -72,6 +72,7 @@ export class NotificationsService {
         subject: template.emailSubject,
         text: template.body,
         html: template.html,
+        purpose: input.eventKey,
       });
 
       await this.prisma.notification.update({

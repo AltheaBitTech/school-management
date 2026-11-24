@@ -116,9 +116,15 @@ export default function NewStudentPage() {
             inviteExpiresAt: invite.inviteExpiresAt,
             userId: invite.userId,
             loginEmail: invite.loginEmail,
+            emailSent: invite.emailSent,
+            emailError: invite.emailError,
           }),
         );
-        showSuccess('Student created. Share the sign-in link on the next screen.');
+        showSuccess(
+          invite.emailSent
+            ? 'Student created. The sign-in link was emailed.'
+            : 'Student created. Review the invite result on the next screen.',
+        );
       } catch (inviteError) {
         showError(
           inviteError instanceof Error

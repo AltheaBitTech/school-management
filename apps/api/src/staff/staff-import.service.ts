@@ -42,6 +42,8 @@ export interface StaffImportRowResult {
   email?: string;
   inviteUrl?: string;
   inviteExpiresAt?: string;
+  emailSent?: boolean;
+  emailError?: { code: string; message: string };
   employeeCode?: string;
   reason?: string;
 }
@@ -170,6 +172,8 @@ export class StaffImportService {
           email: normalizeEmail(values.email),
           inviteUrl: provisionResult.inviteUrl,
           inviteExpiresAt: provisionResult.inviteExpiresAt,
+          emailSent: provisionResult.emailSent,
+          emailError: provisionResult.emailError,
           employeeCode: normalizeEmployeeCode(values.employeeCode),
         });
       } catch (error: unknown) {

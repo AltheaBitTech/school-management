@@ -1,4 +1,5 @@
 import { NotificationEventKey, NOTIFICATION_EVENT_KEYS } from '../constants/notification.constants';
+import { paragraph, renderEmailLayout } from '../email-templates/email-layout';
 
 export interface LeaveNotificationTemplateContext {
   kind: 'leave';
@@ -51,13 +52,12 @@ export interface RenderedNotificationTemplate {
   emailSubject: string;
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+function brandedHtml(title: string, body: string, greeting?: string): string {
+  return renderEmailLayout({
+    preheader: title,
+    heading: title,
+    bodyHtml: `${greeting ? paragraph(greeting) : ''}${paragraph(body)}`,
+  });
 }
 
 export function renderNotificationTemplate(
@@ -73,7 +73,7 @@ export function renderNotificationTemplate(
       title,
       body,
       emailSubject: title,
-      html: `<p>Hello ${escapeHtml(visitorContext.hostName)},</p><p>${escapeHtml(body)}</p>`,
+      html: brandedHtml(title, body, `Hello ${visitorContext.hostName},`),
     };
   }
 
@@ -87,7 +87,7 @@ export function renderNotificationTemplate(
         title,
         body,
         emailSubject: title,
-        html: `<p>${escapeHtml(body)}</p>`,
+        html: brandedHtml(title, body),
       };
     }
     const title = 'Complaint status updated';
@@ -97,7 +97,7 @@ export function renderNotificationTemplate(
       title,
       body,
       emailSubject: title,
-      html: `<p>${escapeHtml(body)}</p>`,
+      html: brandedHtml(title, body),
     };
   }
 
@@ -110,7 +110,7 @@ export function renderNotificationTemplate(
       title,
       body,
       emailSubject: title,
-      html: `<p>${escapeHtml(body)}</p>`,
+      html: brandedHtml(title, body),
     };
   }
 
@@ -123,7 +123,7 @@ export function renderNotificationTemplate(
       title,
       body,
       emailSubject: title,
-      html: `<p>${escapeHtml(body)}</p>`,
+      html: brandedHtml(title, body),
     };
   }
 
@@ -141,7 +141,7 @@ export function renderNotificationTemplate(
       title,
       body,
       emailSubject: title,
-      html: `<p>Hello ${escapeHtml(staffName)},</p><p>${escapeHtml(body)}</p>`,
+      html: brandedHtml(title, body, staffName ? `Hello ${staffName},` : undefined),
     };
   }
 
@@ -152,7 +152,7 @@ export function renderNotificationTemplate(
     title,
     body,
     emailSubject: title,
-    html: `<p>Hello ${escapeHtml(staffName)},</p><p>${escapeHtml(body)}</p>`,
+    html: brandedHtml(title, body, staffName ? `Hello ${staffName},` : undefined),
   };
 }
 

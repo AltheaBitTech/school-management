@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { RegisterOrganizationForm } from '@/components/RegisterOrganizationForm';
 import { AuthMarketingLayout } from '@/components/layout/AuthMarketingLayout';
 
-function SuccessState() {
+function SuccessState({ emailWarning }: { emailWarning?: string }) {
   return (
     <Stack spacing={3} sx={{ textAlign: 'center' }}>
       <CheckCircleOutlined sx={{ fontSize: 64, color: 'success.main', mx: 'auto' }} />
@@ -26,6 +26,12 @@ function SuccessState() {
           This usually takes 1–2 business days.
         </Typography>
       </Stack>
+
+      {emailWarning ? (
+        <Alert severity="warning" sx={{ textAlign: 'left' }}>
+          Your request was saved, but the confirmation email could not be sent. {emailWarning}
+        </Alert>
+      ) : null}
 
       <Alert severity="info" sx={{ textAlign: 'left' }}>
         You cannot sign in until the platform team approves this request. After approval, use your institution sign-in code,
@@ -46,8 +52,10 @@ function SuccessState() {
 
 export default function RegisterOrganizationPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [emailWarning, setEmailWarning] = useState<string | undefined>();
 
-  const handleSuccess = () => {
+  const handleSuccess = (result: { emailSent?: boolean; emailErrorMessage?: string }) => {
+    setEmailWarning(result.emailSent === false ? result.emailErrorMessage : undefined);
     setSubmitted(true);
   };
 
@@ -64,7 +72,7 @@ export default function RegisterOrganizationPage() {
           <RegisterOrganizationForm onSuccess={handleSuccess} />
         </>
       ) : (
-        <SuccessState />
+        <SuccessState emailWarning={emailWarning} />
       )}
     </AuthMarketingLayout>
   );

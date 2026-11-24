@@ -20,6 +20,7 @@
     "prisma:seed": "prisma db seed",
     "bootstrap:platform-admin": "ts-node --project tsconfig.prisma.json prisma/bootstrap-platform-admin.ts",
     "seed:org-roles": "ts-node --project tsconfig.prisma.json scripts/seed-org-roles.ts",
+    "email:test": "ts-node --project tsconfig.prisma.json scripts/send-test-email.ts",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {

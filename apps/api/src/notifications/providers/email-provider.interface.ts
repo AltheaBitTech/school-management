@@ -3,6 +3,8 @@ export interface SendEmailInput {
   subject: string;
   text: string;
   html?: string;
+  /** Logged with the send. Never put tokens or links here. */
+  purpose?: string;
 }
 
 export interface EmailProvider {

@@ -127,6 +127,9 @@ export interface ProvisionStaffLoginResult {
   loginEmail: string;
   inviteUrl: string;
   inviteExpiresAt: string;
+  emailSent?: boolean;
+  emailError?: { code: string; message: string };
+  deliveryNote?: string;
 }
 
 export interface StaffImportRowResult {
@@ -138,6 +141,8 @@ export interface StaffImportRowResult {
   email?: string;
   inviteUrl?: string;
   inviteExpiresAt?: string;
+  emailSent?: boolean;
+  emailError?: { code: string; message: string };
   employeeCode?: string;
   reason?: string;
 }

@@ -66,8 +66,8 @@ describe('ResetPasswordPage', () => {
     expect(
       screen.getByRole('button', { name: 'Set password & sign in' }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Invite link expired or not working/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Forgot password' })).toHaveAttribute(
+    expect(screen.getByText(/invalid or has expired/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Send me a new link' })).toHaveAttribute(
       'href',
       '/forgot-password',
     );
@@ -126,7 +126,7 @@ describe('ResetPasswordPage', () => {
     render(<ResetPasswordPage />);
 
     expect(screen.getByText('Invalid or missing reset link.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Forgot password' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Send me a new link' })).toBeInTheDocument();
   });
 
   it('links forgot password without asking for an organization code', () => {
@@ -134,11 +134,11 @@ describe('ResetPasswordPage', () => {
 
     render(<ResetPasswordPage />);
 
-    expect(screen.getByRole('link', { name: 'Forgot password' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Send me a new link' })).toHaveAttribute(
       'href',
       '/forgot-password',
     );
-    expect(screen.getByText(/account email/i)).toBeInTheDocument();
+    expect(screen.getByText(/same email/i)).toBeInTheDocument();
     expect(screen.queryByText(/organization code/i)).not.toBeInTheDocument();
   });
 });

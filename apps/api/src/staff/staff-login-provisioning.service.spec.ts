@@ -2,8 +2,8 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { EmploymentStatus } from '@prisma/client';
+import { AccountInviteService } from '../auth/services/account-invite.service';
 import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
 import { RBAC_ERROR_CODES } from '../common/constants/rbac.constants';
@@ -26,7 +26,9 @@ describe('StaffLoginProvisioningService', () => {
     Pick<RolesService, 'assertRoleAssignmentAllowed' | 'assignRoleToUser'>
   >;
   let auditService: jest.Mocked<Pick<AuditService, 'record'>>;
-  let configService: jest.Mocked<Pick<ConfigService, 'get'>>;
+  let accountInvites: jest.Mocked<
+    Pick<AccountInviteService, 'issueInviteToken' | 'sendInviteEmail'>
+  >;
 
   const actor = {
     userId: 'actor-1',
@@ -43,7 +45,7 @@ describe('StaffLoginProvisioningService', () => {
     lastName: 'Sharma',
     employmentStatus: EmploymentStatus.ACTIVE,
     department: null,
-    organization: { code: 'demo-school' },
+    organization: { code: 'demo-school', name: 'Demo School' },
   };
 
   const roleRecord = {
@@ -69,8 +71,19 @@ describe('StaffLoginProvisioningService', () => {
     auditService = {
       record: jest.fn().mockResolvedValue(undefined),
     };
-    configService = {
-      get: jest.fn().mockReturnValue({ corsOrigin: 'http://localhost:3000' }),
+    accountInvites = {
+      issueInviteToken: jest.fn().mockResolvedValue({
+        rawToken: 'raw-token',
+        expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+        inviteUrl:
+          'http://localhost:3000/reset-password?token=raw-token&orgCode=demo-school&isInvite=true',
+      }),
+      sendInviteEmail: jest.fn().mockResolvedValue({
+        emailSent: false,
+        inviteUrl:
+          'http://localhost:3000/reset-password?token=raw-token&orgCode=demo-school&isInvite=true',
+        emailError: { code: 'NOT_CONFIGURED', message: 'Email is not configured on the server.' },
+      }),
     };
 
     prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
@@ -81,7 +94,7 @@ describe('StaffLoginProvisioningService', () => {
       prisma as unknown as PrismaService,
       rolesService as unknown as RolesService,
       auditService as unknown as AuditService,
-      configService as unknown as ConfigService,
+      accountInvites as unknown as AccountInviteService,
     );
   });
 
@@ -99,8 +112,6 @@ describe('StaffLoginProvisioningService', () => {
       userId: 'user-1',
     });
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-
     const result = await service.provisionLogin(actor, 'staff-1', {
       email: 'Staff@Example.com',
       roleId: 'role-a',
@@ -114,12 +125,12 @@ describe('StaffLoginProvisioningService', () => {
         status: 'ACTIVE',
       },
     });
-    expect(prisma.passwordResetToken.create).toHaveBeenCalled();
+    expect(accountInvites.issueInviteToken).toHaveBeenCalled();
+    expect(accountInvites.sendInviteEmail).toHaveBeenCalled();
     expect(result.loginEmail).toBe('staff@example.com');
     expect(result.inviteUrl).toContain('isInvite=true');
+    expect(result.emailSent).toBe(false);
     expect(result.inviteExpiresAt).toBeTruthy();
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
   });
 
   it('rejects duplicate email in the organization', async () => {

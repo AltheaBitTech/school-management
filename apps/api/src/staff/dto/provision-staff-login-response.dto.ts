@@ -8,11 +8,20 @@ export class ProvisionStaffLoginDataDto {
   @ApiProperty({ example: 'rajesh.kumar@sunrise-school.test' })
   loginEmail!: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Present when the email was not delivered, or when the server is in console mode.' })
   inviteUrl!: string;
 
   @ApiProperty()
   inviteExpiresAt!: string;
+
+  @ApiProperty()
+  emailSent!: boolean;
+
+  @ApiProperty({ required: false })
+  emailError?: { code: string; message: string };
+
+  @ApiProperty({ required: false })
+  deliveryNote?: string;
 }
 
 export class ProvisionStaffLoginResponseDto {

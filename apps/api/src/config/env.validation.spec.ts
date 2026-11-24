@@ -45,6 +45,25 @@ describe('validateEnvironment', () => {
     ).toThrow(/STORAGE_PROVIDER must be "supabase"/);
   });
 
+  it('accepts a display-name sender address', () => {
+    expect(
+      validateEnvironment({
+        ...baseConfig,
+        NODE_ENV: 'production',
+        EMAIL_PROVIDER: 'resend',
+        RESEND_API_KEY: 're_test',
+        RESEND_FROM_EMAIL: 'CampusOps <noreply@arogyix.altheabit.in>',
+        STORAGE_PROVIDER: 'supabase',
+        SUPABASE_URL: 'https://example.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+        SUPABASE_STORAGE_BUCKET: 'private-files',
+      }),
+    ).toMatchObject({
+      EMAIL_PROVIDER: 'resend',
+      RESEND_FROM_EMAIL: 'CampusOps <noreply@arogyix.altheabit.in>',
+    });
+  });
+
   it('accepts resend email and supabase storage in production', () => {
     expect(
       validateEnvironment({

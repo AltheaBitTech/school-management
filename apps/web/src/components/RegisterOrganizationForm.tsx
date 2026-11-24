@@ -38,7 +38,7 @@ interface FormErrors {
 }
 
 interface RegisterOrganizationFormProps {
-  onSuccess: (requestId: string) => void;
+  onSuccess: (result: { requestId: string; emailSent?: boolean; emailErrorMessage?: string }) => void;
 }
 
 function SectionLabel({ icon: Icon, children }: { icon: ElementType; children: ReactNode }) {
@@ -205,7 +205,11 @@ export function RegisterOrganizationForm({ onSuccess }: RegisterOrganizationForm
         city: formData.city?.trim() || undefined,
         state: formData.state?.trim() || undefined,
       });
-      onSuccess(response.id);
+      onSuccess({
+        requestId: response.id,
+        emailSent: response.emailSent,
+        emailErrorMessage: response.emailError?.message,
+      });
     } catch (error: unknown) {
       resetSubmitting(setIsSubmitting);
       if (error instanceof ApiError) {

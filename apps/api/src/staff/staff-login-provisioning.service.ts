@@ -5,27 +5,22 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { EmploymentStatus, Prisma, Role, Staff, UserStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
-import { PASSWORD_RESET_TOKEN_TTL_MS } from '../auth/constants/auth.constants';
+import { AccountInviteService, EmailProblem } from '../auth/services/account-invite.service';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { normalizeEmail } from '../auth/utils/email.util';
-import { generateRefreshToken, hashRefreshToken } from '../auth/utils/token-hash.util';
 import { RBAC_ERROR_CODES } from '../common/constants/rbac.constants';
-import { AppConfig, CONFIGURATION_KEY } from '../config/configuration';
-import { primaryFrontendOrigin } from '../config/cors.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { RolesService } from '../roles/roles.service';
 import { STAFF_ERROR_CODES } from './constants/staff.constants';
 import { isStaffLoginAssignableRoleCode } from './utils/staff-assignable-role.util';
 import { ProvisionStaffLoginDto } from './dto/provision-staff-login.dto';
-import { buildStaffInviteUrl, logStaffInviteToConsole } from './utils/staff-invite.util';
 
 type StaffWithDepartment = Staff & {
   department: { id: string; name: string; code: string } | null;
-  organization: { code: string };
+  organization: { code: string; name: string };
 };
 
 export interface ProvisionStaffLoginResult {
@@ -33,6 +28,9 @@ export interface ProvisionStaffLoginResult {
   loginEmail: string;
   inviteUrl: string;
   inviteExpiresAt: string;
+  emailSent: boolean;
+  emailError?: EmailProblem;
+  deliveryNote?: string;
 }
 
 @Injectable()
@@ -41,7 +39,7 @@ export class StaffLoginProvisioningService {
     private readonly prisma: PrismaService,
     private readonly rolesService: RolesService,
     private readonly auditService: AuditService,
-    private readonly configService: ConfigService,
+    private readonly accountInvites: AccountInviteService,
   ) {}
 
   async provisionLogin(
@@ -60,7 +58,7 @@ export class StaffLoginProvisioningService {
           select: { id: true, name: true, code: true },
         },
         organization: {
-          select: { code: true },
+          select: { code: true, name: true },
         },
       },
     });
@@ -125,7 +123,7 @@ export class StaffLoginProvisioningService {
             data: { userId: existingUser.id },
             include: {
               department: { select: { id: true, name: true, code: true } },
-              organization: { select: { code: true } },
+              organization: { select: { code: true, name: true } },
             },
           });
 
@@ -135,48 +133,36 @@ export class StaffLoginProvisioningService {
           loginEmail: normalizedEmail,
           inviteUrl: '',
           inviteExpiresAt: new Date().toISOString(),
+          emailSent: false,
+          deliveryNote: 'This email already has a password. They can sign in. No invite was sent.',
         };
       }
 
-      const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
-      const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
-      const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
-      const rawToken = generateRefreshToken();
-      const tokenHash = hashRefreshToken(rawToken);
-      const inviteUrl = buildStaffInviteUrl(frontendBaseUrl, rawToken, staff.organization.code);
-
-      await this.prisma.passwordResetToken.create({
-        data: {
+      const issued = await this.prisma.$transaction((tx) =>
+        this.accountInvites.issueInviteToken(tx, {
           userId: existingUser.id,
           organizationId,
-          tokenHash,
-          expiresAt,
-        },
-      });
-
-      logStaffInviteToConsole({
-        firstName: staff.firstName,
-        lastName: staff.lastName,
-        email: normalizedEmail,
+          organizationCode: staff.organization.code,
+        }),
+      );
+      const delivery = await this.accountInvites.sendInviteEmail({
+        to: normalizedEmail,
+        recipientName: `${staff.firstName} ${staff.lastName}`.trim(),
+        organizationName: staff.organization.name,
         roleName: role.name,
-        inviteUrl,
-        expiresInMinutes: PASSWORD_RESET_TOKEN_TTL_MS / 60_000,
+        inviteUrl: issued.inviteUrl,
+        expiresAt: issued.expiresAt,
       });
 
       return {
         staff: updatedStaff,
         loginEmail: normalizedEmail,
-        inviteUrl,
-        inviteExpiresAt: expiresAt.toISOString(),
+        inviteUrl: delivery.inviteUrl ?? '',
+        inviteExpiresAt: issued.expiresAt.toISOString(),
+        emailSent: delivery.emailSent,
+        emailError: delivery.emailError,
       };
     }
-
-    const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
-    const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
-    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
-    const rawToken = generateRefreshToken();
-    const tokenHash = hashRefreshToken(rawToken);
-    const inviteUrl = buildStaffInviteUrl(frontendBaseUrl, rawToken, staff.organization.code);
 
     try {
       const result = await this.prisma.$transaction(async (tx) => {
@@ -198,13 +184,10 @@ export class StaffLoginProvisioningService {
           },
         });
 
-        await tx.passwordResetToken.create({
-          data: {
-            userId: user.id,
-            organizationId,
-            tokenHash,
-            expiresAt,
-          },
+        const issued = await this.accountInvites.issueInviteToken(tx, {
+          userId: user.id,
+          organizationId,
+          organizationCode: staff.organization.code,
         });
 
         await this.auditService.record(
@@ -250,34 +233,34 @@ export class StaffLoginProvisioningService {
               select: { id: true, name: true, code: true },
             },
             organization: {
-              select: { code: true },
+              select: { code: true, name: true },
             },
           },
         });
 
         return {
           staff: updatedStaff,
-          loginEmail: normalizedEmail,
-          inviteUrl,
-          inviteExpiresAt: expiresAt.toISOString(),
+          issued,
           roleName: role.name,
         };
       });
 
-      logStaffInviteToConsole({
-        firstName: staff.firstName,
-        lastName: staff.lastName,
-        email: normalizedEmail,
+      const delivery = await this.accountInvites.sendInviteEmail({
+        to: normalizedEmail,
+        recipientName: `${staff.firstName} ${staff.lastName}`.trim(),
+        organizationName: staff.organization.name,
         roleName: result.roleName,
-        inviteUrl: result.inviteUrl,
-        expiresInMinutes: PASSWORD_RESET_TOKEN_TTL_MS / 60_000,
+        inviteUrl: result.issued.inviteUrl,
+        expiresAt: result.issued.expiresAt,
       });
 
       return {
         staff: result.staff,
-        loginEmail: result.loginEmail,
-        inviteUrl: result.inviteUrl,
-        inviteExpiresAt: result.inviteExpiresAt,
+        loginEmail: normalizedEmail,
+        inviteUrl: delivery.inviteUrl ?? '',
+        inviteExpiresAt: result.issued.expiresAt.toISOString(),
+        emailSent: delivery.emailSent,
+        emailError: delivery.emailError,
       };
     } catch (error: unknown) {
       this.handleUniqueViolation(error);

@@ -14,7 +14,8 @@ import { InstitutionType, OrganizationStatus, UserStatus } from '@prisma/client'
 import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
 import { AppConfig, CONFIGURATION_KEY } from '../config/configuration';
-import { primaryFrontendOrigin } from '../config/cors.util';
+import { resolveFrontendBaseUrl } from '../config/frontend-url.util';
+import { EmailDeliveryError, EmailDeliveryProblem } from '../notifications/email-delivery.error';
 import { PrismaService } from '../prisma/prisma.service';
 import { ensureAllOrganizationRoles, getOrganizationRoleByCode } from '../roles/organization-role-seed.util';
 import { ORGANIZATION_ROLE_CODES } from '../permissions/constants/system-roles';
@@ -38,7 +39,11 @@ import { OrganizationRegistrationResponseDto } from './dto/organization-registra
 import { ApproveOrganizationRegistrationResponseDto } from './dto/approve-organization-registration-response.dto';
 import { RegistrationSignupContextDto } from './dto/registration-signup-context.dto';
 import { PasswordService } from '../auth/services/password.service';
-import { renderRegistrationApprovedEmail } from './utils/registration-email.util';
+import {
+  renderRegistrationApprovedEmail,
+  renderRegistrationReceivedEmail,
+  renderRegistrationRejectedEmail,
+} from './utils/registration-email.util';
 
 /** School-admin role seed runs many permission upserts; serverless + pooler needs a longer interactive transaction window. */
 const REGISTRATION_APPROVAL_TRANSACTION_OPTIONS = {
@@ -157,12 +162,23 @@ export class OrganizationRegistrationsService {
         },
       });
 
+      const emailDelivery = await this.sendRegistrationEmail(
+        normalizedEmail,
+        renderRegistrationReceivedEmail({
+          recipientName: `${dto.contactFirstName} ${dto.contactLastName}`.trim(),
+          organizationName: dto.organizationName,
+        }),
+        'registration_received',
+      );
+
       return {
         id: request.id,
         status: request.status,
         createdAt: request.createdAt,
         message:
           'Registration request submitted successfully. We will review and contact you within 1-2 business days. After approval, sign in with your institution code, email, and the password you chose.',
+        emailSent: emailDelivery.emailSent,
+        emailError: emailDelivery.emailError,
       };
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -406,18 +422,16 @@ export class OrganizationRegistrationsService {
       completeSignupUrl,
       signupPreCompleted: result.signupPreCompleted,
       loginUrl,
+      recipientName: `${registration.contactFirstName} ${registration.contactLastName}`.trim(),
     });
 
-    try {
-      await this.emailProvider.sendEmail({
-        to: registration.contactEmail,
-        subject: emailContent.subject,
-        text: emailContent.text,
-        html: emailContent.html,
-      });
-    } catch {
-      // Email delivery should not block approval.
-    }
+    const emailDelivery = await this.sendRegistrationEmail(
+      registration.contactEmail,
+      {
+        ...emailContent,
+      },
+      'registration_approved',
+    );
 
     return {
       organizationId: result.organization.id,
@@ -428,6 +442,8 @@ export class OrganizationRegistrationsService {
       signupPreCompleted: result.signupPreCompleted,
       loginUrl,
       completeSignupUrl: result.signupPreCompleted ? undefined : completeSignupUrl,
+      emailSent: emailDelivery.emailSent,
+      emailError: emailDelivery.emailError,
     };
   }
 
@@ -461,6 +477,16 @@ export class OrganizationRegistrationsService {
       select: { id: true },
     });
 
+    const emailDelivery = await this.sendRegistrationEmail(
+      registration.contactEmail,
+      renderRegistrationRejectedEmail({
+        recipientName: `${registration.contactFirstName} ${registration.contactLastName}`.trim(),
+        organizationName: registration.organizationName,
+        rejectionReason,
+      }),
+      'registration_rejected',
+    );
+
     if (platformOrganization) {
       await this.auditService.record({
         organizationId: platformOrganization.id,
@@ -476,7 +502,11 @@ export class OrganizationRegistrationsService {
       });
     }
 
-    return updated;
+    return {
+      ...updated,
+      emailSent: emailDelivery.emailSent,
+      emailError: emailDelivery.emailError,
+    };
   }
 
   async suggestOrganizationCode(
@@ -544,8 +574,7 @@ export class OrganizationRegistrationsService {
     contactEmail: string,
     organizationCode: string,
   ): string {
-    const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
-    const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
+    const frontendBaseUrl = this.frontendBaseUrl();
     const params = new URLSearchParams({
       requestId: registrationRequestId,
       email: contactEmail,
@@ -556,9 +585,46 @@ export class OrganizationRegistrationsService {
   }
 
   private buildLoginUrl(organizationCode: string): string {
-    const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
-    const frontendBaseUrl = primaryFrontendOrigin(appConfig?.corsOrigin ?? 'http://localhost:3000');
     const params = new URLSearchParams({ orgCode: organizationCode });
-    return `${frontendBaseUrl}/login?${params.toString()}`;
+    return `${this.frontendBaseUrl()}/login?${params.toString()}`;
+  }
+
+  private frontendBaseUrl(): string {
+    const appConfig = this.configService.get<AppConfig>(CONFIGURATION_KEY);
+    return resolveFrontendBaseUrl(appConfig?.corsOrigin, appConfig?.frontendUrl);
+  }
+
+  private async sendRegistrationEmail(
+    to: string,
+    emailContent: { subject: string; text: string; html: string },
+    purpose: string,
+  ): Promise<{ emailSent: boolean; emailError?: EmailDeliveryProblem }> {
+    try {
+      await this.emailProvider.sendEmail({
+        to,
+        subject: emailContent.subject,
+        text: emailContent.text,
+        html: emailContent.html,
+        purpose,
+      });
+      return { emailSent: true };
+    } catch (error: unknown) {
+      const emailError =
+        error instanceof EmailDeliveryError
+          ? error.toProblem()
+          : {
+              code: 'UNKNOWN' as const,
+              message: error instanceof Error ? error.message : 'The email could not be sent.',
+            };
+      this.logger.warn(
+        JSON.stringify({
+          action: 'registration.email_failed',
+          purpose,
+          code: emailError.code,
+          message: emailError.message,
+        }),
+      );
+      return { emailSent: false, emailError };
+    }
   }
 }

@@ -25,6 +25,7 @@ describe('PasswordResetService', () => {
       updateMany: jest.Mock;
       create: jest.Mock;
       findUnique: jest.Mock;
+      findFirst: jest.Mock;
     };
   };
   let passwordService: jest.Mocked<Pick<PasswordService, 'hash'>>;
@@ -65,6 +66,7 @@ describe('PasswordResetService', () => {
         updateMany: jest.fn(),
         create: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
 

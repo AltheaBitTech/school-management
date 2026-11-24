@@ -3,6 +3,7 @@ import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient, UserStatus } from '@prisma/client';
+import { AccountInviteService } from '../auth/services/account-invite.service';
 import { PasswordService } from '../auth/services/password.service';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { CONFIGURATION_KEY } from '../config/configuration';
@@ -64,7 +65,9 @@ describeIfDatabase('Onboarding integration', () => {
       prisma as unknown as PrismaService,
       rolesService,
       auditService,
-      configService as unknown as ConfigService,
+      new AccountInviteService(configService as unknown as ConfigService, {
+        sendEmail: jest.fn().mockResolvedValue(undefined),
+      }),
     );
     permissionsGuard = new PermissionsGuard(new Reflector(), permissionsService);
 

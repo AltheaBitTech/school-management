@@ -29,4 +29,10 @@ export class ApproveOrganizationRegistrationResponseDto {
     description: 'Legacy link to set a password when signupPreCompleted is false.',
   })
   completeSignupUrl?: string;
+
+  @ApiProperty()
+  emailSent!: boolean;
+
+  @ApiProperty({ required: false })
+  emailError?: { code: string; message: string };
 }

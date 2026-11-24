@@ -19,6 +19,8 @@ export function validateEnvironment(config: Record<string, unknown>): Record<str
     EMAIL_PROVIDER: config.EMAIL_PROVIDER ?? 'console',
     RESEND_API_KEY: config.RESEND_API_KEY,
     RESEND_FROM_EMAIL: config.RESEND_FROM_EMAIL,
+    EMAIL_REPLY_TO: config.EMAIL_REPLY_TO,
+    FRONTEND_URL: config.FRONTEND_URL,
     STORAGE_PROVIDER: config.STORAGE_PROVIDER ?? 'local',
     SUPABASE_URL: config.SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY: config.SUPABASE_SERVICE_ROLE_KEY,

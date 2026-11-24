@@ -13,6 +13,7 @@ import { RefreshSessionService } from '../auth/services/refresh-session.service'
 import { TokenService } from '../auth/services/token.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { AccountInviteService } from '../auth/services/account-invite.service';
 import { CONFIGURATION_KEY } from '../config/configuration';
 import { AUTH_CONFIG_KEY } from '../config/auth.configuration';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -136,7 +137,9 @@ describeIfDatabase('Staff login provisioning integration', () => {
       prisma as unknown as PrismaService,
       rolesService,
       auditService,
-      configService as unknown as ConfigService,
+      new AccountInviteService(configService as unknown as ConfigService, {
+        sendEmail: jest.fn().mockResolvedValue(undefined),
+      }),
     );
     const departmentsService = new DepartmentsService(prisma as unknown as PrismaService);
     staffService = new StaffService(prisma as unknown as PrismaService, departmentsService);

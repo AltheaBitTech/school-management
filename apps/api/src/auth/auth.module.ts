@@ -10,6 +10,7 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AccountInviteService } from './services/account-invite.service';
 import { PasswordResetService } from './services/password-reset.service';
 import { PasswordService } from './services/password.service';
 import { RefreshSessionService } from './services/refresh-session.service';
@@ -44,6 +45,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   controllers: [AuthController],
   providers: [
     AuthService,
+    AccountInviteService,
     PasswordResetService,
     PasswordService,
     TokenService,
@@ -53,6 +55,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   ],
   exports: [
     AuthService,
+    AccountInviteService,
     PasswordService,
     JwtAuthGuard,
     JwtModule,

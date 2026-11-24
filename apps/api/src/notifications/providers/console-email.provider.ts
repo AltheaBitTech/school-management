@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { maskEmail } from '../email-delivery.error';
 import { EmailProvider, SendEmailInput } from './email-provider.interface';
 
 @Injectable()
@@ -9,7 +10,10 @@ export class ConsoleEmailProvider implements EmailProvider {
     this.logger.log(
       JSON.stringify({
         action: 'email.send',
-        to: input.to,
+        provider: 'console',
+        purpose: input.purpose ?? 'email',
+        outcome: 'logged',
+        to: maskEmail(input.to),
         subject: input.subject,
       }),
     );

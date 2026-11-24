@@ -27,5 +27,10 @@ export const CONTEXT_SELECTION_PURPOSE = 'context-selection' as const;
 
 export const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
+/** First-time set-password links (staff, student, and activate-account). */
+export const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+export const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60 * 1000;
+
 export const PASSWORD_RESET_GENERIC_MESSAGE =
   'If an account exists, a password reset link has been sent.';
