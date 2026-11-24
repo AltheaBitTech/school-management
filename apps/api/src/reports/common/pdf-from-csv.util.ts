@@ -1,4 +1,5 @@
 import { InternalServerErrorException, Logger } from '@nestjs/common';
+import '../../common/pdf/pdfkit-standard-fonts';
 import PDFDocument from 'pdfkit';
 
 const logger = new Logger('PdfFromCsv');

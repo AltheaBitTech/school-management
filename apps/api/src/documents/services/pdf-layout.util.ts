@@ -1,3 +1,4 @@
+import '../../common/pdf/pdfkit-standard-fonts';
 import PDFDocument from 'pdfkit';
 import type { CommonDocumentData } from './pdf-generator.types';
 
