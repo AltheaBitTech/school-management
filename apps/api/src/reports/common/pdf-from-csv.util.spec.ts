@@ -10,7 +10,7 @@ describe('buildPdfFromCsv', () => {
       }
     )._resolveFilename;
     const file = resolveFilename('#standard-fonts/Helvetica', module, false);
-    expect(file.endsWith('Helvetica.cjs')).toBe(true);
+    expect(file.replace(/\\/g, '/')).toContain('common/pdf/standard-fonts/Helvetica.cjs');
     expect(existsSync(file)).toBe(true);
   });
 
