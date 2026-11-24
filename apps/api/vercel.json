@@ -5,7 +5,7 @@
   "outputDirectory": "public",
   "functions": {
     "api/index.ts": {
-      "includeFiles": "node_modules/.prisma/client/**,node_modules/pdfkit/**,node_modules/fontkit/**,dist/common/pdf/standard-fonts/**,apps/api/dist/common/pdf/standard-fonts/**"
+      "includeFiles": "node_modules/.prisma/client/**,node_modules/pdfkit/**,node_modules/fontkit/**,dist/common/pdf/**,apps/api/dist/common/pdf/**"
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }]

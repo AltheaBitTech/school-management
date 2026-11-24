@@ -6,7 +6,7 @@
     "deleteOutDir": true,
     "assets": [
       {
-        "include": "common/pdf/standard-fonts/**/*.cjs",
+        "include": "common/pdf/**/*.cjs",
         "watchAssets": true
       }
     ]
