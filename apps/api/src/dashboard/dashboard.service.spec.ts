@@ -11,7 +11,8 @@ describe('DashboardService', () => {
     organization: { findUnique: jest.Mock };
     student: { count: jest.Mock };
     staff: { count: jest.Mock };
-    staffAttendance: { count: jest.Mock };
+    staffAttendance: { count: jest.Mock; findMany: jest.Mock };
+    feePayment: { findMany: jest.Mock };
     studentFee: { findMany: jest.Mock };
     leaveRequest: { count: jest.Mock };
     approvalRequest: { count: jest.Mock };
@@ -42,8 +43,12 @@ describe('DashboardService', () => {
       },
       student: { count: jest.fn().mockResolvedValue(10) },
       staff: { count: jest.fn().mockResolvedValue(5) },
-      staffAttendance: { count: jest.fn().mockResolvedValue(0) },
+      staffAttendance: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       studentFee: { findMany: jest.fn().mockResolvedValue([]) },
+      feePayment: { findMany: jest.fn().mockResolvedValue([]) },
       leaveRequest: { count: jest.fn().mockResolvedValue(2) },
       approvalRequest: { count: jest.fn().mockResolvedValue(1) },
       complaint: { count: jest.fn().mockResolvedValue(3) },

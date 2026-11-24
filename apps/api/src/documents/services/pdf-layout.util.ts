@@ -48,9 +48,12 @@ export function drawStandardHeader(doc: PdfDocument, data: CommonDocumentData): 
     align: 'center',
   });
 
-  const subtitleParts = [data.organization.city, data.organization.phone, data.organization.email].filter(
-    Boolean,
-  );
+  const subtitleParts = [
+    data.organization.address,
+    data.organization.city,
+    data.organization.phone,
+    data.organization.email,
+  ].filter(Boolean);
   const subtitle = subtitleParts.length > 0 ? subtitleParts.join(' · ') : 'Official Document';
   doc.font('Helvetica').fontSize(10).fillColor(GREY);
   doc.text(subtitle, MARGIN, doc.y + 4, { width: CONTENT_WIDTH, align: 'center' });

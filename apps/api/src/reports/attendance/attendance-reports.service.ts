@@ -15,6 +15,7 @@ const recordSelect = {
   attendanceDate: true,
   status: true,
   checkInAt: true,
+  checkOutAt: true,
   staff: {
     select: {
       id: true,
@@ -297,6 +298,7 @@ export class AttendanceReportsService {
       departmentName: record.staff.department?.name ?? null,
       status: record.status,
       checkInAt: record.checkInAt?.toISOString() ?? null,
+      checkOutAt: record.checkOutAt?.toISOString() ?? null,
     };
   }
 
@@ -307,7 +309,7 @@ export class AttendanceReportsService {
       pageSize: MAX_REPORT_CSV_EXPORT_ROWS,
     });
     return buildCsv(
-      ['Date', 'Employee code', 'Staff name', 'Department', 'Status', 'Check-in at'],
+      ['Date', 'Employee code', 'Staff name', 'Department', 'Status', 'Check-in at', 'Check-out at'],
       report.data.map((row) => [
         row.attendanceDate,
         row.employeeCode,
@@ -315,6 +317,7 @@ export class AttendanceReportsService {
         row.departmentName,
         row.status,
         row.checkInAt,
+        row.checkOutAt,
       ]),
     );
   }

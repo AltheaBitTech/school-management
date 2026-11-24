@@ -21,12 +21,66 @@ export class TransportService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listRoutes(organizationId: string) {
-    const data = await this.prisma.transportRoute.findMany({
-      where: { organizationId },
-      include: { stops: { orderBy: { sequence: 'asc' } } },
-      orderBy: { name: 'asc' },
+    const today = this.startOfUtcDay(new Date());
+    const [data, counts] = await Promise.all([
+      this.prisma.transportRoute.findMany({
+        where: { organizationId },
+        include: { stops: { orderBy: { sequence: 'asc' } } },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.studentTransportAssignment.groupBy({
+        by: ['routeId'],
+        where: {
+          organizationId,
+          effectiveFrom: { lte: today },
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: today } }],
+        },
+        _count: { _all: true },
+      }),
+    ]);
+    const countByRoute = new Map(counts.map((row) => [row.routeId, row._count._all]));
+    return {
+      data: data.map((route) => ({
+        ...route,
+        assignedStudentCount: countByRoute.get(route.id) ?? 0,
+      })),
+    };
+  }
+
+  async listUnassignedStudents(organizationId: string) {
+    const today = this.startOfUtcDay(new Date());
+    const assigned = await this.prisma.studentTransportAssignment.findMany({
+      where: {
+        organizationId,
+        effectiveFrom: { lte: today },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: today } }],
+      },
+      select: { studentId: true },
+      distinct: ['studentId'],
     });
-    return { data };
+    const students = await this.prisma.student.findMany({
+      where: {
+        organizationId,
+        status: 'ACTIVE',
+        ...(assigned.length > 0 ? { id: { notIn: assigned.map((row) => row.studentId) } } : {}),
+      },
+      select: {
+        id: true,
+        studentCode: true,
+        firstName: true,
+        lastName: true,
+        displayName: true,
+      },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+      take: 200,
+    });
+    return {
+      data: students.map((student) => ({
+        id: student.id,
+        studentCode: student.studentCode,
+        name: getStudentDisplayName(student),
+      })),
+    };
   }
 
   async createRoute(organizationId: string, input: { name: string; code: string }) {
@@ -60,18 +114,9 @@ export class TransportService {
   async replaceStops(
     organizationId: string,
     routeId: string,
-    stops: Array<{ name: string; address?: string; pickupTime?: string }>,
+    stops: Array<{ id?: string; name: string; address?: string; pickupTime?: string }>,
   ) {
     await this.requireRoute(organizationId, routeId);
-    const assigned = await this.prisma.studentTransportAssignment.count({
-      where: { organizationId, routeId },
-    });
-    if (assigned > 0) {
-      throw new BadRequestException({
-        message:
-          'Students are already assigned to this route. End those assignments before changing the stops.',
-      });
-    }
     const seen = new Set<string>();
     for (const stop of stops) {
       if (stop.pickupTime && !/^\d{2}:\d{2}$/.test(stop.pickupTime)) {
@@ -85,20 +130,52 @@ export class TransportService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.transportStop.deleteMany({ where: { organizationId, routeId } });
-      if (stops.length === 0) {
-        return;
+      const existing = await tx.transportStop.findMany({
+        where: { organizationId, routeId },
+      });
+      const existingById = new Map(existing.map((stop) => [stop.id, stop]));
+      const assignedStops = await tx.studentTransportAssignment.findMany({
+        where: { organizationId, routeId },
+        select: { stopId: true },
+        distinct: ['stopId'],
+      });
+      const assignedStopIds = new Set(assignedStops.map((row) => row.stopId));
+      const keptIds = new Set(stops.map((stop) => stop.id).filter((id): id is string => Boolean(id)));
+
+      for (const stopId of assignedStopIds) {
+        if (!keptIds.has(stopId)) {
+          throw new BadRequestException({
+            message:
+              'A stop that students are assigned to cannot be removed. Keep that stop, or end those assignments first. You can still add a stop or edit its details.',
+          });
+        }
       }
-      await tx.transportStop.createMany({
-        data: stops.map((stop, index) => ({
-          organizationId,
-          routeId,
+
+      for (const [index, stop] of stops.entries()) {
+        const data = {
           name: stop.name.trim(),
           sequence: index + 1,
           address: stop.address?.trim() || null,
           pickupTime: stop.pickupTime || null,
-        })),
-      });
+        };
+        if (stop.id) {
+          if (!existingById.has(stop.id)) {
+            throw new BadRequestException({ message: 'One of the stops does not belong to this route.' });
+          }
+          await tx.transportStop.update({ where: { id: stop.id }, data });
+          continue;
+        }
+        await tx.transportStop.create({
+          data: { organizationId, routeId, ...data },
+        });
+      }
+
+      const removableIds = existing
+        .filter((stop) => !keptIds.has(stop.id) && !assignedStopIds.has(stop.id))
+        .map((stop) => stop.id);
+      if (removableIds.length > 0) {
+        await tx.transportStop.deleteMany({ where: { id: { in: removableIds }, organizationId, routeId } });
+      }
     });
 
     return this.prisma.transportRoute.findFirst({
@@ -366,6 +443,10 @@ export class TransportService {
   private async requireStaff(organizationId: string, staffId: string) {
     const staff = await this.prisma.staff.findFirst({ where: { id: staffId, organizationId } });
     if (!staff) throw new BadRequestException({ message: 'Driver must be a staff member in this institution.' });
+  }
+
+  private startOfUtcDay(value: Date): Date {
+    return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
   }
 
   private rethrowUnique(error: unknown, message: string): never {

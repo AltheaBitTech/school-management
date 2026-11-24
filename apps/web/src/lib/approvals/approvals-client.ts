@@ -1,7 +1,7 @@
 import { apiClient } from '@/lib/api/client';
 import type { PaginationMeta } from '@/lib/departments/departments-client';
 
-export type ApprovalEntityType = 'LEAVE';
+export type ApprovalEntityType = 'LEAVE' | 'MAINTENANCE' | 'PURCHASE' | 'BUDGET';
 export type ApprovalRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type ApprovalActionType = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
@@ -16,6 +16,8 @@ export interface ApprovalRequest {
   completedAt?: string | null;
   currentLevelName?: string | null;
   currentApproverSummary?: string | null;
+  currentApproverRoleCode?: string | null;
+  currentApproverUserId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -115,6 +117,12 @@ export function formatApprovalEntityType(entityType: ApprovalEntityType): string
   switch (entityType) {
     case 'LEAVE':
       return 'Leave';
+    case 'MAINTENANCE':
+      return 'Maintenance';
+    case 'PURCHASE':
+      return 'Purchase';
+    case 'BUDGET':
+      return 'Budget';
     default:
       return entityType;
   }

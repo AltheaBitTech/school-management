@@ -1,7 +1,16 @@
 import { apiClient, apiRequest } from '@/lib/api/client';
 import type { PaginationMeta } from '@/lib/departments/departments-client';
 
-export type EventType = 'SPORTS_DAY' | 'PTM' | 'HOLIDAY' | 'EXAMINATION' | 'MEETING' | 'ANNUAL_DAY';
+export type EventType =
+  | 'SPORTS_DAY'
+  | 'PTM'
+  | 'HOLIDAY'
+  | 'EXAMINATION'
+  | 'MEETING'
+  | 'ANNUAL_DAY'
+  | 'WORKSHOP'
+  | 'COMPETITION'
+  | 'EXHIBITION';
 export type EventStatus = 'DRAFT' | 'SCHEDULED' | 'COMPLETED' | 'ARCHIVED' | 'CANCELLED';
 export type EventParticipantType = 'STAFF' | 'STUDENT';
 
@@ -44,7 +53,18 @@ interface VenueResponse { data: Venue }
 interface PaginatedEventsResponse { data: CampusEvent[]; meta: PaginationMeta }
 interface PaginatedVenuesResponse { data: Venue[]; meta: PaginationMeta }
 
-export const EVENT_TYPES: EventType[] = ['SPORTS_DAY', 'PTM', 'HOLIDAY', 'EXAMINATION', 'MEETING', 'ANNUAL_DAY'];
+export const EVENT_TYPES: EventType[] = [
+  'SPORTS_DAY',
+  'PTM',
+  'HOLIDAY',
+  'EXAMINATION',
+  'MEETING',
+  'ANNUAL_DAY',
+  'WORKSHOP',
+  'COMPETITION',
+  'EXHIBITION',
+];
+export const ACTIVITY_EVENT_TYPES: EventType[] = ['WORKSHOP', 'COMPETITION', 'EXHIBITION'];
 export const EVENT_STATUSES: EventStatus[] = ['DRAFT', 'SCHEDULED', 'COMPLETED', 'ARCHIVED', 'CANCELLED'];
 
 export async function listEvents(params?: {
@@ -52,6 +72,7 @@ export async function listEvents(params?: {
   pageSize?: number;
   status?: EventStatus;
   type?: EventType;
+  activityOnly?: boolean;
   venueId?: string;
   fromDate?: string;
   toDate?: string;
@@ -61,6 +82,7 @@ export async function listEvents(params?: {
   if (params?.pageSize) query.set('pageSize', String(params.pageSize));
   if (params?.status) query.set('status', params.status);
   if (params?.type) query.set('type', params.type);
+  if (params?.activityOnly) query.set('activityOnly', 'true');
   if (params?.venueId) query.set('venueId', params.venueId);
   if (params?.fromDate) query.set('fromDate', params.fromDate);
   if (params?.toDate) query.set('toDate', params.toDate);

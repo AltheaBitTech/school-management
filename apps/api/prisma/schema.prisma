@@ -228,6 +228,9 @@ enum EventType {
   EXAMINATION
   MEETING
   ANNUAL_DAY
+  WORKSHOP
+  COMPETITION
+  EXHIBITION
 }
 
 enum EventStatus {

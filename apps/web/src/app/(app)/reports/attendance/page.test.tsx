@@ -43,6 +43,7 @@ describe('AttendanceReportPage', () => {
           departmentName: 'Science',
           status: 'PRESENT',
           checkInAt: '2026-09-25T04:00:00.000Z',
+          checkOutAt: '2026-09-25T12:00:00.000Z',
         },
       ],
       meta: { page: 1, pageSize: 25, total: 1, totalPages: 1 },

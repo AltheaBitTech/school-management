@@ -42,8 +42,20 @@ export default function ApprovalDetailPage() {
   const [isForbidden, setIsForbidden] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
 
+  const isOwnRequest = Boolean(request && user?.id && request.submittedById === user.id);
+  const needsDifferentRole = Boolean(
+    request?.currentApproverRoleCode &&
+      user?.role?.code &&
+      request.currentApproverRoleCode !== user.role.code,
+  );
+  const needsDifferentUser = Boolean(
+    request?.currentApproverUserId && user?.id && request.currentApproverUserId !== user.id,
+  );
   const canActOnRequest =
     request &&
+    !isOwnRequest &&
+    !needsDifferentRole &&
+    !needsDifferentUser &&
     canActOnLeaveApprovalRequest(user?.permissions, user?.role?.code, request.entityType);
 
   const reload = useCallback(async (): Promise<void> => {
@@ -103,11 +115,7 @@ export default function ApprovalDetailPage() {
       setSuccessMessage('Approval recorded.');
       await reload();
     } catch (error) {
-      if (error instanceof ApiError && error.statusCode === 403) {
-        setIsForbidden(true);
-      } else {
-        setErrorMessage(error instanceof Error ? error.message : 'Failed to approve request');
-      }
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to approve request');
     } finally {
       setIsActing(false);
     }
@@ -123,11 +131,7 @@ export default function ApprovalDetailPage() {
       setSuccessMessage('Rejection recorded.');
       await reload();
     } catch (error) {
-      if (error instanceof ApiError && error.statusCode === 403) {
-        setIsForbidden(true);
-      } else {
-        setErrorMessage(error instanceof Error ? error.message : 'Failed to reject request');
-      }
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to reject request');
     } finally {
       setIsActing(false);
     }
@@ -240,7 +244,13 @@ export default function ApprovalDetailPage() {
             <Alert severity="info">
               {request.entityType === 'LEAVE'
                 ? 'Only the head of the institution can approve or reject leave requests.'
-                : 'You are not authorized to act on this approval at the current level.'}
+                : isOwnRequest
+                  ? 'You submitted this request, so someone else with the approver role has to approve it.'
+                  : needsDifferentRole
+                    ? `Switch to the ${request.currentApproverSummary ?? 'required'} role, then open this request again.`
+                    : needsDifferentUser
+                      ? 'This step is assigned to a different person.'
+                      : 'You are not authorized to act on this approval at the current level.'}
             </Alert>
           ) : (
             <Alert severity="info">This approval request is complete.</Alert>

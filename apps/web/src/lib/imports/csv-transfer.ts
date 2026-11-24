@@ -1,4 +1,4 @@
-import { ApiError } from '@/lib/api/client';
+import { createApiError } from '@/lib/api/client';
 import { getApiV1BaseUrl } from '@/lib/api/config';
 import { getAccessToken } from '@/lib/auth/session';
 
@@ -18,11 +18,11 @@ export async function postCsvFile<T>(path: string, file: File): Promise<T> {
   });
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const errorPayload = payload as { message?: string | string[]; code?: string } | null;
-    const message = Array.isArray(errorPayload?.message)
-      ? errorPayload.message.join('; ')
-      : errorPayload?.message;
-    throw new ApiError(message ?? `Request failed with status ${response.status}`, response.status, errorPayload?.code);
+    throw createApiError(
+      payload as { message?: string | string[]; code?: string; requestId?: string } | null,
+      response.status,
+      `Request failed with status ${response.status}`,
+    );
   }
   return payload as T;
 }

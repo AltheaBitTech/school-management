@@ -1,5 +1,5 @@
 import { getApiV1BaseUrl } from '@/lib/api/config';
-import { ApiError } from '@/lib/api/client';
+import { createApiError } from '@/lib/api/client';
 import { getAccessToken } from '@/lib/auth/session';
 
 export interface UploadedFile {
@@ -29,12 +29,12 @@ export async function uploadFile(file: File): Promise<UploadedFile> {
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { message?: string; code?: string } | null;
-    throw new ApiError(
-      payload?.message ?? `Upload failed with status ${response.status}`,
-      response.status,
-      payload?.code,
-    );
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+      code?: string;
+      requestId?: string;
+    } | null;
+    throw createApiError(payload, response.status, `Upload failed with status ${response.status}`);
   }
 
   const json = (await response.json()) as UploadFileResponse;
@@ -63,12 +63,12 @@ export async function downloadComplaintAttachment(
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { message?: string; code?: string } | null;
-    throw new ApiError(
-      payload?.message ?? `Download failed with status ${response.status}`,
-      response.status,
-      payload?.code,
-    );
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+      code?: string;
+      requestId?: string;
+    } | null;
+    throw createApiError(payload, response.status, `Download failed with status ${response.status}`);
   }
 
   const blob = await response.blob();

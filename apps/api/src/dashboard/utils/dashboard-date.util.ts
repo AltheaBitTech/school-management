@@ -1,8 +1,17 @@
 export type GreetingPeriod = 'morning' | 'afternoon' | 'evening';
 
+function resolveTimeZone(timezone: string): string {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: timezone });
+    return timezone;
+  } catch {
+    return 'UTC';
+  }
+}
+
 export function getLocalDateString(timezone: string, date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -11,7 +20,7 @@ export function getLocalDateString(timezone: string, date = new Date()): string 
 
 export function getLocalHour(timezone: string, date = new Date()): number {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
     hour: 'numeric',
     hourCycle: 'h23',
   }).formatToParts(date);
@@ -60,7 +69,7 @@ function localDateTimeToUtc(value: string, timezone: string): Date {
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: timezone,
+      timeZone: resolveTimeZone(timezone),
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { LeaveRequestStatus, Prisma } from '@prisma/client';
 import { buildPaginationMeta } from '../../common/dto/pagination-query.dto';
 import { getLocalDateString } from '../../dashboard/utils/dashboard-date.util';
+import { isValidTimezone } from '../../onboarding/utils/timezone.util';
 import {
   calculateAvailableBalance,
   decimalToNumber,
@@ -213,7 +214,14 @@ export class LeaveReportsService {
       where: { organizationId },
       select: { timezone: true },
     });
-    return settings?.timezone ?? 'UTC';
+    const timezone = settings?.timezone ?? 'UTC';
+    if (!isValidTimezone(timezone)) {
+      throw new BadRequestException({
+        code: LEAVE_REPORT_ERROR_CODES.INVALID_TIMEZONE,
+        message: 'Organization timezone is not valid. Update it in institution setup.',
+      });
+    }
+    return timezone;
   }
 
   private async buildDepartmentBreakdown(

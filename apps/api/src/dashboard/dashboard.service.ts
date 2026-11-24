@@ -65,6 +65,14 @@ export interface DashboardSummary {
     pendingLeave: number | null;
     pendingApprovals: number | null;
     openComplaints: number | null;
+    classCount: number | null;
+    complaintsReceivedToday: number | null;
+    feesCollectedThisMonth: number | null;
+    trends: Array<{
+      date: string;
+      feeCollected: number | null;
+      attendancePresent: number | null;
+    }> | null;
     visitorsToday: {
       checkedInToday: number;
       activeOnCampus: number;
@@ -152,6 +160,10 @@ export class DashboardService {
       recentNotices,
       unreadNotifications,
       assetAlerts,
+      classCount,
+      complaintsReceivedToday,
+      feesCollectedThisMonth,
+      trends,
     ] = await Promise.all([
       has('student.view') ? this.countActiveStudents(user.organizationId) : Promise.resolve(null),
       has('staff.view') ? this.countActiveStaff(user.organizationId) : Promise.resolve(null),
@@ -169,6 +181,20 @@ export class DashboardService {
       has('notice.view') ? this.getRecentNotices(user.organizationId) : Promise.resolve(null),
       this.countUnreadNotifications(user.organizationId, user.userId),
       has('asset.view') ? this.getAssetAlertsSummary(user.organizationId) : Promise.resolve(null),
+      has('class.view') ? this.countClasses(user.organizationId) : Promise.resolve(null),
+      has('complaint.view')
+        ? this.countComplaintsReceivedOn(user.organizationId, localDate, timezone)
+        : Promise.resolve(null),
+      has('fee.view')
+        ? this.sumFeesCollectedSince(user.organizationId, `${localDate.slice(0, 7)}-01`)
+        : Promise.resolve(null),
+      has('fee.view') || (has('attendance.view') && this.featureFlagsService.isAttendanceEnabled())
+        ? this.getRecentTrends(user.organizationId, localDate, {
+            fees: has('fee.view'),
+            attendance:
+              has('attendance.view') && this.featureFlagsService.isAttendanceEnabled(),
+          })
+        : Promise.resolve(null),
     ]);
 
     return {
@@ -189,6 +215,10 @@ export class DashboardService {
         pendingLeave,
         pendingApprovals,
         openComplaints,
+        classCount,
+        complaintsReceivedToday,
+        feesCollectedThisMonth,
+        trends,
         visitorsToday,
         upcomingEvents,
         recentNotices,
@@ -335,6 +365,75 @@ export class DashboardService {
     });
   }
 
+  private async countClasses(organizationId: string): Promise<number> {
+    return this.prisma.academicUnit.count({ where: { organizationId } });
+  }
+
+  private async countComplaintsReceivedOn(
+    organizationId: string,
+    localDate: string,
+    timezone: string,
+  ): Promise<number> {
+    const { startUtc, endUtc } = getLocalDayUtcRange(localDate, timezone);
+    return this.prisma.complaint.count({
+      where: {
+        organizationId,
+        createdAt: { gte: startUtc, lt: endUtc },
+      },
+    });
+  }
+
+  private async sumFeesCollectedSince(organizationId: string, fromDate: string): Promise<number> {
+    const payments = await this.prisma.feePayment.findMany({
+      where: {
+        organizationId,
+        paymentDate: { gte: new Date(`${fromDate}T00:00:00.000Z`) },
+      },
+      select: { amount: true },
+    });
+    return payments.reduce((total, payment) => total + decimalToNumber(payment.amount), 0);
+  }
+
+  private async getRecentTrends(
+    organizationId: string,
+    localDate: string,
+    include: { fees: boolean; attendance: boolean },
+  ) {
+    const dates = recentLocalDates(localDate, 7);
+    const from = new Date(`${dates[0]}T00:00:00.000Z`);
+    const to = new Date(`${dates[dates.length - 1]}T00:00:00.000Z`);
+    const [payments, attendanceRows] = await Promise.all([
+      include.fees
+        ? this.prisma.feePayment.findMany({
+            where: { organizationId, paymentDate: { gte: from, lte: to } },
+            select: { paymentDate: true, amount: true },
+          })
+        : Promise.resolve([]),
+      include.attendance
+        ? this.prisma.staffAttendance.findMany({
+            where: {
+              organizationId,
+              attendanceDate: { gte: from, lte: to },
+              status: AttendanceStatus.PRESENT,
+            },
+            select: { attendanceDate: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    return dates.map((date) => ({
+      date,
+      feeCollected: include.fees
+        ? payments
+            .filter((payment) => payment.paymentDate.toISOString().slice(0, 10) === date)
+            .reduce((total, payment) => total + decimalToNumber(payment.amount), 0)
+        : null,
+      attendancePresent: include.attendance
+        ? attendanceRows.filter((row) => row.attendanceDate.toISOString().slice(0, 10) === date).length
+        : null,
+    }));
+  }
+
   private async countOpenComplaints(organizationId: string): Promise<number> {
     return this.prisma.complaint.count({
       where: {
@@ -427,4 +526,14 @@ export class DashboardService {
       },
     });
   }
+}
+
+function recentLocalDates(localDate: string, count: number): string[] {
+  const [year, month, day] = localDate.split('-').map(Number);
+  const dates: string[] = [];
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    const next = new Date(Date.UTC(year, month - 1, day - offset));
+    dates.push(next.toISOString().slice(0, 10));
+  }
+  return dates;
 }

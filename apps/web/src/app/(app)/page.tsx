@@ -7,6 +7,7 @@ import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined';
 import PersonOutlined from '@mui/icons-material/PersonOutlined';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
+import SchoolOutlined from '@mui/icons-material/SchoolOutlined';
 import TaskAltOutlined from '@mui/icons-material/TaskAltOutlined';
 import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
 import { useEffect, useState } from 'react';
@@ -99,6 +100,82 @@ function buildQuickActions(permissions: string[] | undefined): QuickActionItem[]
     actions.push({ label: 'Publish notice', href: '/notices/new', icon: AnnouncementOutlined });
   }
   return actions;
+}
+
+function TrendBars({
+  days,
+}: {
+  days: NonNullable<DashboardSummary['metrics']['trends']>;
+}) {
+  const maxFee = Math.max(...days.map((day) => day.feeCollected ?? 0), 1);
+  const maxAttendance = Math.max(...days.map((day) => day.attendancePresent ?? 0), 1);
+  return (
+    <Stack spacing={1.5}>
+      <Typography variant="h6">Last 7 days</Typography>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 1.5,
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+        }}
+      >
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Fee collection
+          </Typography>
+          <Stack spacing={0.75}>
+            {days.map((day) => (
+              <Stack key={`fee-${day.date}`} direction="row" spacing={1} alignItems="center">
+                <Typography variant="caption" sx={{ width: 72 }}>
+                  {day.date.slice(5)}
+                </Typography>
+                <Box sx={{ flex: 1, bgcolor: 'action.hover', borderRadius: 1, height: 8 }}>
+                  <Box
+                    sx={{
+                      width: `${Math.round(((day.feeCollected ?? 0) / maxFee) * 100)}%`,
+                      bgcolor: 'primary.main',
+                      height: 8,
+                      borderRadius: 1,
+                    }}
+                  />
+                </Box>
+                <Typography variant="caption" sx={{ width: 72, textAlign: 'right' }}>
+                  {day.feeCollected == null ? '—' : formatCurrency(day.feeCollected)}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+        </Paper>
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Staff present
+          </Typography>
+          <Stack spacing={0.75}>
+            {days.map((day) => (
+              <Stack key={`att-${day.date}`} direction="row" spacing={1} alignItems="center">
+                <Typography variant="caption" sx={{ width: 72 }}>
+                  {day.date.slice(5)}
+                </Typography>
+                <Box sx={{ flex: 1, bgcolor: 'action.hover', borderRadius: 1, height: 8 }}>
+                  <Box
+                    sx={{
+                      width: `${Math.round(((day.attendancePresent ?? 0) / maxAttendance) * 100)}%`,
+                      bgcolor: 'success.main',
+                      height: 8,
+                      borderRadius: 1,
+                    }}
+                  />
+                </Box>
+                <Typography variant="caption" sx={{ width: 36, textAlign: 'right' }}>
+                  {day.attendancePresent ?? '—'}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+        </Paper>
+      </Box>
+    </Stack>
+  );
 }
 
 function LimitedRoleHome({ permissions }: { permissions: string[] | undefined }) {
@@ -399,6 +476,22 @@ export default function HomePage() {
       icon: ReceiptLongOutlined,
     });
   }
+  if (metrics.classCount != null) {
+    summaryCards.push({
+      label: 'Classes',
+      value: String(metrics.classCount),
+      href: '/classes',
+      icon: SchoolOutlined,
+    });
+  }
+  if (metrics.feesCollectedThisMonth != null) {
+    summaryCards.push({
+      label: 'Collected this month',
+      value: formatCurrency(metrics.feesCollectedThisMonth),
+      href: '/reports/fees',
+      icon: ReceiptLongOutlined,
+    });
+  }
 
   const priorityMetrics: DashboardMetricCardProps[] = [];
   if (metrics.pendingApprovals !== null) {
@@ -417,6 +510,15 @@ export default function HomePage() {
       href: '/reports/complaints?openOnly=true',
       icon: BuildOutlined,
       detail: 'Facilities and maintenance',
+    });
+  }
+  if (metrics.complaintsReceivedToday != null) {
+    priorityMetrics.push({
+      label: 'Complaints today',
+      value: String(metrics.complaintsReceivedToday),
+      href: '/complaints',
+      icon: BuildOutlined,
+      detail: 'Received today',
     });
   }
   if (metrics.visitorsToday !== null) {
@@ -508,6 +610,8 @@ export default function HomePage() {
           </Typography>
         </Paper>
       )}
+
+      {metrics.trends && metrics.trends.length > 0 ? <TrendBars days={metrics.trends} /> : null}
 
       {operationsItems.length > 0 ? (
         <SectionPaper title="Operations">

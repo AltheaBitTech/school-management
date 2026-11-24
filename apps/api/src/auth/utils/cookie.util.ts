@@ -17,6 +17,9 @@ export function setRefreshTokenCookie(
     path: REFRESH_COOKIE_PATH,
     maxAge: maxAgeSeconds * 1000,
   });
+  if (isProduction) {
+    markRefreshCookiePartitioned(response);
+  }
 }
 
 export function clearRefreshTokenCookie(response: Response, isProduction: boolean): void {
@@ -26,4 +29,22 @@ export function clearRefreshTokenCookie(response: Response, isProduction: boolea
     sameSite: isProduction ? 'none' : 'lax',
     path: REFRESH_COOKIE_PATH,
   });
+  if (isProduction) {
+    markRefreshCookiePartitioned(response);
+  }
+}
+
+function markRefreshCookiePartitioned(response: Response): void {
+  const header = response.getHeader('Set-Cookie');
+  if (!header) {
+    return;
+  }
+
+  const cookies = (Array.isArray(header) ? header : [String(header)]).map((value) => {
+    if (!value.startsWith(`${REFRESH_COOKIE_NAME}=`) || value.includes('Partitioned')) {
+      return value;
+    }
+    return `${value}; Partitioned`;
+  });
+  response.setHeader('Set-Cookie', cookies);
 }

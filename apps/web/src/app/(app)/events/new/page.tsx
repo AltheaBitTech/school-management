@@ -5,6 +5,11 @@ import { resetSubmitting } from '@/lib/forms/submit-state';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { useRouter } from 'next/navigation';
@@ -16,6 +21,7 @@ import { FormPageShell } from '@/components/ui/FormPageShell';
 import { ApiError } from '@/lib/api/client';
 import {
   createEvent,
+  createVenue,
   EVENT_TYPES,
   fromDateTimeInputValue,
   formatEventType,
@@ -23,12 +29,14 @@ import {
   type EventType,
   type Venue,
 } from '@/lib/events/events-client';
+import { useCan } from '@/lib/auth/use-can';
 import { requiredText } from '@/lib/forms/field-rules';
 import { getCurrentOrganization } from '@/lib/organizations/organizations-client';
 
 export default function NewEventPage() {
   const router = useRouter();
   const { showSuccess } = useAppSnackbar();
+  const canManageVenues = useCan('event.manage_venues');
   const [venues, setVenues] = useState<Venue[]>([]);
   const [title, setTitle] = useState('');
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -42,6 +50,10 @@ export default function NewEventPage() {
   const [isForbidden, setIsForbidden] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [organizationTimezone, setOrganizationTimezone] = useState('UTC');
+  const [venueDialogOpen, setVenueDialogOpen] = useState(false);
+  const [venueName, setVenueName] = useState('');
+  const [venueLocation, setVenueLocation] = useState('');
+  const [isSavingVenue, setIsSavingVenue] = useState(false);
 
   useEffect(() => {
     void Promise.all([listVenues({ active: true }), getCurrentOrganization()]).then(([response, organization]) => {
@@ -79,6 +91,32 @@ export default function NewEventPage() {
       resetSubmitting(setIsSubmitting);
       if (error instanceof ApiError && error.statusCode === 403) setIsForbidden(true);
       else setErrorMessage(error instanceof Error ? error.message : 'Failed to create event');
+    }
+  }
+
+  async function handleCreateVenue(): Promise<void> {
+    const nameProblem = requiredText(venueName, 'Venue name', 2);
+    if (nameProblem) {
+      setErrorMessage(nameProblem);
+      return;
+    }
+    setIsSavingVenue(true);
+    setErrorMessage(null);
+    try {
+      const created = await createVenue({
+        name: venueName.trim(),
+        location: venueLocation.trim() || undefined,
+      });
+      setVenues((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setVenueId(created.id);
+      setVenueName('');
+      setVenueLocation('');
+      setVenueDialogOpen(false);
+      showSuccess('Venue added');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to add venue');
+    } finally {
+      setIsSavingVenue(false);
     }
   }
 
@@ -134,8 +172,40 @@ export default function NewEventPage() {
           <TextField select label="Venue" value={venueId} onChange={(event) => setVenueId(event.target.value)} required disabled={isLoading} fullWidth helperText={isLoading ? 'Loading venues…' : venues.length === 0 ? 'Add a venue before creating an event.' : undefined}>
             {venues.map((venue) => <MenuItem key={venue.id} value={venue.id}>{venue.name}</MenuItem>)}
           </TextField>
+          {canManageVenues ? (
+            <Button type="button" variant="outlined" onClick={() => setVenueDialogOpen(true)} sx={{ alignSelf: 'flex-start' }}>
+              Add venue
+            </Button>
+          ) : null}
         </FormSection>
       </FormPageShell>
+      <Dialog open={venueDialogOpen} onClose={() => setVenueDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Add venue</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Venue name"
+            value={venueName}
+            onChange={(event) => setVenueName(event.target.value)}
+            required
+            fullWidth
+            margin="dense"
+            autoFocus
+          />
+          <TextField
+            label="Location"
+            value={venueLocation}
+            onChange={(event) => setVenueLocation(event.target.value)}
+            fullWidth
+            margin="dense"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button type="button" onClick={() => setVenueDialogOpen(false)}>Cancel</Button>
+          <Button type="button" variant="contained" disabled={isSavingVenue} onClick={() => void handleCreateVenue()}>
+            {isSavingVenue ? 'Saving…' : 'Save venue'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

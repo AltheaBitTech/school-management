@@ -177,6 +177,8 @@ export class ApprovalRequestsService {
   async toDto(request: ApprovalRequestWithWorkflow): Promise<ApprovalRequestDto> {
     const currentLevel = request.workflow.levels.find((level) => level.level === request.currentLevel);
     let currentApproverSummary: string | null = null;
+    let currentApproverRoleCode: string | null = null;
+    let currentApproverUserId: string | null = null;
 
     if (currentLevel && request.status === ApprovalRequestStatus.PENDING) {
       const summary = await this.approverResolutionService.resolveLevelApproverSummary(
@@ -187,8 +189,10 @@ export class ApprovalRequestsService {
 
       if (summary.type === 'ROLE') {
         currentApproverSummary = summary.roleName ? `Role: ${summary.roleName}` : 'Role approver';
+        currentApproverRoleCode = summary.roleCode ?? null;
       } else if (summary.userEmail) {
         currentApproverSummary = `User: ${summary.userEmail}`;
+        currentApproverUserId = summary.userId ?? null;
       }
     }
 
@@ -203,6 +207,8 @@ export class ApprovalRequestsService {
       completedAt: request.completedAt?.toISOString() ?? null,
       currentLevelName: currentLevel?.name ?? null,
       currentApproverSummary,
+      currentApproverRoleCode,
+      currentApproverUserId,
       createdAt: request.createdAt.toISOString(),
       updatedAt: request.updatedAt.toISOString(),
     };

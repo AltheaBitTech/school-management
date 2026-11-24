@@ -38,6 +38,10 @@ export class UpdateTransportRouteDto {
 }
 
 export class TransportStopInputDto {
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsString()
   @MinLength(2)
   @MaxLength(80)

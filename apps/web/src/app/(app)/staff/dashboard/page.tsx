@@ -38,13 +38,16 @@ export default function StaffDashboardPage() {
   const [dashboard, setDashboard] = useState<StaffSelfDashboard | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
+  const [missingStaffProfile, setMissingStaffProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     void getStaffSelfDashboard()
       .then(setDashboard)
       .catch((error) => {
-        if (error instanceof ApiError && error.statusCode === 403) {
+        if (error instanceof ApiError && error.code === 'STAFF_SELF_STAFF_PROFILE_NOT_LINKED') {
+          setMissingStaffProfile(true);
+        } else if (error instanceof ApiError && error.statusCode === 403) {
           setIsForbidden(true);
         } else {
           setErrorMessage(error instanceof Error ? error.message : 'Failed to load dashboard');
@@ -52,6 +55,18 @@ export default function StaffDashboardPage() {
       })
       .finally(() => setIsLoading(false));
   }, []);
+
+  if (missingStaffProfile) {
+    return (
+      <Stack spacing={2}>
+        <PageHeader title="My dashboard" icon={DashboardOutlined} />
+        <Alert severity="info">
+          This role needs a staff record linked to your login. A school admin can create that
+          record with your email, or you can sign out and choose the School Admin role.
+        </Alert>
+      </Stack>
+    );
+  }
 
   if (isForbidden) {
     return <ForbiddenState />;

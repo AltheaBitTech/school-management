@@ -31,6 +31,13 @@ export class TransportController {
     return this.transportService.listRoutes(user.organizationId);
   }
 
+  @Get('unassigned-students')
+  @RequirePermissions('transport.view')
+  @ApiOperation({ summary: 'Students with no current transport assignment' })
+  listUnassignedStudents(@CurrentUser() user: AuthenticatedUser) {
+    return this.transportService.listUnassignedStudents(user.organizationId);
+  }
+
   @Post('routes')
   @RequirePermissions('transport.manage')
   createRoute(@CurrentUser() user: AuthenticatedUser, @Body() body: CreateTransportRouteDto) {

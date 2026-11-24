@@ -16,6 +16,11 @@ describe('dashboard-date.util', () => {
     expect(getGreetingPeriod('UTC', new Date('2026-09-25T20:00:00.000Z'))).toBe('evening');
   });
 
+  it('falls back to UTC when the timezone is not valid', () => {
+    const date = new Date('2026-09-25T00:30:00.000Z');
+    expect(getLocalDateString('Not/AZone', date)).toBe('2026-09-25');
+  });
+
   it('builds UTC range for a local calendar day', () => {
     const range = getLocalDayUtcRange('2026-09-25', 'UTC');
     expect(range.startUtc.toISOString()).toBe('2026-09-25T00:00:00.000Z');

@@ -27,6 +27,7 @@ import {
 } from '@/lib/staff/staff-client';
 import {
   validateEmail,
+  validateEmployeeCode,
   validateOrganizationName,
   validateRequiredMaxLength,
 } from '@/lib/forms/validators';
@@ -111,18 +112,21 @@ export default function OnboardingPage() {
   async function handleAddStaff(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setErrorMessage(null);
+    const codeProblem = validateEmployeeCode(employeeCode);
     const firstProblem = validateRequiredMaxLength(firstName, 'First name', 100);
     const lastProblem = validateRequiredMaxLength(lastName, 'Last name', 100);
-    const emailProblem = staffEmail.trim() ? validateEmail(staffEmail) : undefined;
-    if (firstProblem || lastProblem || emailProblem) {
-      setErrorMessage(firstProblem ?? lastProblem ?? emailProblem ?? 'Fix the highlighted fields');
+    const emailProblem = validateEmail(staffEmail);
+    if (codeProblem || firstProblem || lastProblem || emailProblem) {
+      setErrorMessage(
+        codeProblem ?? firstProblem ?? lastProblem ?? emailProblem ?? 'Fix the highlighted fields',
+      );
       return;
     }
     setSubmitting(true);
 
     try {
       const staff = await createStaff({
-        employeeCode: employeeCode.trim(),
+        employeeCode: employeeCode.trim().toLowerCase(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: staffEmail.trim(),

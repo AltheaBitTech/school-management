@@ -1,5 +1,5 @@
 import { getApiV1BaseUrl } from '@/lib/api/config';
-import { ApiError, apiClient } from '@/lib/api/client';
+import { createApiError, apiClient } from '@/lib/api/client';
 import { getAccessToken } from '@/lib/auth/session';
 import type { PaginationMeta } from '@/lib/departments/departments-client';
 
@@ -196,12 +196,9 @@ export async function downloadGeneratedDocument(id: string): Promise<Blob> {
     const payload = (await response.json().catch(() => null)) as {
       message?: string;
       code?: string;
+      requestId?: string;
     } | null;
-    throw new ApiError(
-      payload?.message ?? `Request failed with status ${response.status}`,
-      response.status,
-      payload?.code,
-    );
+    throw createApiError(payload, response.status, `Request failed with status ${response.status}`);
   }
 
   return response.blob();

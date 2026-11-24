@@ -1,5 +1,5 @@
 export interface CommonDocumentData {
-  organization: { name: string; city?: string; phone?: string; email?: string };
+  organization: { name: string; address?: string; city?: string; phone?: string; email?: string };
   generatedDate: string;
   documentId: string;
   logo?: Buffer;

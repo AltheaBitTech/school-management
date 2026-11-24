@@ -1,15 +1,32 @@
+import { InternalServerErrorException, Logger } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
+
+const logger = new Logger('PdfFromCsv');
+
+function pdfFailure(error: unknown): InternalServerErrorException {
+  logger.error('PDF generation failed', error instanceof Error ? error.stack : undefined);
+  return new InternalServerErrorException({
+    code: 'PDF_GENERATION_FAILED',
+    message: 'The PDF could not be generated',
+  });
+}
 
 export function buildPdfFromCsv(title: string, csv: string): Promise<Buffer> {
   const lines = csv.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
   const rows = lines.map(parseCsvLine);
 
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 36 });
+    let doc: PDFKit.PDFDocument;
+    try {
+      doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 36 });
+    } catch (error: unknown) {
+      reject(pdfFailure(error));
+      return;
+    }
     const chunks: Buffer[] = [];
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
+    doc.on('error', (error: unknown) => reject(pdfFailure(error)));
 
     doc.font('Helvetica-Bold').fontSize(14).text(title);
     doc.moveDown(0.5);

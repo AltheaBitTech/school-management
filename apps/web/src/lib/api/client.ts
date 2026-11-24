@@ -9,15 +9,36 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   _retriedAfterRefresh?: boolean;
 }
 
+export interface ApiErrorPayload {
+  message?: string | string[];
+  code?: string;
+  requestId?: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly statusCode: number,
     readonly code?: string,
+    readonly requestId?: string,
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+export function createApiError(
+  payload: ApiErrorPayload | null,
+  statusCode: number,
+  fallback: string,
+): ApiError {
+  const rawMessage = Array.isArray(payload?.message)
+    ? payload.message.join('; ')
+    : payload?.message;
+  const base = rawMessage && rawMessage.trim() ? rawMessage : fallback;
+  const requestId = payload?.requestId;
+  const message = statusCode >= 500 && requestId ? `${base} (reference ${requestId})` : base;
+  return new ApiError(message, statusCode, payload?.code, requestId);
 }
 
 async function tryRefreshAccessToken(): Promise<boolean> {
@@ -91,11 +112,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   if (!response.ok) {
-    const errorPayload = payload as { message?: string; code?: string } | null;
-    throw new ApiError(
-      errorPayload?.message ?? `Request failed with status ${response.status}`,
+    throw createApiError(
+      payload as ApiErrorPayload | null,
       response.status,
-      errorPayload?.code,
+      `Request failed with status ${response.status}`,
     );
   }
 

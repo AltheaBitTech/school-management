@@ -232,7 +232,7 @@ export default function LeaveReportPage() {
       {isLoading ? (
         <CircularProgress />
       ) : !report ? (
-        <Alert severity="info">Leave report is unavailable.</Alert>
+        errorMessage ? null : <Alert severity="info">Leave report is unavailable.</Alert>
       ) : (
         <>
           <Typography variant="body2" color="text.secondary">

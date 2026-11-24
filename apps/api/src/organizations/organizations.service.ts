@@ -246,6 +246,69 @@ export class OrganizationsService {
     });
     return { data: readIdCardSettings(documentSettings) };
   }
+
+  async getSchoolProfile(organizationId: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { settings: true },
+    });
+    if (!organization) {
+      throw new NotFoundException({
+        code: ORGANIZATION_ERROR_CODES.ORGANIZATION_NOT_FOUND,
+        message: 'Organization not found',
+      });
+    }
+    return { data: readSchoolProfile(organization.name, organization.settings?.documentSettings) };
+  }
+
+  async updateSchoolProfile(
+    organizationId: string,
+    input: { address?: string; city?: string; phone?: string; email?: string },
+  ) {
+    const settings = await this.prisma.organizationSettings.findUnique({
+      where: { organizationId },
+    });
+    if (!settings) {
+      throw new NotFoundException({
+        code: ORGANIZATION_ERROR_CODES.ORGANIZATION_NOT_FOUND,
+        message: 'Organization settings not found',
+      });
+    }
+    const current = readDocumentSettingsObject(settings.documentSettings);
+    const documentSettings = {
+      ...current,
+      address: input.address?.trim() ?? '',
+      city: input.city?.trim() ?? '',
+      phone: input.phone?.trim() ?? '',
+      contactEmail: input.email?.trim() ?? '',
+    };
+    await this.prisma.organizationSettings.update({
+      where: { organizationId },
+      data: { documentSettings },
+    });
+    const organization = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: organizationId },
+      select: { name: true },
+    });
+    return { data: readSchoolProfile(organization.name, documentSettings) };
+  }
+}
+
+function readDocumentSettingsObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function readSchoolProfile(name: string, value: unknown) {
+  const raw = readDocumentSettingsObject(value);
+  return {
+    name,
+    address: typeof raw.address === 'string' ? raw.address : '',
+    city: typeof raw.city === 'string' ? raw.city : '',
+    phone: typeof raw.phone === 'string' ? raw.phone : '',
+    email: typeof raw.contactEmail === 'string' ? raw.contactEmail : '',
+  };
 }
 
 function readIdCardSettings(value: unknown) {

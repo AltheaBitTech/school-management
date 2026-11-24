@@ -40,6 +40,7 @@ export function shortDocumentReference(documentId: string): string {
 }
 
 export function parseOrganizationContact(settings: OrganizationSettings | null): {
+  address?: string;
   city?: string;
   phone?: string;
   email?: string;
@@ -50,6 +51,7 @@ export function parseOrganizationContact(settings: OrganizationSettings | null):
 
   const raw = settings.documentSettings as Record<string, unknown>;
   return {
+    address: typeof raw.address === 'string' ? raw.address : undefined,
     city: typeof raw.city === 'string' ? raw.city : undefined,
     phone: typeof raw.phone === 'string' ? raw.phone : undefined,
     email: typeof raw.contactEmail === 'string' ? raw.contactEmail : undefined,
@@ -59,7 +61,7 @@ export function parseOrganizationContact(settings: OrganizationSettings | null):
 export function buildOrganizationBlock(
   organization: Organization,
   settings: OrganizationSettings | null,
-): { name: string; city?: string; phone?: string; email?: string } {
+): { name: string; address?: string; city?: string; phone?: string; email?: string } {
   return {
     name: organization.name,
     ...parseOrganizationContact(settings),

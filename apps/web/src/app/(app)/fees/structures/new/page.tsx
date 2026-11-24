@@ -30,6 +30,7 @@ export default function NewFeeStructurePage() {
   const [academicYear, setAcademicYear] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [periodError, setPeriodError] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -39,6 +40,7 @@ export default function NewFeeStructurePage() {
     const nameProblem = validateRequiredMaxLength(name, 'Name', 120);
     const amountProblem = validatePositiveAmount(amount);
     const periodProblem = validateDateRange(periodStart, periodEnd);
+    setPeriodError(periodProblem ?? null);
     const descriptionProblem =
       description.trim().length > 0
         ? validateRequiredMaxLength(description, 'Description', 500)
@@ -126,10 +128,16 @@ export default function NewFeeStructurePage() {
             label="Period end"
             type="date"
             value={periodEnd}
-            onChange={(e) => setPeriodEnd(e.target.value)}
+            onChange={(e) => {
+              setPeriodEnd(e.target.value);
+              setPeriodError(validateDateRange(periodStart, e.target.value) ?? null);
+            }}
+            onBlur={() => setPeriodError(validateDateRange(periodStart, periodEnd) ?? null)}
             InputLabelProps={{ shrink: true }}
             required
             fullWidth
+            error={Boolean(periodError)}
+            helperText={periodError ?? 'Must be on or after the period start'}
           />
           <TextField
             label="Installment label"

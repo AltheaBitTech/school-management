@@ -23,11 +23,19 @@ interface RouteRow {
   code: string;
   active: boolean;
   stops: Array<{ id: string }>;
+  assignedStudentCount: number;
+}
+
+interface UnassignedStudent {
+  id: string;
+  studentCode: string;
+  name: string;
 }
 
 export default function TransportPage() {
   const canManage = useCan('transport.manage');
   const [routes, setRoutes] = useState<RouteRow[]>([]);
+  const [unassigned, setUnassigned] = useState<UnassignedStudent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isForbidden, setIsForbidden] = useState(false);
@@ -41,6 +49,10 @@ export default function TransportPage() {
         else setErrorMessage(error instanceof Error ? error.message : 'Could not load routes');
       })
       .finally(() => setIsLoading(false));
+    void apiClient
+      .get<{ data: UnassignedStudent[] }>('/transport/unassigned-students', { auth: true })
+      .then((response) => setUnassigned(response.data))
+      .catch(() => setUnassigned([]));
   }, []);
 
   if (isForbidden) return <ForbiddenState />;
@@ -89,6 +101,7 @@ export default function TransportPage() {
               <TableCell>Route</TableCell>
               <TableCell>Code</TableCell>
               <TableCell>Stops</TableCell>
+              <TableCell>Students</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="right">Open</TableCell>
             </TableRow>
@@ -99,6 +112,7 @@ export default function TransportPage() {
                 <TableCell>{route.name}</TableCell>
                 <TableCell>{route.code}</TableCell>
                 <TableCell>{route.stops.length}</TableCell>
+                <TableCell>{route.assignedStudentCount}</TableCell>
                 <TableCell>
                   <StatusChip status={route.active ? 'ACTIVE' : 'INACTIVE'} />
                 </TableCell>
@@ -109,6 +123,18 @@ export default function TransportPage() {
             ))}
           </TableBody>
         </AppTable>
+      ) : null}
+      {!isLoading && unassigned.length > 0 ? (
+        <Alert severity="info">
+          {unassigned.length} active student{unassigned.length === 1 ? '' : 's'} have no current
+          transport assignment
+          {unassigned.length <= 8
+            ? `: ${unassigned.map((student) => `${student.name} (${student.studentCode})`).join(', ')}.`
+            : `. First few: ${unassigned
+                .slice(0, 8)
+                .map((student) => `${student.name} (${student.studentCode})`)
+                .join(', ')}.`}
+        </Alert>
       ) : null}
     </ListPageShell>
   );

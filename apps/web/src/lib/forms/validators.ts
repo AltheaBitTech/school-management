@@ -4,6 +4,19 @@ export function trimToEmpty(value: string): string {
   return value.trim();
 }
 
+export function validateEmployeeCode(value: string): string | undefined {
+  const trimmed = trimToEmpty(value).toLowerCase();
+  if (!trimmed) {
+    return 'Employee code is required';
+  }
+
+  if (!/^[a-z0-9-]{2,32}$/.test(trimmed)) {
+    return 'Employee code must be 2-32 lowercase letters, numbers, or hyphens';
+  }
+
+  return undefined;
+}
+
 export function validateRequired(value: string, label: string): string | undefined {
   if (!trimToEmpty(value)) {
     return `${label} is required`;

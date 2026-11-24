@@ -12,6 +12,7 @@ export interface AttendanceReportRecord {
   departmentName: string | null;
   status: AttendanceStatus;
   checkInAt: string | null;
+  checkOutAt: string | null;
 }
 
 export interface AttendanceReportDepartmentRow {

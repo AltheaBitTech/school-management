@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { FeePaymentMethod, Organization, OrganizationSettings } from '@prisma/client';
 import {
   buildOrganizationBlock,
@@ -39,7 +39,27 @@ export interface PaymentReceiptPdfInput {
 
 @Injectable()
 export class PaymentReceiptPdfService {
+  private readonly logger = new Logger(PaymentReceiptPdfService.name);
+
   async generate(input: PaymentReceiptPdfInput): Promise<Buffer> {
+    try {
+      return await this.render(input);
+    } catch (error: unknown) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+      this.logger.error(
+        'PDF generation failed',
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new InternalServerErrorException({
+        code: 'PDF_GENERATION_FAILED',
+        message: 'The PDF could not be generated',
+      });
+    }
+  }
+
+  private async render(input: PaymentReceiptPdfInput): Promise<Buffer> {
     const doc = createA4Document();
     const orgBlock = buildOrganizationBlock(input.organization, input.organizationSettings);
 

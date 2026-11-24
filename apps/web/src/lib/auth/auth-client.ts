@@ -1,4 +1,4 @@
-import { ApiError } from '@/lib/api/client';
+import { ApiError, createApiError } from '@/lib/api/client';
 import { getApiV1BaseUrl } from '@/lib/api/config';
 import type { InstitutionType, Terminology } from '@/lib/terminology/terminology';
 import { clearAccessToken, getAccessToken, setAccessExpiry, setAccessToken } from '@/lib/auth/session';
@@ -81,11 +81,10 @@ async function authRequest<T>(path: string, init: RequestInit = {}): Promise<T> 
   const payload: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const errorPayload = payload as { message?: string; code?: string } | null;
-    throw new ApiError(
-      errorPayload?.message ?? `Request failed with status ${response.status}`,
+    throw createApiError(
+      payload as { message?: string; code?: string; requestId?: string } | null,
       response.status,
-      errorPayload?.code,
+      `Request failed with status ${response.status}`,
     );
   }
 

@@ -19,6 +19,7 @@ import { ApiError } from '@/lib/api/client';
 import {
   formatCurrency,
   formatStudentFeeStatus,
+  getStudentDisplayNameFromFee,
   listFeeStructures,
   listStudentFees,
   type FeeStructure,
@@ -159,10 +160,14 @@ export default function FeesPage() {
                         >
                           <Box>
                             <Typography sx={{ fontWeight: 600 }}>
-                              {studentFee.feeStructure?.name ?? 'Fee assignment'}
+                              {getStudentDisplayNameFromFee(studentFee.student)}
+                              {studentFee.student?.studentCode
+                                ? ` · ${studentFee.student.studentCode}`
+                                : ''}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              Outstanding {formatCurrency(studentFee.outstandingAmount)}
+                              {studentFee.feeStructure?.name ?? 'Fee assignment'} · Outstanding{' '}
+                              {formatCurrency(studentFee.outstandingAmount)}
                             </Typography>
                           </Box>
                           <StatusChip

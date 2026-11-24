@@ -107,6 +107,12 @@ export class ApprovalRequestDto {
   @ApiPropertyOptional()
   currentApproverSummary?: string | null;
 
+  @ApiPropertyOptional({ description: 'Role code required when the current level is assigned to a role' })
+  currentApproverRoleCode?: string | null;
+
+  @ApiPropertyOptional({ description: 'User id required when the current level is assigned to a person' })
+  currentApproverUserId?: string | null;
+
   @ApiProperty()
   createdAt!: string;
 

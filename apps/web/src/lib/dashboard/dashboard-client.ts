@@ -70,6 +70,14 @@ export interface DashboardSummary {
     pendingLeave: number | null;
     pendingApprovals: number | null;
     openComplaints: number | null;
+    classCount?: number | null;
+    complaintsReceivedToday?: number | null;
+    feesCollectedThisMonth?: number | null;
+    trends?: Array<{
+      date: string;
+      feeCollected: number | null;
+      attendancePresent: number | null;
+    }> | null;
     visitorsToday: DashboardVisitorsToday | null;
     upcomingEvents: DashboardUpcomingEvent[] | null;
     recentNotices: DashboardRecentNotice[] | null;

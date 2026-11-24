@@ -28,6 +28,7 @@ import { RequirePermissions } from '../common/decorators/require-permissions.dec
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateDocumentSettingsDto } from './dto/update-document-settings.dto';
+import { UpdateSchoolProfileDto } from './dto/update-school-profile.dto';
 import {
   OrganizationBootstrapResponseDto,
   OrganizationResponseDto,
@@ -78,6 +79,27 @@ export class OrganizationsController {
     return {
       data: this.organizationsService.toOrganizationSummary(organization),
     };
+  }
+
+  @Get('current/profile')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('organization.settings.update')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'School profile used on documents and receipts' })
+  async getSchoolProfile(@CurrentUser() user: AuthenticatedUser) {
+    return this.organizationsService.getSchoolProfile(user.organizationId);
+  }
+
+  @Patch('current/profile')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('organization.settings.update')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update the school profile shown on documents' })
+  async updateSchoolProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: UpdateSchoolProfileDto,
+  ) {
+    return this.organizationsService.updateSchoolProfile(user.organizationId, body);
   }
 
   @Get('current/document-settings')

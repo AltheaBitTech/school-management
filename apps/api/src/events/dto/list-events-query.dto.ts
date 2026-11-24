@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { EventStatus, EventType } from '@prisma/client';
+import { Transform } from 'class-transformer';
 import { IsBoolean, IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
@@ -13,6 +14,12 @@ export class ListEventsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(EventType)
   type?: EventType;
+
+  @ApiPropertyOptional({ description: 'Limit to workshop, competition, and exhibition events' })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  activityOnly?: boolean;
 
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()

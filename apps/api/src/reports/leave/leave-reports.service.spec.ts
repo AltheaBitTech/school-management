@@ -47,6 +47,13 @@ describe('LeaveReportsService', () => {
     expect(context.fromDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
+  it('rejects an invalid organization timezone instead of failing with a server error', async () => {
+    prisma.organizationSettings.findUnique.mockResolvedValue({ timezone: 'Not/AZone' });
+    await expect(service.generate('org-1', { page: 1, pageSize: 25 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
   it('rejects conflicting date parameters', () => {
     expect(() =>
       service.resolveDateContext(

@@ -233,6 +233,8 @@ export default function LeavePage() {
                         </Button>
                       ) : null}
                     </Stack>
+                  ) : request.status === 'PENDING_APPROVAL' ? (
+                    'Awaiting Principal'
                   ) : (
                     '—'
                   )}

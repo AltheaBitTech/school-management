@@ -84,7 +84,13 @@ export class ApproverResolutionService {
     tx: Prisma.TransactionClient,
     organizationId: string,
     level: ApprovalLevel,
-  ): Promise<{ type: ApprovalApproverType; roleName?: string; userEmail?: string }> {
+  ): Promise<{
+    type: ApprovalApproverType;
+    roleName?: string;
+    roleCode?: string;
+    userEmail?: string;
+    userId?: string;
+  }> {
     if (level.approverType === ApprovalApproverType.ROLE && level.roleId) {
       const role = await tx.role.findFirst({
         where: { id: level.roleId, organizationId },
@@ -92,6 +98,7 @@ export class ApproverResolutionService {
       return {
         type: level.approverType,
         roleName: role?.name ?? undefined,
+        roleCode: role?.code ?? undefined,
       };
     }
 
@@ -102,6 +109,7 @@ export class ApproverResolutionService {
       return {
         type: level.approverType,
         userEmail: user?.email ?? undefined,
+        userId: user?.id ?? undefined,
       };
     }
 

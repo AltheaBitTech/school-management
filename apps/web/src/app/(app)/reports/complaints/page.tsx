@@ -21,6 +21,7 @@ import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
+import { AppTable } from '@/components/ui/AppTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ReportExportCsvButton } from '@/components/ui/ReportExportCsvButton';
 import { ReportFilterPanel } from '@/components/ui/ReportFilterPanel';
@@ -313,71 +314,79 @@ export default function ComplaintsReportPage() {
             </Card>
           </Stack>
 
-          {report.breakdown.byStatus.length > 0 ? (
-            <Box>
-              <Typography variant="h6" gutterBottom>By status</Typography>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Count</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {report.breakdown.byStatus.map((row) => (
-                    <TableRow key={row.status}>
-                      <TableCell>{formatComplaintStatus(row.status)}</TableCell>
-                      <TableCell>{row.count}</TableCell>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            }}
+          >
+            {report.breakdown.byStatus.length > 0 ? (
+              <Stack spacing={1}>
+                <Typography variant="h6">By status</Typography>
+                <AppTable minWidth={240} aria-label="Complaints by status">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Status</TableCell>
+                      <TableCell align="right">Count</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Box>
-          ) : null}
+                  </TableHead>
+                  <TableBody>
+                    {report.breakdown.byStatus.map((row) => (
+                      <TableRow key={row.status}>
+                        <TableCell>{formatComplaintStatus(row.status)}</TableCell>
+                        <TableCell align="right">{row.count}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </AppTable>
+              </Stack>
+            ) : null}
 
-          {report.breakdown.byPriority.length > 0 ? (
-            <Box>
-              <Typography variant="h6" gutterBottom>By priority</Typography>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Priority</TableCell>
-                    <TableCell>Count</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {report.breakdown.byPriority.map((row) => (
-                    <TableRow key={row.priority}>
-                      <TableCell>{formatComplaintPriority(row.priority)}</TableCell>
-                      <TableCell>{row.count}</TableCell>
+            {report.breakdown.byPriority.length > 0 ? (
+              <Stack spacing={1}>
+                <Typography variant="h6">By priority</Typography>
+                <AppTable minWidth={240} aria-label="Complaints by priority">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Priority</TableCell>
+                      <TableCell align="right">Count</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Box>
-          ) : null}
+                  </TableHead>
+                  <TableBody>
+                    {report.breakdown.byPriority.map((row) => (
+                      <TableRow key={row.priority}>
+                        <TableCell>{formatComplaintPriority(row.priority)}</TableCell>
+                        <TableCell align="right">{row.count}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </AppTable>
+              </Stack>
+            ) : null}
 
-          {report.breakdown.byCategory.length > 0 ? (
-            <Box>
-              <Typography variant="h6" gutterBottom>By category</Typography>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Count</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {report.breakdown.byCategory.map((row) => (
-                    <TableRow key={row.category}>
-                      <TableCell>{formatComplaintCategory(row.category)}</TableCell>
-                      <TableCell>{row.count}</TableCell>
+            {report.breakdown.byCategory.length > 0 ? (
+              <Stack spacing={1}>
+                <Typography variant="h6">By category</Typography>
+                <AppTable minWidth={240} aria-label="Complaints by category">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Category</TableCell>
+                      <TableCell align="right">Count</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Box>
-          ) : null}
+                  </TableHead>
+                  <TableBody>
+                    {report.breakdown.byCategory.map((row) => (
+                      <TableRow key={row.category}>
+                        <TableCell>{formatComplaintCategory(row.category)}</TableCell>
+                        <TableCell align="right">{row.count}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </AppTable>
+              </Stack>
+            ) : null}
+          </Box>
 
           {report.breakdown.byDepartment.some((row) => row.total > 0) ? (
             <Box>

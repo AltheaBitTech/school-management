@@ -292,8 +292,13 @@ export async function downloadStudentFeePaymentReceipt(
   );
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-    throw new Error(payload?.message ?? 'Failed to download receipt');
+    const { createApiError } = await import('@/lib/api/client');
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+      code?: string;
+      requestId?: string;
+    } | null;
+    throw createApiError(payload, response.status, 'Failed to download receipt');
   }
 
   const blob = await response.blob();

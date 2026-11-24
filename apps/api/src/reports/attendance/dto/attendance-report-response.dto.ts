@@ -93,6 +93,9 @@ export class AttendanceReportRecordDto {
 
   @ApiProperty({ nullable: true })
   checkInAt!: string | null;
+
+  @ApiProperty({ nullable: true })
+  checkOutAt!: string | null;
 }
 
 export class AttendanceReportResponseDto {

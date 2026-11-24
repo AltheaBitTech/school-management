@@ -66,6 +66,7 @@ export default function StudentDetailPage() {
   const canLinkParents = useCan('parent.link.manage');
   const canGenerate = useCan('document.generate');
   const canViewAttendance = useCan('attendance.view');
+  const canViewStudentAttendance = useCan('student.attendance.view');
   const canViewFees = useCan('fee.view');
   const canViewDocuments = useCan('document.view');
   const canInviteParent = useCanEvery(['staff.create', 'role.assign']);
@@ -586,17 +587,25 @@ export default function StudentDetailPage() {
         </CardContent>
       </Card>
 
-      {isAttendanceEnabled() && canViewAttendance ? (
+      {isAttendanceEnabled() && (canViewStudentAttendance || canViewAttendance) ? (
       <Card variant="outlined">
         <CardContent>
           <Stack spacing={1.5}>
             <Typography variant="h6">Attendance</Typography>
-            <Typography variant="body2" color="text.secondary">
-              CampusOps records staff attendance. This profile has no student attendance history, so a percentage is not shown.
-            </Typography>
-            <Button component={Link} href="/attendance" variant="outlined">
-              Open attendance
-            </Button>
+            {canViewStudentAttendance ? (
+              <>
+                <Typography variant="body2" color="text.secondary">
+                  Student attendance is recorded by section. Open the register to mark or review it.
+                </Typography>
+                <Button component={Link} href="/attendance/students" variant="outlined">
+                  Open student attendance
+                </Button>
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                This profile does not include a personal attendance history.
+              </Typography>
+            )}
           </Stack>
         </CardContent>
       </Card>

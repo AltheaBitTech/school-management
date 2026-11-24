@@ -1,6 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
 import {
-  ALLOWED_MIME_TYPES,
   AllowedMimeType,
   FILE_ERROR_CODES,
   MAX_FILE_SIZE_BYTES,
@@ -18,7 +17,7 @@ export interface ValidatedUpload {
 
 export function validateUploadBuffer(
   buffer: Buffer | undefined,
-  declaredMimeType?: string,
+  _declaredMimeType?: string,
 ): ValidatedUpload {
   if (!buffer || buffer.length === 0) {
     throw new BadRequestException({
@@ -42,17 +41,8 @@ export function validateUploadBuffer(
     });
   }
 
-  if (
-    declaredMimeType &&
-    isAllowedMimeType(declaredMimeType) &&
-    declaredMimeType !== detectedMimeType
-  ) {
-    throw new BadRequestException({
-      code: FILE_ERROR_CODES.FILE_TYPE_NOT_ALLOWED,
-      message: 'Uploaded file type does not match file contents',
-    });
-  }
-
+  // Browsers often label a JPEG as image/png or image/jpg. The stored type follows
+  // the file bytes, so a mismatched label does not reject an allowed file.
   return {
     buffer,
     mimeType: detectedMimeType,
@@ -76,6 +66,3 @@ function detectMimeType(buffer: Buffer): AllowedMimeType | null {
   return null;
 }
 
-function isAllowedMimeType(value: string): value is AllowedMimeType {
-  return (ALLOWED_MIME_TYPES as readonly string[]).includes(value);
-}

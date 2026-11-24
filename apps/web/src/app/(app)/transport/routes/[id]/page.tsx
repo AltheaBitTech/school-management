@@ -113,6 +113,7 @@ export default function TransportRoutePage() {
         `/transport/routes/${params.id}/stops`,
         {
           stops: stops.map((stop) => ({
+            id: stop.id,
             name: stop.name.trim(),
             address: stop.address.trim() || undefined,
             pickupTime: stop.pickupTime || undefined,
@@ -120,7 +121,16 @@ export default function TransportRoutePage() {
         },
         { auth: true },
       );
-      setSavedStops(response.data?.stops ?? []);
+      const nextStops = response.data?.stops ?? [];
+      setSavedStops(nextStops);
+      setStops(
+        nextStops.map((stop) => ({
+          id: stop.id,
+          name: stop.name,
+          address: stop.address ?? '',
+          pickupTime: stop.pickupTime ?? '',
+        })),
+      );
       showSuccess('Stops saved in pickup order.');
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'Could not save stops');

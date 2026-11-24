@@ -291,6 +291,7 @@ function AttendanceReportPageContent() {
                     <TableCell>Department</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Check-in</TableCell>
+                    <TableCell>Check-out</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -308,6 +309,13 @@ function AttendanceReportPageContent() {
                       <TableCell>
                         {record.checkInAt
                           ? new Date(record.checkInAt).toLocaleString(undefined, {
+                              timeZone: summary?.timezone ?? 'UTC',
+                            })
+                          : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {record.checkOutAt
+                          ? new Date(record.checkOutAt).toLocaleString(undefined, {
                               timeZone: summary?.timezone ?? 'UTC',
                             })
                           : '—'}

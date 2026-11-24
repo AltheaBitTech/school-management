@@ -1,3 +1,4 @@
+import { createApiError } from '@/lib/api/client';
 import { getApiV1BaseUrl } from '@/lib/api/config';
 import { getAccessToken } from '@/lib/auth/session';
 
@@ -24,7 +25,12 @@ export async function downloadReportCsv(
   });
 
   if (!response.ok) {
-    throw new Error(`Export failed (${response.status})`);
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+      code?: string;
+      requestId?: string;
+    } | null;
+    throw createApiError(payload, response.status, `Export failed (${response.status})`);
   }
 
   const blob = await response.blob();

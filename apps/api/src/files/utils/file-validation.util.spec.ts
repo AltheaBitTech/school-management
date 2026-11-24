@@ -24,10 +24,12 @@ describe('file-validation.util', () => {
     expect(() => validateUploadBuffer(Buffer.from('plain text'))).toThrow(BadRequestException);
   });
 
-  it('rejects mismatched declared MIME types', () => {
-    expect(() =>
-      validateUploadBuffer(Buffer.from('%PDF-1.4\n'), 'image/png'),
-    ).toThrow(BadRequestException);
+  it('trusts file bytes when the browser label does not match', () => {
+    const pdf = validateUploadBuffer(Buffer.from('%PDF-1.4\n'), 'image/png');
+    expect(pdf.mimeType).toBe('application/pdf');
+
+    const jpeg = validateUploadBuffer(Buffer.from([0xff, 0xd8, 0xff, 0xd9]), 'image/jpg');
+    expect(jpeg.mimeType).toBe('image/jpeg');
   });
 
   it('rejects oversized uploads', () => {

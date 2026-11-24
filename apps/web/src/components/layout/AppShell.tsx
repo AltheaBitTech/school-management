@@ -1,5 +1,6 @@
 'use client';
 
+import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined';
 import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
 import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
 import ClassOutlined from '@mui/icons-material/ClassOutlined';
@@ -8,6 +9,7 @@ import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
 import BarChartOutlined from '@mui/icons-material/BarChartOutlined';
 import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
+import CelebrationOutlined from '@mui/icons-material/CelebrationOutlined';
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import DashboardOutlined from '@mui/icons-material/DashboardOutlined';
 import DomainAddOutlined from '@mui/icons-material/DomainAddOutlined';
@@ -149,6 +151,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/visitors', label: 'Visitors', icon: BadgeOutlined, requiredPermission: 'visitor.view' },
       { href: '/notices', label: 'Notices', icon: AnnouncementOutlined, requiredPermission: 'notice.view' },
       { href: '/events', label: 'Events', icon: CalendarMonthOutlined, requiredPermission: 'event.view' },
+      { href: '/events?activity=1', label: 'Activities', icon: CelebrationOutlined, requiredPermission: 'event.view' },
       { href: '/assets', label: 'Assets', icon: InventoryOutlined, requiredPermission: 'asset.view' },
       { href: '/transport', label: 'Transport', icon: DirectionsBusOutlined, requiredPermission: 'transport.view' },
     ],
@@ -159,6 +162,12 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/fees', label: 'Fees', icon: ReceiptLongOutlined, requiredPermission: 'fee.view' },
       { href: '/documents', label: 'Documents', icon: DescriptionOutlined, requiredPermission: 'document.view' },
       { href: '/audit', label: 'Audit log', icon: ManageSearchOutlined, requiredPermission: 'audit.view' },
+      {
+        href: '/settings/profile',
+        label: 'School profile',
+        icon: AccountBalanceOutlined,
+        requiredPermission: 'organization.settings.update',
+      },
       {
         href: '/settings/logo',
         label: 'Logo',

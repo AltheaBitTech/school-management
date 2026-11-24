@@ -12,6 +12,7 @@ import TextField from '@mui/material/TextField';
 import AddOutlined from '@mui/icons-material/AddOutlined';
 import EventOutlined from '@mui/icons-material/EventOutlined';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
 import { AppTable, EmptyState, LoadingState } from '@/components/ui/AppTable';
@@ -37,6 +38,7 @@ import { getCurrentOrganization } from '@/lib/organizations/organizations-client
 
 export default function EventsPage() {
   const canCreate = useCan('event.create');
+  const activityOnly = useSearchParams().get('activity') === '1';
   const [events, setEvents] = useState<CampusEvent[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [status, setStatus] = useState<EventStatus | ''>('');
@@ -79,6 +81,7 @@ export default function EventsPage() {
           pageSize: 50,
           status: status || undefined,
           type: type || undefined,
+          activityOnly: activityOnly && !type,
           venueId: venueId || undefined,
           ...dateRange,
         });
@@ -93,14 +96,18 @@ export default function EventsPage() {
     }
     void load();
     return () => { cancelled = true; };
-  }, [fromDate, organizationTimezone, status, toDate, type, venueId]);
+  }, [activityOnly, fromDate, organizationTimezone, status, toDate, type, venueId]);
 
   if (isForbidden) return <ForbiddenState />;
 
   return (
     <ListPageShell
-      title="Events"
-      description="Plan events in a date-aware operational calendar."
+      title={activityOnly ? 'Activities' : 'Events'}
+      description={
+        activityOnly
+          ? 'Workshops, competitions, and exhibitions. These are events with an activity type.'
+          : 'Plan events in a date-aware operational calendar. Workshops, competitions, and exhibitions are activity types.'
+      }
       icon={EventOutlined}
       actions={
         canCreate ? (

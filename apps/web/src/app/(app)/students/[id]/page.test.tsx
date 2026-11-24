@@ -81,7 +81,10 @@ describe('StudentDetailPage', () => {
       'href',
       '/documents/generate?studentId=student-1',
     );
-    expect(screen.getByRole('link', { name: 'Open attendance' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open student attendance' })).toHaveAttribute(
+      'href',
+      '/attendance/students',
+    );
   });
 
   it('hides attendance section when attendance feature is disabled', async () => {
@@ -102,7 +105,7 @@ describe('StudentDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Ravi Kumar' })).toBeInTheDocument();
     });
-    expect(screen.queryByRole('link', { name: 'Open attendance' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open student attendance' })).not.toBeInTheDocument();
     expect(screen.queryByText('Attendance')).not.toBeInTheDocument();
     resetFeatureFlagsCacheForTests();
   });
@@ -123,7 +126,7 @@ describe('StudentDetailPage', () => {
     renderWithAppProviders(<StudentDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Open attendance' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Open student attendance' })).toBeInTheDocument();
     });
     resetFeatureFlagsCacheForTests();
   });

@@ -14,6 +14,17 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+vi.mock('@/components/providers/AuthSessionProvider', () => ({
+  useAuthSession: () => ({
+    user: {
+      id: 'actor-1',
+      permissions: ['approval.approve', 'leave.approve', 'leave.reject'],
+      role: { code: 'PRINCIPAL', name: 'Principal' },
+    },
+  }),
+  useOptionalAuthSession: () => null,
+}));
+
 vi.mock('@/lib/approvals/approvals-client', () => ({
   getApprovalRequest: vi.fn(),
   getApprovalHistory: vi.fn(),

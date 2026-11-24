@@ -4,6 +4,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import LeavePage from '@/app/(app)/leave/page';
 import { ApiError } from '@/lib/api/client';
 
+vi.mock('@/components/providers/AuthSessionProvider', () => ({
+  useAuthSession: () => ({
+    user: {
+      id: 'admin-1',
+      permissions: ['leave.view', 'leave.create'],
+      role: { code: 'SCHOOL_ADMIN', name: 'School Admin' },
+    },
+  }),
+  useOptionalAuthSession: () => null,
+}));
+
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
@@ -63,7 +74,7 @@ describe('LeavePage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Anita Desai')).toBeInTheDocument();
-      expect(screen.getByText('Approve')).toBeInTheDocument();
+      expect(screen.getByText('Awaiting Principal')).toBeInTheDocument();
     });
   });
 

@@ -9,6 +9,7 @@ import {
   EventParticipant,
   EventParticipantType,
   EventStatus,
+  EventType,
   Prisma,
 } from '@prisma/client';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
@@ -47,7 +48,11 @@ export class EventsService {
     const where: Prisma.EventWhereInput = {
       organizationId,
       ...(query.status ? { status: query.status } : {}),
-      ...(query.type ? { type: query.type } : {}),
+      ...(query.type
+        ? { type: query.type }
+        : query.activityOnly
+          ? { type: { in: [EventType.WORKSHOP, EventType.COMPETITION, EventType.EXHIBITION] } }
+          : {}),
       ...(query.venueId ? { venueId: query.venueId } : {}),
       ...(fromDate || toDate
         ? {
