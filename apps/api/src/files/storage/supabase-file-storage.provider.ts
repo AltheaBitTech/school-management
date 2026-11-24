@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { STORAGE_CONFIG_KEY, StorageConfig } from '../../config/storage.configuration';
 import { FILE_ERROR_CODES } from '../constants/file.constants';
 import { assertSafeStorageKey } from '../utils/storage-key.util';
-import { describeStorageFailure } from './storage-error.util';
+import { describeStorageFailure, storageProjectOrigin } from './storage-error.util';
 import { StorageProvider } from './storage-provider.interface';
 
 interface ResolvedSupabaseConfig {
@@ -30,11 +30,10 @@ export class SupabaseFileStorageProvider implements StorageProvider {
 
     const response = await fetch(this.objectUrl(config, storageKey), {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${config.supabaseServiceRoleKey}`,
+      headers: this.authHeaders(config.supabaseServiceRoleKey, {
         'Content-Type': 'application/octet-stream',
         'x-upsert': 'true',
-      },
+      }),
       body: new Uint8Array(data),
     });
 
@@ -49,9 +48,7 @@ export class SupabaseFileStorageProvider implements StorageProvider {
 
     const response = await fetch(this.objectUrl(config, storageKey), {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${config.supabaseServiceRoleKey}`,
-      },
+      headers: this.authHeaders(config.supabaseServiceRoleKey),
     });
 
     if (!response.ok) {
@@ -68,9 +65,7 @@ export class SupabaseFileStorageProvider implements StorageProvider {
 
     const response = await fetch(this.objectUrl(config, storageKey), {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${config.supabaseServiceRoleKey}`,
-      },
+      headers: this.authHeaders(config.supabaseServiceRoleKey),
     });
 
     if (!response.ok && response.status !== 404) {
@@ -88,9 +83,7 @@ export class SupabaseFileStorageProvider implements StorageProvider {
 
     const response = await fetch(this.objectInfoUrl(config, storageKey), {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${config.supabaseServiceRoleKey}`,
-      },
+      headers: this.authHeaders(config.supabaseServiceRoleKey),
     });
 
     if (response.status === 404) {
@@ -122,16 +115,27 @@ export class SupabaseFileStorageProvider implements StorageProvider {
     };
   }
 
+  private authHeaders(
+    apiKey: string,
+    extra: Record<string, string> = {},
+  ): Record<string, string> {
+    return {
+      apikey: apiKey,
+      Authorization: `Bearer ${apiKey}`,
+      ...extra,
+    };
+  }
+
   private encodeKey(storageKey: string): string {
     return storageKey.split('/').map(encodeURIComponent).join('/');
   }
 
   private objectUrl(config: ResolvedSupabaseConfig, storageKey: string): string {
-    return `${config.supabaseUrl}/storage/v1/object/${config.supabaseBucket}/${this.encodeKey(storageKey)}`;
+    return `${storageProjectOrigin(config.supabaseUrl)}/storage/v1/object/${config.supabaseBucket}/${this.encodeKey(storageKey)}`;
   }
 
   private objectInfoUrl(config: ResolvedSupabaseConfig, storageKey: string): string {
-    return `${config.supabaseUrl}/storage/v1/object/info/${config.supabaseBucket}/${this.encodeKey(storageKey)}`;
+    return `${storageProjectOrigin(config.supabaseUrl)}/storage/v1/object/info/${config.supabaseBucket}/${this.encodeKey(storageKey)}`;
   }
 
   private async storageFailure(

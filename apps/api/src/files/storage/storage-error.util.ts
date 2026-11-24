@@ -1,5 +1,10 @@
 import { MAX_FILE_SIZE_LABEL } from '../constants/file.constants';
 
+/** Storage lives on the project origin. A copied URL often includes `/rest/v1`. */
+export function storageProjectOrigin(supabaseUrl: string): string {
+  return new URL(supabaseUrl).origin;
+}
+
 /**
  * Turns a Supabase Storage error into a sentence that is safe to show in the UI.
  * The raw body is logged by the caller. Secrets and tokens are not copied through.
@@ -19,7 +24,7 @@ export function describeStorageFailure(status: number, bodyText: string): string
     lower.includes('invalid jwt') ||
     lower.includes('jwt')
   ) {
-    return 'Storage rejected the upload. SUPABASE_SERVICE_ROLE_KEY must be the service role key for this project, not the anon key.';
+    return 'Storage rejected the key. SUPABASE_SERVICE_ROLE_KEY must be the secret key that starts with sb_secret_, not the publishable key.';
   }
 
   if (

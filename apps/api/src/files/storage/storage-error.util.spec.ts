@@ -1,4 +1,13 @@
-import { describeStorageFailure } from './storage-error.util';
+import { describeStorageFailure, storageProjectOrigin } from './storage-error.util';
+
+describe('storageProjectOrigin', () => {
+  it('drops a copied /rest/v1 suffix', () => {
+    expect(storageProjectOrigin('https://example.supabase.co/rest/v1/')).toBe(
+      'https://example.supabase.co',
+    );
+    expect(storageProjectOrigin('https://example.supabase.co')).toBe('https://example.supabase.co');
+  });
+});
 
 describe('describeStorageFailure', () => {
   it('names a missing bucket', () => {
@@ -12,7 +21,7 @@ describe('describeStorageFailure', () => {
 
   it('names a rejected service key', () => {
     const message = describeStorageFailure(401, '{"message":"Invalid JWT"}');
-    expect(message).toContain('SUPABASE_SERVICE_ROLE_KEY');
+    expect(message).toContain('sb_secret_');
   });
 
   it('names the 50 MB limit', () => {
