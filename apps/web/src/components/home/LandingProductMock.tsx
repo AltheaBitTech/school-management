@@ -10,10 +10,11 @@ export function LandingProductMock() {
   return (
     <Box
       sx={{
-        borderRadius: 3,
+        borderRadius: '16px',
         overflow: 'hidden',
         border: '1px solid rgba(255,255,255,0.2)',
-        boxShadow: '0 24px 48px rgba(15, 32, 68, 0.35)',
+        boxShadow: '0 40px 80px -20px rgba(2, 6, 23, 0.6), 0 0 0 8px rgba(255,255,255,0.04)',
+        transform: { md: 'perspective(1600px) rotateY(-6deg) rotateX(2deg)' },
         bgcolor: 'background.paper',
         color: 'text.primary',
       }}
@@ -25,14 +26,14 @@ export function LandingProductMock() {
         sx={{
           px: 2,
           py: 1.25,
-          bgcolor: 'grey.100',
+          bgcolor: 'action.hover',
           borderBottom: 1,
           borderColor: 'divider',
         }}
       >
-        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#ef4444' }} />
-        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#f59e0b' }} />
-        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#22c55e' }} />
+        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'error.main' }} />
+        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'warning.main' }} />
+        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'success.main' }} />
         <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
           app.campusops.io — campus dashboard
         </Typography>
@@ -44,6 +45,8 @@ export function LandingProductMock() {
             width: 88,
             flexShrink: 0,
             bgcolor: 'sidebar.main',
+            borderRight: 1,
+            borderColor: 'divider',
             py: 2,
             px: 1.25,
             display: { xs: 'none', sm: 'block' },
@@ -56,11 +59,11 @@ export function LandingProductMock() {
                 sx={{
                   px: 1,
                   py: 0.75,
-                  borderRadius: 1,
+                  borderRadius: '6px',
                   fontSize: '0.7rem',
                   fontWeight: 600,
-                  color: index === 0 ? '#ffffff' : 'rgba(255,255,255,0.75)',
-                  bgcolor: index === 0 ? 'rgba(255,255,255,0.12)' : 'transparent',
+                  color: index === 0 ? 'sidebar.activeText' : 'sidebar.textMuted',
+                  bgcolor: index === 0 ? 'sidebar.active' : 'transparent',
                 }}
               >
                 {item}

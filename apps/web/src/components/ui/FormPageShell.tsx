@@ -1,6 +1,5 @@
 'use client';
 
-import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -34,10 +33,18 @@ export function FormPageShell({
           sx={{
             p: 2,
             position: 'sticky',
-            bottom: 16,
+            bottom: { xs: 0, sm: 16 },
             zIndex: 2,
-            bgcolor: 'background.paper',
-            boxShadow: '0 -4px 20px -8px rgba(15, 23, 42, 0.12)',
+            mx: { xs: -2, sm: 0 },
+            borderRadius: { xs: 0, sm: '16px' },
+            borderLeft: { xs: 0, sm: 1 },
+            borderRight: { xs: 0, sm: 1 },
+            borderBottom: { xs: 0, sm: 1 },
+            borderColor: 'divider',
+            bgcolor: 'brand.glass',
+            backdropFilter: 'saturate(180%) blur(14px)',
+            boxShadow: 'var(--mui-palette-brand-shadowHover)',
+            pb: { xs: 'calc(16px + env(safe-area-inset-bottom))', sm: 2 },
           }}
         >
           {footer}

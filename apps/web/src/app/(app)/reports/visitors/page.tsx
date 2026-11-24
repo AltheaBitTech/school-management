@@ -9,7 +9,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Pagination from '@mui/material/Pagination';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -34,6 +33,7 @@ import {
   VISITOR_STATUSES,
   type VisitorStatus,
 } from '@/lib/visitors/visitors-client';
+import { ResponsiveTable } from '@/components/ui/AppTable';
 
 export default function VisitorsReportPage() {
   const searchParams = useSearchParams();
@@ -280,7 +280,7 @@ export default function VisitorsReportPage() {
           {report.breakdown.byStatus.length > 0 ? (
             <Box>
               <Typography variant="h6" gutterBottom>By status</Typography>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Status</TableCell>
@@ -295,14 +295,14 @@ export default function VisitorsReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : null}
 
           {report.breakdown.byPurpose.length > 0 ? (
             <Box>
               <Typography variant="h6" gutterBottom>By purpose</Typography>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Purpose</TableCell>
@@ -317,14 +317,14 @@ export default function VisitorsReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : null}
 
           {report.breakdown.byHost.length > 0 ? (
             <Box>
               <Typography variant="h6" gutterBottom>By host</Typography>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Host</TableCell>
@@ -341,14 +341,14 @@ export default function VisitorsReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : null}
 
           {report.breakdown.byDepartment.some((row) => row.total > 0) ? (
             <Box>
               <Typography variant="h6" gutterBottom>By department</Typography>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Department</TableCell>
@@ -367,7 +367,7 @@ export default function VisitorsReportPage() {
                       </TableRow>
                     ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : null}
 
@@ -375,7 +375,7 @@ export default function VisitorsReportPage() {
             <Alert severity="info">No visitors match the selected filters.</Alert>
           ) : (
             <>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Visitor</TableCell>
@@ -416,7 +416,7 @@ export default function VisitorsReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
               {report.meta.totalPages > 1 && (
                 <Pagination
                   count={report.meta.totalPages}

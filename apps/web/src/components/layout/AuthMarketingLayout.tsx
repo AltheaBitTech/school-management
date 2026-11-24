@@ -2,12 +2,15 @@
 
 import SchoolOutlined from '@mui/icons-material/SchoolOutlined';
 import Box from '@mui/material/Box';
+import DefaultPropsProvider from '@mui/material/DefaultPropsProvider';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { ThemeProvider, alpha } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import Link from 'next/link';
-import { authGlassTheme } from '@/theme/auth-glass-theme';
+import { useMemo } from 'react';
+import { ColorModeToggle } from '@/components/layout/ColorModeToggle';
+import { brandVars } from '@/theme/theme';
 
 interface AuthMarketingLayoutProps {
   children: React.ReactNode;
@@ -16,20 +19,38 @@ interface AuthMarketingLayoutProps {
 }
 
 export function AuthMarketingLayout({ children, maxWidth = 440 }: AuthMarketingLayoutProps) {
+  const theme = useTheme();
+  // Single-column auth forms use medium inputs for comfortable touch targets.
+  // DefaultPropsProvider reads the same `{ defaultProps }` shape as theme.components at runtime.
+  const authDefaults = useMemo(
+    () =>
+      ({
+      ...theme.components,
+      MuiTextField: {
+        ...theme.components?.MuiTextField,
+        defaultProps: { ...theme.components?.MuiTextField?.defaultProps, variant: 'filled' as const, size: 'medium' as const },
+      },
+      }) as unknown as React.ComponentProps<typeof DefaultPropsProvider>['value'],
+    [theme.components],
+  );
+
   return (
     <Box
-      sx={(theme) => ({
-        minHeight: '100vh',
+      sx={{
+        minHeight: '100dvh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        px: 2,
+        px: { xs: 1.5, sm: 2 },
         py: { xs: 4, md: 6 },
         position: 'relative',
         overflow: 'hidden',
-        bgcolor: 'secondary.main',
-        backgroundImage: `radial-gradient(circle at 15% 10%, ${alpha(theme.palette.primary.main, 0.35)} 0%, transparent 45%), radial-gradient(circle at 90% 90%, ${alpha(theme.palette.primary.light, 0.12)} 0%, transparent 40%)`,
-      })}
+        bgcolor: 'brand.navy',
+        backgroundImage: [
+          'radial-gradient(55% 55% at 12% 8%, rgba(37, 99, 235, 0.5) 0%, transparent 60%)',
+          'radial-gradient(45% 45% at 92% 92%, rgba(124, 58, 237, 0.42) 0%, transparent 60%)',
+        ].join(', '),
+      }}
     >
       <Box
         aria-hidden
@@ -43,6 +64,9 @@ export function AuthMarketingLayout({ children, maxWidth = 440 }: AuthMarketingL
           maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
         }}
       />
+      <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 2, '& .MuiIconButton-root': { color: 'rgba(255,255,255,0.8)' } }}>
+        <ColorModeToggle />
+      </Box>
       <Box sx={{ width: '100%', maxWidth, position: 'relative', zIndex: 1 }}>
         <Stack
           direction="row"
@@ -55,10 +79,11 @@ export function AuthMarketingLayout({ children, maxWidth = 440 }: AuthMarketingL
         >
           <Box
             sx={{
-              width: 36,
-              height: 36,
-              borderRadius: 2.5,
-              bgcolor: 'primary.main',
+              width: 38,
+              height: 38,
+              borderRadius: '10px',
+              background: brandVars.gradient,
+              boxShadow: '0 8px 24px -8px rgba(124, 58, 237, 0.8)',
               color: 'common.white',
               display: 'flex',
               alignItems: 'center',
@@ -67,26 +92,28 @@ export function AuthMarketingLayout({ children, maxWidth = 440 }: AuthMarketingL
           >
             <SchoolOutlined fontSize="small" />
           </Box>
-          <Typography variant="h6" sx={{ color: 'common.white', fontWeight: 700, letterSpacing: '-0.02em' }}>
+          <Typography variant="h6" sx={{ color: 'common.white', fontWeight: 750, letterSpacing: '-0.03em' }}>
             CampusOps
           </Typography>
         </Stack>
-        <ThemeProvider theme={authGlassTheme}>
+        <DefaultPropsProvider value={authDefaults}>
           <Paper
             sx={{
               p: { xs: 2.5, sm: 4 },
-              borderRadius: 4,
+              borderRadius: '20px',
+              border: 1,
+              borderColor: 'divider',
               boxShadow: '0 24px 60px -12px rgba(2, 6, 23, 0.55)',
               '& a:not(.MuiButton-root)': { color: 'primary.main', fontWeight: 600 },
             }}
           >
             {children}
           </Paper>
-        </ThemeProvider>
+        </DefaultPropsProvider>
         <Typography
           variant="caption"
           component="p"
-          sx={{ mt: 3, textAlign: 'center', color: 'sidebar.textMuted' }}
+          sx={{ mt: 3, textAlign: 'center', color: 'rgba(255,255,255,0.6)' }}
         >
           One platform for schools, colleges & institutes
         </Typography>

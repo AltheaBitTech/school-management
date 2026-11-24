@@ -9,7 +9,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Pagination from '@mui/material/Pagination';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -34,6 +33,7 @@ import {
   type FeeReportDateScope,
   type StudentFeeStatus,
 } from '@/lib/reports/fees-reports-client';
+import { ResponsiveTable } from '@/components/ui/AppTable';
 
 const FEE_STATUSES: StudentFeeStatus[] = ['PENDING', 'PARTIALLY_PAID', 'PAID'];
 const PAYMENT_METHODS: FeePaymentMethod[] = ['CASH', 'BANK_TRANSFER', 'UPI', 'OTHER'];
@@ -245,7 +245,7 @@ export default function FeesReportPage() {
             <Card variant="outlined">
               <CardContent>
                 <Typography variant="h6" gutterBottom>Collections by payment method</Typography>
-                <Table size="small">
+                <ResponsiveTable size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Method</TableCell>
@@ -262,7 +262,7 @@ export default function FeesReportPage() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                </ResponsiveTable>
               </CardContent>
             </Card>
           ) : null}
@@ -271,7 +271,7 @@ export default function FeesReportPage() {
             <Card variant="outlined">
               <CardContent>
                 <Typography variant="h6" gutterBottom>By fee structure</Typography>
-                <Table size="small">
+                <ResponsiveTable size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Structure</TableCell>
@@ -292,7 +292,7 @@ export default function FeesReportPage() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                </ResponsiveTable>
               </CardContent>
             </Card>
           ) : null}
@@ -301,7 +301,7 @@ export default function FeesReportPage() {
             <Alert severity="info">No student fees match the selected filters.</Alert>
           ) : (
             <>
-              <Table>
+              <ResponsiveTable>
                 <TableHead>
                   <TableRow>
                     <TableCell>Student</TableCell>
@@ -337,7 +337,7 @@ export default function FeesReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
 
               {report && report.meta.totalPages > 1 ? (
                 <Pagination

@@ -12,7 +12,9 @@ Target: reviewers and school administrators should never feel the UI is basic, i
 
 - UI library: **MUI v6** with enhanced custom theme (`apps/web/src/theme/theme.ts`)
 - Icons: **@mui/icons-material v6** — every nav item, action button, and status must have an icon
-- Sidebar background: **deep navy blue** (`#0f2044`) with white text and icons
+- Light **and dark** color schemes (MUI `colorSchemes` + CSS variables); user toggles Light/Dark/System via `ColorModeToggle`
+- Sidebar: `sidebar.*` palette tokens (light surface in light mode, near-black in dark), active item is a tinted pill
+- Brand accents: `brandVars` from `theme/theme.ts` (blue→violet gradient, glass top bar, soft shadows)
 - Input variant: **filled** across all forms (avoids label-clip issues)
 - Font: Inter or Segoe UI — clean, modern, legible
 
@@ -24,8 +26,8 @@ Target: reviewers and school administrators should never feel the UI is basic, i
 - `text.primary`: near-black (`#0f172a`)
 - `text.secondary`: muted slate (`#475569`)
 - `divider`: soft grey border (`#e3e8f0`)
-- Sidebar bg: `#0f2044` (deep navy)
-- Sidebar active item bg: `rgba(255,255,255,0.12)` with left 3px accent
+- Sidebar: `sidebar.main` / `sidebar.active` / `sidebar.activeText` tokens (scheme-aware)
+- Print headers / auth backdrop navy: `brand.navy` (`#0f2044`)
 
 ## Form Standards
 
@@ -48,12 +50,12 @@ Target: reviewers and school administrators should never feel the UI is basic, i
 
 ## Navigation / Sidebar
 
-- Deep navy blue background (`#0f2044`)
+- Uses `sidebar.*` tokens so it follows light/dark mode
 - Nav items have icons from `@mui/icons-material` — icon + label, no icon-only
-- Active nav item: white text, soft white-transparent background, 3px left border accent in primary blue
+- Active nav item: `sidebar.activeText` on a `sidebar.active` tinted pill with a short accent bar
 - Nav is grouped by section with overline section headers
 - Nav items are filtered by the user's actual permissions — never show a link the user cannot access
-- Logo area: "CampusOps" in white, bold, with a school icon beside it
+- Logo area: "CampusOps" bold, beside a gradient school-icon tile
 
 ## Page Structure
 
@@ -91,13 +93,13 @@ Target: reviewers and school administrators should never feel the UI is basic, i
 ## Responsiveness
 
 - Mobile-first: sidebar collapses to hamburger on `xs/sm`
-- Tables scroll horizontally on mobile
+- Tables become stacked labelled cards on phones (`AppTable` / `ResponsiveTable`); dialogs go edge-to-edge with a 12px gutter (theme)
 - Forms stack vertically on mobile, side-by-side on `md+`
 - Cards use `Grid2` with responsive column counts
 
 ## Prohibited Patterns
 
-- Do NOT hardcode colors outside the theme — always use `theme.palette.*` or `sx` tokens
+- Do NOT hardcode colors outside the theme — use `sx` palette paths, `theme.vars.palette.*` or `brandVars`; verify both light and dark
 - Do NOT show raw UUIDs or technical error codes to users
 - Do NOT leave blank white pages while loading — always show skeleton or spinner
 - Do NOT use `window.alert()` or browser dialogs for confirmation — use MUI Dialog

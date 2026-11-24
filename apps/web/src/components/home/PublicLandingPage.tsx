@@ -20,6 +20,7 @@ import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { LandingProductMock } from '@/components/home/LandingProductMock';
 import { PublicSiteFooter } from '@/components/layout/PublicSiteFooter';
+import { brandVars } from '@/theme/theme';
 
 const FEATURE_MODULES = [
   {
@@ -81,19 +82,36 @@ const HOW_IT_WORKS = [
 
 const BOARD_TYPES = ['CBSE', 'ICSE', 'State Board', 'Colleges & Universities', 'Coaching Institutes'] as const;
 
-const FEATURE_TONES = ['primary.main', 'secondary.main', 'success.main', 'warning.main'] as const;
+const FEATURE_TONES = ['primary', 'secondary', 'success', 'warning'] as const;
 
 export function PublicLandingPage() {
   return (
     <Box component="main">
       <Box
         sx={{
-          background: 'linear-gradient(128deg, #0f2044 0%, #1a2a4a 68%, #6e5420 100%)',
-          color: '#ffffff',
-          py: { xs: 6, md: 10 },
+          position: 'relative',
+          overflow: 'hidden',
+          bgcolor: 'brand.navy',
+          backgroundImage: [
+            'radial-gradient(60% 60% at 85% 10%, rgba(124, 58, 237, 0.45) 0%, transparent 60%)',
+            'radial-gradient(50% 50% at 10% 90%, rgba(37, 99, 235, 0.45) 0%, transparent 60%)',
+            'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%)',
+          ].join(', '),
+          color: 'common.white',
+          py: { xs: 7, md: 12 },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+            maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
+            pointerEvents: 'none',
+          },
         }}
       >
-        <Container maxWidth="lg">
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Grid container spacing={4} alignItems="center">
             <Grid size={{ xs: 12, md: 6 }}>
               <Stack spacing={2.5}>
@@ -101,15 +119,38 @@ export function PublicLandingPage() {
                   label="Operations platform for schools, colleges & institutes"
                   sx={{
                     alignSelf: 'flex-start',
-                    bgcolor: 'rgba(255,255,255,0.12)',
-                    color: '#ffffff',
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.18)',
+                    backdropFilter: 'blur(8px)',
+                    color: 'common.white',
                     fontWeight: 600,
+                    height: 'auto',
+                    py: 0.5,
+                    '& .MuiChip-label': { whiteSpace: 'normal' },
                   }}
                 />
-                <Typography variant="h3" component="h1">
-                  One platform to manage every campus operation
+                <Typography
+                  variant="h3"
+                  component="h1"
+                  sx={{ fontSize: { xs: '2.1rem', sm: '2.75rem', md: '3.25rem' }, lineHeight: 1.08 }}
+                >
+                  One platform to manage{' '}
+                  <Box
+                    component="span"
+                    sx={{
+                      background: 'linear-gradient(90deg, #93c5fd 0%, #c4b5fd 100%)',
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      color: 'transparent',
+                    }}
+                  >
+                    every campus operation
+                  </Box>
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 400, opacity: 0.92, maxWidth: 640 }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 400, opacity: 0.85, maxWidth: 640, fontSize: { xs: '1rem', sm: '1.15rem' } }}
+                >
                   CampusOps digitizes complaints, leave, visitors, assets, notices, and every campus workflow —
                   replacing paper registers, Excel sheets, and WhatsApp approvals.
                 </Typography>
@@ -120,8 +161,10 @@ export function PublicLandingPage() {
                     variant="contained"
                     size="large"
                     sx={{
-                      bgcolor: 'background.paper',
-                      color: 'text.primary',
+                      bgcolor: 'common.white',
+                      backgroundImage: 'none',
+                      color: 'grey.900',
+                      boxShadow: '0 10px 30px -10px rgba(255,255,255,0.4)',
                       '&:hover': { bgcolor: 'grey.100' },
                     }}
                   >
@@ -133,14 +176,15 @@ export function PublicLandingPage() {
                     variant="outlined"
                     size="large"
                     sx={{
-                      color: '#ffffff !important',
-                      backgroundColor: 'transparent !important',
-                      backgroundImage: 'none !important',
-                      borderColor: 'rgba(255,255,255,0.85) !important',
+                      color: 'common.white',
+                      backgroundColor: 'rgba(255,255,255,0.06)',
+                      backgroundImage: 'none',
+                      borderColor: 'rgba(255,255,255,0.4)',
+                      backdropFilter: 'blur(8px)',
                       '&:hover': {
-                        color: '#ffffff !important',
-                        backgroundColor: 'rgba(255,255,255,0.12) !important',
-                        borderColor: '#ffffff !important',
+                        color: 'common.white',
+                        backgroundColor: 'rgba(255,255,255,0.14)',
+                        borderColor: 'common.white',
                       },
                     }}
                   >
@@ -157,7 +201,10 @@ export function PublicLandingPage() {
       </Box>
 
       <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
-        <Typography variant="h4" component="h2" sx={{ mb: 3 }}>
+        <Typography variant="overline" color="primary" sx={{ display: 'block', mb: 1 }}>
+          Modules
+        </Typography>
+        <Typography variant="h4" component="h2" sx={{ mb: 4 }}>
           Everything your institution runs on
         </Typography>
         <Grid container spacing={2}>
@@ -169,9 +216,9 @@ export function PublicLandingPage() {
                     sx={{
                       width: 44,
                       height: 44,
-                      borderRadius: 2,
-                      bgcolor: FEATURE_TONES[index % FEATURE_TONES.length],
-                      color: 'common.white',
+                      borderRadius: '12px',
+                      bgcolor: `rgba(var(--mui-palette-${FEATURE_TONES[index % FEATURE_TONES.length]}-mainChannel) / 0.12)`,
+                      color: `${FEATURE_TONES[index % FEATURE_TONES.length]}.main`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -206,9 +253,10 @@ export function PublicLandingPage() {
                     sx={{
                       width: 36,
                       height: 36,
-                      borderRadius: '50%',
-                      bgcolor: 'primary.main',
+                      borderRadius: '12px',
+                      background: brandVars.gradient,
                       color: 'common.white',
+                      boxShadow: '0 8px 20px -8px rgba(79, 70, 229, 0.6)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',

@@ -74,8 +74,8 @@ export default function VisitorPassPage() {
   }
 
   const validDate = new Date(pass.passGeneratedAt).toLocaleDateString();
-  const headerBg = theme.palette.sidebar?.main ?? theme.palette.primary.dark;
-  const accentColor = theme.palette.sidebar?.main ?? theme.palette.primary.dark;
+  const headerBg = theme.palette.brand?.navy ?? theme.palette.primary.dark;
+  const accentColor = theme.palette.brand?.navy ?? theme.palette.primary.dark;
 
   const passContent = (
     <>

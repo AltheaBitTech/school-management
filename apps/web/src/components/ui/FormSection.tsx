@@ -25,8 +25,8 @@ export function FormSection({
     <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 3 }, maxWidth, width: '100%' }}>
       <Stack spacing={2.25}>
         {title ? (
-          <Box sx={{ pb: 1.75, borderBottom: 1, borderColor: 'divider' }}>
-            <Typography variant="subtitle1" component="h2" sx={{ fontSize: '1.0625rem' }}>
+          <Box sx={{ pb: 1.75, borderBottom: 1, borderColor: 'divider', position: 'relative' }}>
+            <Typography variant="subtitle1" component="h2" sx={{ fontSize: '1.0625rem', letterSpacing: '-0.01em' }}>
               {title}
             </Typography>
             {description ? (

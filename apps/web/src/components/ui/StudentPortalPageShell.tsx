@@ -39,7 +39,10 @@ export function StudentPortalSection({ title, children }: StudentPortalSectionPr
     <Box
       sx={{
         bgcolor: 'background.paper',
-        borderRadius: 2,
+        borderRadius: '16px',
+        border: 1,
+        borderColor: 'divider',
+        boxShadow: 'var(--mui-palette-brand-shadow)',
         px: { xs: 2, sm: 2.5 },
         py: { xs: 2, sm: 2.5 },
       }}

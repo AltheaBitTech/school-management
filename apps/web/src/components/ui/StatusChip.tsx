@@ -101,12 +101,24 @@ export function StatusChip({ status, label }: StatusChipProps) {
       color={tone}
       icon={<Icon sx={{ fontSize: '16px !important', color: 'inherit !important' }} />}
       sx={(theme) => {
-        const palette = tone === 'default' ? null : theme.palette[tone];
+        const vars = theme.vars ?? theme;
+        if (tone === 'default') {
+          return {
+            bgcolor: vars.palette.action.hover,
+            color: vars.palette.text.secondary,
+            border: '1px solid',
+            borderColor: vars.palette.divider,
+          };
+        }
+        const channel = theme.vars ? theme.vars.palette[tone].mainChannel : null;
+        const tint = (opacity: number) =>
+          channel ? `rgba(${channel} / ${opacity})` : alpha(theme.palette[tone].main, opacity);
         return {
-          bgcolor: palette ? alpha(palette.main, 0.12) : theme.palette.action.hover,
-          color: palette ? palette.dark : theme.palette.text.secondary,
+          bgcolor: tint(0.12),
+          color: vars.palette[tone].dark,
           border: '1px solid',
-          borderColor: palette ? alpha(palette.main, 0.24) : theme.palette.divider,
+          borderColor: tint(0.26),
+          ...theme.applyStyles('dark', { color: vars.palette[tone].main }),
         };
       }}
     />

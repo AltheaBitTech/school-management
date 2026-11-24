@@ -9,7 +9,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Pagination from '@mui/material/Pagination';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -32,6 +31,7 @@ import {
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { isAttendanceReportForbiddenError } from '@/lib/reports/attendance-report-errors';
 import { getAttendanceReport, type AttendanceReport } from '@/lib/reports/attendance-reports-client';
+import { ResponsiveTable } from '@/components/ui/AppTable';
 
 function formatPercentage(value: number | null): string {
   if (value === null) {
@@ -254,7 +254,7 @@ function AttendanceReportPageContent() {
           {report.breakdown.byDepartment.length > 0 ? (
             <Box>
               <Typography variant="h6" gutterBottom>By department</Typography>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Department</TableCell>
@@ -275,7 +275,7 @@ function AttendanceReportPageContent() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : null}
 
@@ -283,7 +283,7 @@ function AttendanceReportPageContent() {
             <Alert severity="info">No staff attendance records match the selected filters.</Alert>
           ) : (
             <>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Date</TableCell>
@@ -323,7 +323,7 @@ function AttendanceReportPageContent() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
               {report.meta.totalPages > 1 && (
                 <Pagination
                   count={report.meta.totalPages}

@@ -9,8 +9,8 @@ import { theme } from '@/theme/theme';
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppRouterCacheProvider>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+      <ThemeProvider theme={theme} defaultMode="system">
+        <CssBaseline enableColorScheme />
         <AppSnackbarProvider>{children}</AppSnackbarProvider>
       </ThemeProvider>
     </AppRouterCacheProvider>

@@ -594,8 +594,8 @@ export default function HomePage() {
           <Box
             sx={{
               display: 'grid',
-              gap: 2,
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+              gap: { xs: 1.5, sm: 2 },
+              gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' },
             }}
           >
             {summaryCards.map((card, index) => (

@@ -14,7 +14,6 @@ import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -51,6 +50,7 @@ import { useCan } from '@/lib/auth/use-can';
 import { listDepartments, type Department } from '@/lib/departments/departments-client';
 import { getStaffDisplayName, listStaff, type StaffMember } from '@/lib/staff/staff-client';
 import { listStudents, type Student } from '@/lib/students/students-client';
+import { ResponsiveTable } from '@/components/ui/AppTable';
 
 function statusColor(
   status: Asset['status'],
@@ -474,7 +474,7 @@ export default function AssetDetailPage() {
           <Typography variant="h6">Maintenance records</Typography>
           {asset.maintenances && asset.maintenances.length > 0 ? (
             <Box sx={{ overflowX: 'auto' }}>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Type</TableCell>
@@ -499,7 +499,7 @@ export default function AssetDetailPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : (
             <Typography color="text.secondary">No maintenance records yet.</Typography>
@@ -512,7 +512,7 @@ export default function AssetDetailPage() {
           <Typography variant="h6">Transfer history</Typography>
           {asset.transfers && asset.transfers.length > 0 ? (
             <Box sx={{ overflowX: 'auto' }}>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Transferred at</TableCell>
@@ -531,7 +531,7 @@ export default function AssetDetailPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : (
             <Typography color="text.secondary">No transfers recorded yet.</Typography>

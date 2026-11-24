@@ -8,7 +8,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Pagination from '@mui/material/Pagination';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -35,6 +34,7 @@ import {
 import { getCurrentOrganization } from '@/lib/organizations/organizations-client';
 import { getEventReport, type EventReport } from '@/lib/reports/event-reports-client';
 import { isEventReportForbiddenError } from '@/lib/reports/event-report-errors';
+import { ResponsiveTable } from '@/components/ui/AppTable';
 
 export default function EventReportPage() {
   const [report, setReport] = useState<EventReport | null>(null);
@@ -149,7 +149,7 @@ export default function EventReportPage() {
               <Chip key={key} label={`${formatEventStatus(key as EventStatus)}: ${value}`} variant="outlined" />
             ))}
           </Stack>
-          <Table size="small">
+          <ResponsiveTable size="small">
             <TableHead><TableRow><TableCell>Event</TableCell><TableCell>Type</TableCell><TableCell>When</TableCell><TableCell>Venue</TableCell><TableCell>Status</TableCell></TableRow></TableHead>
             <TableBody>
               {report.data.map((event) => (
@@ -162,7 +162,7 @@ export default function EventReportPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+          </ResponsiveTable>
           {report.meta.totalPages > 1 && <Pagination count={report.meta.totalPages} page={report.meta.page} onChange={(_, nextPage) => setPage(nextPage)} />}
         </>
       )}

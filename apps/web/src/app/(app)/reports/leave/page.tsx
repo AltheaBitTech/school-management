@@ -9,7 +9,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Pagination from '@mui/material/Pagination';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -32,6 +31,7 @@ import {
 } from '@/lib/leave/leave-client';
 import { isLeaveReportForbiddenError } from '@/lib/reports/leave-report-errors';
 import { getLeaveReport, type LeaveReport } from '@/lib/reports/leave-reports-client';
+import { ResponsiveTable } from '@/components/ui/AppTable';
 
 const LEAVE_STATUSES: LeaveRequestStatus[] = ['PENDING_APPROVAL', 'APPROVED', 'REJECTED'];
 
@@ -275,7 +275,7 @@ export default function LeaveReportPage() {
           {report.breakdown.byDepartment.length > 0 ? (
             <Box>
               <Typography variant="h6" gutterBottom>By department</Typography>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Department</TableCell>
@@ -298,14 +298,14 @@ export default function LeaveReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : null}
 
           {report.balances && report.balances.length > 0 ? (
             <Box>
               <Typography variant="h6" gutterBottom>Leave balances (selected staff)</Typography>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Period</TableCell>
@@ -326,7 +326,7 @@ export default function LeaveReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : null}
 
@@ -334,7 +334,7 @@ export default function LeaveReportPage() {
             <Alert severity="info">No leave requests match the selected filters.</Alert>
           ) : (
             <>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Staff</TableCell>
@@ -366,7 +366,7 @@ export default function LeaveReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
               {report.meta.totalPages > 1 && (
                 <Pagination
                   count={report.meta.totalPages}

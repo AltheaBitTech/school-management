@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -28,6 +27,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { isForbiddenError } from '@/lib/auth/auth-client';
 import { validateRequiredMaxLength } from '@/lib/forms/validators';
 import { INSTITUTION_TYPE_OPTIONS } from '@/lib/terminology/terminology';
+import { ResponsiveTable } from '@/components/ui/AppTable';
 
 interface RegistrationRequest {
   institutionType?: 'SCHOOL' | 'COLLEGE' | 'INSTITUTE';
@@ -177,9 +177,9 @@ export default function RegistrationsPage() {
           {requests.length === 0 ? (
             <Typography color="text.secondary">No pending registration requests.</Typography>
           ) : (
-            <Table>
+            <ResponsiveTable>
               <TableHead>
-                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                <TableRow>
                   <TableCell>Institution</TableCell>
                   <TableCell>Type</TableCell>
                   <TableCell>Contact Name</TableCell>
@@ -209,7 +209,7 @@ export default function RegistrationsPage() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </ResponsiveTable>
           )}
         </CardContent>
       </Card>

@@ -10,7 +10,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Pagination from '@mui/material/Pagination';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -21,7 +20,7 @@ import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ForbiddenState } from '@/components/feedback/ForbiddenState';
-import { AppTable } from '@/components/ui/AppTable';
+import { AppTable, ResponsiveTable } from '@/components/ui/AppTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ReportExportCsvButton } from '@/components/ui/ReportExportCsvButton';
 import { ReportFilterPanel } from '@/components/ui/ReportFilterPanel';
@@ -391,7 +390,7 @@ export default function ComplaintsReportPage() {
           {report.breakdown.byDepartment.some((row) => row.total > 0) ? (
             <Box>
               <Typography variant="h6" gutterBottom>By department</Typography>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Department</TableCell>
@@ -412,14 +411,14 @@ export default function ComplaintsReportPage() {
                       </TableRow>
                     ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : null}
 
           {report.ageing.some((bucket) => bucket.count > 0) ? (
             <Box>
               <Typography variant="h6" gutterBottom>Ageing (non-closed)</Typography>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Bucket</TableCell>
@@ -434,7 +433,7 @@ export default function ComplaintsReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </Box>
           ) : null}
 
@@ -442,7 +441,7 @@ export default function ComplaintsReportPage() {
             <Alert severity="info">No complaints match the selected filters.</Alert>
           ) : (
             <>
-              <Table size="small">
+              <ResponsiveTable size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Complaint</TableCell>
@@ -488,7 +487,7 @@ export default function ComplaintsReportPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
               {report.meta.totalPages > 1 && (
                 <Pagination
                   count={report.meta.totalPages}

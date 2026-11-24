@@ -29,19 +29,54 @@ export function DashboardQuickActions({ title = 'Quick actions', actions }: Dash
   return (
     <Stack spacing={1.5}>
       <Typography variant="h6">{title}</Typography>
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 1.25,
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(auto-fill, minmax(190px, 1fr))' },
+        }}
+      >
         {actions.map(({ label, href, icon: Icon }) => (
           <Button
             key={href}
             component={Link}
             href={href}
             variant="outlined"
-            startIcon={<Icon fontSize="small" />}
+            sx={{
+              justifyContent: 'flex-start',
+              gap: 1.25,
+              py: 1.25,
+              px: 1.5,
+              borderRadius: '12px',
+              textAlign: 'left',
+              lineHeight: 1.3,
+              '&:hover .quick-action-icon': { background: 'var(--mui-palette-brand-gradient)', color: 'common.white' },
+            }}
           >
-            {label}
+            <Box
+              className="quick-action-icon"
+              aria-hidden
+              sx={{
+                width: 32,
+                height: 32,
+                flexShrink: 0,
+                borderRadius: '8px',
+                bgcolor: 'primary.light',
+                color: 'primary.main',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 150ms ease, color 150ms ease',
+              }}
+            >
+              <Icon sx={{ fontSize: 18 }} />
+            </Box>
+            <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+              {label}
+            </Box>
           </Button>
         ))}
-      </Stack>
+      </Box>
     </Stack>
   );
 }
@@ -71,16 +106,16 @@ export function DashboardMetricCard({ label, value, href, icon, detail }: Dashbo
 export function DashboardSkeleton() {
   return (
     <Stack spacing={3} aria-label="Loading dashboard">
-      <Skeleton variant="rounded" height={72} />
+      <Skeleton variant="rounded" height={128} sx={{ borderRadius: '24px' }} />
       <Box
         sx={{
           display: 'grid',
-          gap: 2,
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+          gap: { xs: 1.5, sm: 2 },
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' },
         }}
       >
         {Array.from({ length: 4 }, (_, index) => (
-          <Skeleton key={index} variant="rounded" height={156} />
+          <Skeleton key={index} variant="rounded" height={156} sx={{ borderRadius: '16px' }} />
         ))}
       </Box>
     </Stack>
@@ -101,7 +136,7 @@ export function DashboardMetricGrid({ items }: DashboardMetricGridProps) {
   return (
     <Grid container spacing={2}>
       {items.map((item) => (
-        <Grid key={item.label} size={{ xs: 12, sm: 6, md: 4 }}>
+        <Grid key={item.label} size={{ xs: 6, md: 4 }}>
           <DashboardMetricCard {...item} />
         </Grid>
       ))}

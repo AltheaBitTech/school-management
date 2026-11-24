@@ -24,16 +24,24 @@ interface DetailFactRowProps {
 export function DetailFactRow({ label, children }: DetailFactRowProps) {
   return (
     <Stack
-      direction="row"
-      spacing={1.5}
-      flexWrap="wrap"
+      direction={{ xs: 'column', sm: 'row' }}
+      spacing={{ xs: 0.25, sm: 1.5 }}
       useFlexGap
-      sx={{ py: 0.75, borderBottom: 1, borderColor: 'divider', '&:last-of-type': { borderBottom: 0 } }}
+      sx={{ py: 1, borderBottom: 1, borderColor: 'divider', '&:last-of-type': { borderBottom: 0 } }}
     >
-      <Typography component="span" variant="body2" color="text.secondary" sx={{ minWidth: 128, fontWeight: 500 }}>
+      <Typography
+        component="span"
+        variant="body2"
+        color="text.secondary"
+        sx={{
+          minWidth: { sm: 140 },
+          fontWeight: 500,
+          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+        }}
+      >
         {label}
       </Typography>
-      <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
+      <Box sx={{ flex: 1, minWidth: 0, wordBreak: 'break-word' }}>{children}</Box>
     </Stack>
   );
 }
@@ -56,7 +64,7 @@ export function DetailPageShell({
             <Stack spacing={3}>{children}</Stack>
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <Paper variant="outlined" sx={{ p: 2.5, position: { md: 'sticky' }, top: { md: 88 } }}>
+            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, position: { md: 'sticky' }, top: { md: 88 } }}>
               {meta}
             </Paper>
           </Grid>

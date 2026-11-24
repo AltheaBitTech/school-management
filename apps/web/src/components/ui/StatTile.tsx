@@ -1,5 +1,6 @@
 'use client';
 
+import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
@@ -17,11 +18,11 @@ const TONE_COLOR: Record<StatTone, string> = {
   warning: 'warning.main',
 };
 
-const TONE_TINT: Record<StatTone, string> = {
-  primary: 'primary.light',
-  secondary: 'action.hover',
-  success: 'success.light',
-  warning: 'warning.light',
+const TONE_CHANNEL: Record<StatTone, string> = {
+  primary: 'var(--mui-palette-primary-mainChannel)',
+  secondary: 'var(--mui-palette-secondary-mainChannel)',
+  success: 'var(--mui-palette-success-mainChannel)',
+  warning: 'var(--mui-palette-warning-mainChannel)',
 };
 
 export interface StatTileProps {
@@ -44,13 +45,23 @@ export function StatTile({
   hrefLabel = 'View',
 }: StatTileProps) {
   const body = (
-    <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+    <CardContent
+      sx={{
+        p: { xs: 2, sm: 2.5 },
+        '&:last-child': { pb: { xs: 2, sm: 2.5 } },
+        position: 'relative',
+        height: '100%',
+        backgroundImage: `radial-gradient(120% 80% at 100% 0%, rgba(${TONE_CHANNEL[tone]} / 0.10) 0%, transparent 60%)`,
+      }}
+    >
       <Box
         sx={{
           width: 44,
           height: 44,
-          borderRadius: 2.5,
-          bgcolor: TONE_TINT[tone],
+          borderRadius: '12px',
+          bgcolor: `rgba(${TONE_CHANNEL[tone]} / 0.12)`,
+          border: '1px solid',
+          borderColor: `rgba(${TONE_CHANNEL[tone]} / 0.2)`,
           color: TONE_COLOR[tone],
           display: 'flex',
           alignItems: 'center',
@@ -63,7 +74,7 @@ export function StatTile({
       <Typography
         variant="h4"
         component="p"
-        sx={{ fontWeight: 750, lineHeight: 1.1, mb: 0.5, fontVariantNumeric: 'tabular-nums' }}
+        sx={{ fontWeight: 800, lineHeight: 1.1, mb: 0.5, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}
       >
         {value}
       </Typography>
@@ -76,8 +87,13 @@ export function StatTile({
         </Typography>
       ) : null}
       {href ? (
-        <Typography variant="caption" color="primary.main" sx={{ display: 'block', mt: 1.5, fontWeight: 700 }}>
+        <Typography
+          variant="caption"
+          color="primary.main"
+          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 1.5, fontWeight: 700 }}
+        >
           {hrefLabel}
+          <ArrowForwardOutlined sx={{ fontSize: 14 }} />
         </Typography>
       ) : null}
     </CardContent>

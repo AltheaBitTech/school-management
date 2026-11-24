@@ -37,6 +37,8 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -44,7 +46,6 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Stack from '@mui/material/Stack';
 import Toolbar from '@mui/material/Toolbar';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -52,6 +53,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { NotificationMenu } from '@/components/notifications/NotificationMenu';
+import { ColorModeToggle } from '@/components/layout/ColorModeToggle';
+import { brandVars } from '@/theme/theme';
 import { useTerminology } from '@/lib/terminology/use-terminology';
 import { useAuthSession } from '@/components/providers/AuthSessionProvider';
 import type { AuthUser } from '@/lib/auth/auth-client';
@@ -66,7 +69,7 @@ import { isPlatformOrganization } from '@/lib/navigation/platform';
 import { isAttendanceEnabled } from '@/lib/features/feature-flags';
 import { hasAnyReportPermission } from '@/lib/reports/reports-catalog';
 
-const DRAWER_WIDTH = 268;
+const DRAWER_WIDTH = 272;
 
 interface NavItem {
   href: string;
@@ -322,34 +325,45 @@ function filterNavGroups(groups: NavGroup[], permissions: string[] | undefined):
 
 function navItemButtonSx(isActive: boolean) {
   return {
-    mx: 1.25,
+    mx: 1.5,
     my: 0.25,
-    py: 0.85,
-    borderRadius: 2,
-    color: 'sidebar.text',
+    py: 0.8,
     px: 1.5,
+    borderRadius: '10px',
+    color: 'sidebar.text',
     position: 'relative',
-    borderLeft: '3px solid',
-    borderLeftColor: isActive ? 'sidebar.activeBorder' : 'transparent',
     '& .MuiListItemText-primary': {
       fontSize: '0.875rem',
       fontWeight: isActive ? 650 : 500,
     },
-    transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease',
+    transition: 'background-color 150ms ease, color 150ms ease',
     '&:focus-visible': {
       outline: '2px solid',
       outlineColor: 'sidebar.activeBorder',
-      outlineOffset: 2,
+      outlineOffset: 1,
     },
     '& .MuiListItemIcon-root': {
       color: 'sidebar.textMuted',
-      minWidth: 36,
+      minWidth: 34,
+      transition: 'color 150ms ease',
+    },
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      left: -12,
+      top: '50%',
+      width: 4,
+      height: isActive ? 20 : 0,
+      borderRadius: '0 4px 4px 0',
+      bgcolor: 'sidebar.activeBorder',
+      transform: 'translateY(-50%)',
+      transition: 'height 200ms ease',
     },
     '&.Mui-selected': {
       bgcolor: 'sidebar.active',
-      color: 'common.white',
+      color: 'sidebar.activeText',
       '& .MuiListItemIcon-root': {
-        color: 'common.white',
+        color: 'sidebar.activeText',
       },
       '&:hover': {
         bgcolor: 'sidebar.active',
@@ -357,7 +371,9 @@ function navItemButtonSx(isActive: boolean) {
     },
     '&:hover': {
       bgcolor: 'sidebar.hover',
-      color: 'common.white',
+      '& .MuiListItemIcon-root': {
+        color: 'sidebar.activeText',
+      },
     },
   };
 }
@@ -374,6 +390,7 @@ export function AppShell({ children }: AppShellProps) {
   const { isReady, isAuthenticated, user, signOut } = useAuthSession();
   const terms = useTerminology();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [accountAnchor, setAccountAnchor] = useState<HTMLElement | null>(null);
   const isStaffNav = isStaffSelfServiceUser(user?.permissions);
   const isStudentNav = isStudentSelfServiceUser(user?.permissions);
   const isParentNav = isParentSelfServiceUser(user?.permissions);
@@ -460,34 +477,53 @@ export function AppShell({ children }: AppShellProps) {
     const role = getUserRoleLabel(userContext);
 
     return (
-      <Box sx={{ px: 2, py: 2, borderTop: 1, borderColor: 'sidebar.active' }}>
-        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1, minWidth: 0 }}>
-          <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}>
-            {getUserInitials(name)}
-          </Avatar>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" noWrap sx={{ color: 'common.white', fontWeight: 600 }}>
-              {name}
-            </Typography>
-            <Typography variant="caption" noWrap sx={{ color: 'sidebar.textMuted', display: 'block' }}>
-              Signed in as {role}
-            </Typography>
-          </Box>
-        </Stack>
-        <Button
-          onClick={() => void handleSignOut()}
-          size="small"
-          startIcon={<LogoutOutlined fontSize="small" />}
+      <Box sx={{ p: 1.5 }}>
+        <Box
           sx={{
-            color: 'sidebar.text',
-            justifyContent: 'flex-start',
-            px: 0,
-            minWidth: 0,
-            '&:hover': { bgcolor: 'transparent', color: 'common.white' },
+            p: 1.5,
+            borderRadius: '14px',
+            border: 1,
+            borderColor: 'sidebar.border',
+            bgcolor: 'sidebar.hover',
           }}
         >
-          Sign out
-        </Button>
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1, minWidth: 0 }}>
+            <Avatar
+              sx={{
+                width: 34,
+                height: 34,
+                background: brandVars.gradient,
+                color: 'common.white',
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              {getUserInitials(name)}
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" noWrap sx={{ color: 'text.primary', fontWeight: 650 }}>
+                {name}
+              </Typography>
+              <Typography variant="caption" noWrap sx={{ color: 'sidebar.textMuted', display: 'block' }}>
+                {role}
+              </Typography>
+            </Box>
+          </Stack>
+          <Button
+            onClick={() => void handleSignOut()}
+            size="small"
+            fullWidth
+            startIcon={<LogoutOutlined fontSize="small" />}
+            sx={{
+              color: 'sidebar.textMuted',
+              justifyContent: 'flex-start',
+              px: 1,
+              '&:hover': { bgcolor: 'sidebar.hover', color: 'error.main' },
+            }}
+          >
+            Sign out
+          </Button>
+        </Box>
       </Box>
     );
   }
@@ -500,15 +536,18 @@ export function AppShell({ children }: AppShellProps) {
         height: '100%',
         bgcolor: 'sidebar.main',
         color: 'sidebar.text',
+        borderRight: 1,
+        borderColor: 'sidebar.border',
       }}
     >
       <Toolbar sx={{ px: 2.5, gap: 1.25 }}>
         <Box
           sx={{
-            width: 34,
-            height: 34,
-            borderRadius: 2,
-            bgcolor: 'primary.main',
+            width: 36,
+            height: 36,
+            borderRadius: '10px',
+            background: brandVars.gradient,
+            boxShadow: '0 6px 16px -6px rgba(79, 70, 229, 0.6)',
             color: 'common.white',
             display: 'flex',
             alignItems: 'center',
@@ -523,13 +562,12 @@ export function AppShell({ children }: AppShellProps) {
           component={Link}
           href={homeHref}
           onClick={handleNavClick}
-          sx={{ color: 'common.white', textDecoration: 'none', fontWeight: 700, letterSpacing: '-0.02em' }}
+          sx={{ color: 'text.primary', textDecoration: 'none', fontWeight: 750, letterSpacing: '-0.03em' }}
         >
           CampusOps
         </Typography>
       </Toolbar>
-      <Divider sx={{ borderColor: 'sidebar.active' }} />
-      <Box sx={{ overflowY: 'auto', py: 1.5, flex: 1 }}>
+      <Box sx={{ overflowY: 'auto', overflowX: 'hidden', py: 1, flex: 1 }}>
         <List disablePadding>
           <ListItemButton
             component={Link}
@@ -545,11 +583,11 @@ export function AppShell({ children }: AppShellProps) {
           </ListItemButton>
         </List>
         {navGroups.map((group) => (
-          <Box key={group.title} sx={{ mt: 1.5 }}>
+          <Box key={group.title} sx={{ mt: 2 }}>
             <Typography
               variant="overline"
               sx={{
-                px: 3,
+                px: 3.25,
                 pb: 0.25,
                 color: 'sidebar.textSection',
                 letterSpacing: '0.1em',
@@ -593,7 +631,20 @@ export function AppShell({ children }: AppShellProps) {
         <AppBar position="sticky" color="inherit" elevation={0}>
           <Toolbar sx={{ gap: 1, maxWidth: 1280, mx: 'auto', width: '100%' }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ flexGrow: 1 }}>
-              <SchoolOutlined color="primary" />
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '9px',
+                  background: brandVars.gradient,
+                  color: 'common.white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <SchoolOutlined sx={{ fontSize: 18 }} />
+              </Box>
               <Typography
                 variant="h6"
                 component={Link}
@@ -603,7 +654,13 @@ export function AppShell({ children }: AppShellProps) {
                 CampusOps
               </Typography>
             </Stack>
-            <Button component={Link} href="/register-organization" size="small">
+            <ColorModeToggle />
+            <Button
+              component={Link}
+              href="/register-organization"
+              size="small"
+              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+            >
               Register Your Institution
             </Button>
             <Button component={Link} href="/login" variant="contained" size="small">
@@ -627,7 +684,7 @@ export function AppShell({ children }: AppShellProps) {
           ml: { md: `${DRAWER_WIDTH}px` },
         }}
       >
-        <Toolbar sx={{ gap: 1, px: { xs: 2, sm: 3, lg: 4 } }}>
+        <Toolbar sx={{ gap: { xs: 0.5, sm: 1 }, px: { xs: 1.5, sm: 3, lg: 4 } }}>
           {!isDesktop ? (
             <IconButton
               color="inherit"
@@ -641,33 +698,83 @@ export function AppShell({ children }: AppShellProps) {
           <Typography
             variant="overline"
             noWrap
-            sx={{ flexGrow: 1, color: 'text.secondary', letterSpacing: '0.08em' }}
+            sx={{ flexGrow: 1, color: 'text.secondary', letterSpacing: '0.08em', minWidth: 0 }}
           >
             {appBarTitle}
           </Typography>
+          <ColorModeToggle />
           <NotificationMenu />
           {isReady && isAuthenticated && user ? (
-            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ ml: 0.5 }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}>
-                {getUserInitials(displayName)}
-              </Avatar>
-              <Box sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 0, maxWidth: 220 }}>
-                <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
-                  {displayName}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {roleLabel}
-                  {!isPlatformOrg && user?.organization?.code
-                    ? ` · ${user.organization.code}`
-                    : ''}
-                </Typography>
-              </Box>
-              <Tooltip title="Sign out">
-                <IconButton aria-label="Sign out" onClick={() => void handleSignOut()} size="small">
-                  <LogoutOutlined fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+            <>
+              <Button
+                onClick={(event) => setAccountAnchor(event.currentTarget)}
+                aria-label="Account menu"
+                aria-haspopup="menu"
+                aria-expanded={accountAnchor ? 'true' : undefined}
+                sx={{
+                  ml: 0.5,
+                  px: { xs: 0.5, sm: 1 },
+                  py: 0.5,
+                  minWidth: 0,
+                  gap: 1.25,
+                  color: 'text.primary',
+                  borderRadius: 999,
+                  '&:hover': { bgcolor: 'action.hover' },
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    background: brandVars.gradient,
+                    color: 'common.white',
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  {getUserInitials(displayName)}
+                </Avatar>
+                <Box sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 0, maxWidth: 200, textAlign: 'left' }}>
+                  <Typography variant="body2" noWrap sx={{ fontWeight: 650, lineHeight: 1.3 }}>
+                    {displayName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap component="p" sx={{ lineHeight: 1.3 }}>
+                    {roleLabel}
+                    {!isPlatformOrg && user?.organization?.code ? ` · ${user.organization.code}` : ''}
+                  </Typography>
+                </Box>
+              </Button>
+              <Menu
+                anchorEl={accountAnchor}
+                open={Boolean(accountAnchor)}
+                onClose={() => setAccountAnchor(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                slotProps={{ paper: { sx: { mt: 1, minWidth: 220 } } }}
+              >
+                <Box sx={{ px: 2, py: 1.25 }}>
+                  <Typography variant="body2" noWrap sx={{ fontWeight: 650 }}>
+                    {displayName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap component="p">
+                    {roleLabel}
+                  </Typography>
+                </Box>
+                <Divider />
+                <MenuItem
+                  onClick={() => {
+                    setAccountAnchor(null);
+                    void handleSignOut();
+                  }}
+                  sx={{ mt: 0.5, color: 'error.main' }}
+                >
+                  <ListItemIcon sx={{ color: 'inherit' }}>
+                    <LogoutOutlined fontSize="small" />
+                  </ListItemIcon>
+                  Sign out
+                </MenuItem>
+              </Menu>
+            </>
           ) : null}
           {isReady && !isAuthenticated ? (
             <Button component={Link} href="/login" variant="contained" size="small">
@@ -686,7 +793,7 @@ export function AppShell({ children }: AppShellProps) {
           sx={{
             display: { xs: 'block', md: 'none' },
             '& .MuiDrawer-paper': {
-              width: DRAWER_WIDTH,
+              width: `min(85vw, ${DRAWER_WIDTH + 24}px)`,
               boxSizing: 'border-box',
               borderRight: 'none',
             },
@@ -721,9 +828,10 @@ export function AppShell({ children }: AppShellProps) {
         <Toolbar />
         <Box
           sx={{
-            px: { xs: 2, sm: 3, lg: 4 },
+            px: { xs: 2, sm: 3, lg: 5 },
             py: { xs: 2.5, sm: 4 },
-            maxWidth: isStudentNav ? 720 : 1280,
+            pb: { xs: 6, sm: 6 },
+            maxWidth: isStudentNav ? 720 : 1320,
             mx: 'auto',
           }}
         >
