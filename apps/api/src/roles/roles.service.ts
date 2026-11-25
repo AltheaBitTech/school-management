@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role, User } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { AuditService } from '../audit/audit.service';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../audit/constants/audit.constants';
@@ -112,7 +112,7 @@ export class RolesService {
 
   async assertRoleAssignmentAllowed(
     actor: AuthenticatedUser,
-    targetUser: User,
+    targetUser: { organizationId: string },
     role: Role,
   ): Promise<void> {
     const actorPermissions =

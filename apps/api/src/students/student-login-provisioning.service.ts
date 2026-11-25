@@ -88,8 +88,14 @@ export class StudentLoginProvisioningService {
       });
     }
 
+    await this.rolesService.assertRoleAssignmentAllowed(actor, { organizationId }, role);
+
+    let created: {
+      user: { id: string };
+      issued: Awaited<ReturnType<AccountInviteService['issueInviteToken']>>;
+    };
     try {
-      const created = await this.prisma.$transaction(async (tx) => {
+      created = await this.prisma.$transaction(async (tx) => {
         const created = await tx.user.create({
           data: {
             organizationId,
@@ -98,8 +104,6 @@ export class StudentLoginProvisioningService {
             status: UserStatus.ACTIVE,
           },
         });
-
-        await this.rolesService.assertRoleAssignmentAllowed(actor, created, role);
 
         await tx.userRole.create({
           data: { userId: created.id, roleId: role.id },
@@ -129,24 +133,6 @@ export class StudentLoginProvisioningService {
 
         return { user: created, issued };
       });
-
-      const delivery = await this.accountInvites.sendInviteEmail({
-        to: normalizedEmail,
-        recipientName: `${student.firstName} ${student.lastName}`.trim(),
-        organizationName: student.organization.name,
-        roleName: 'Student',
-        inviteUrl: created.issued.inviteUrl,
-        expiresAt: created.issued.expiresAt,
-      });
-
-      return {
-        userId: created.user.id,
-        loginEmail: normalizedEmail,
-        inviteUrl: delivery.inviteUrl ?? '',
-        inviteExpiresAt: created.issued.expiresAt.toISOString(),
-        emailSent: delivery.emailSent,
-        emailError: delivery.emailError,
-      };
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException({
@@ -156,5 +142,23 @@ export class StudentLoginProvisioningService {
       }
       throw error;
     }
+
+    const delivery = await this.accountInvites.sendInviteEmail({
+      to: normalizedEmail,
+      recipientName: `${student.firstName} ${student.lastName}`.trim(),
+      organizationName: student.organization.name,
+      roleName: 'Student',
+      inviteUrl: created.issued.inviteUrl,
+      expiresAt: created.issued.expiresAt,
+    });
+
+    return {
+      userId: created.user.id,
+      loginEmail: normalizedEmail,
+      inviteUrl: delivery.inviteUrl ?? '',
+      inviteExpiresAt: created.issued.expiresAt.toISOString(),
+      emailSent: delivery.emailSent,
+      emailError: delivery.emailError,
+    };
   }
 }

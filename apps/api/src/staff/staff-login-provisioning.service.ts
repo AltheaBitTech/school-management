@@ -164,8 +164,15 @@ export class StaffLoginProvisioningService {
       };
     }
 
+    await this.rolesService.assertRoleAssignmentAllowed(actor, { organizationId }, role);
+
+    let result: {
+      staff: StaffWithDepartment;
+      issued: Awaited<ReturnType<AccountInviteService['issueInviteToken']>>;
+      roleName: string;
+    };
     try {
-      const result = await this.prisma.$transaction(async (tx) => {
+      result = await this.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
             organizationId,
@@ -174,8 +181,6 @@ export class StaffLoginProvisioningService {
             status: UserStatus.ACTIVE,
           },
         });
-
-        await this.rolesService.assertRoleAssignmentAllowed(actor, user, role);
 
         await tx.userRole.create({
           data: {
@@ -244,28 +249,28 @@ export class StaffLoginProvisioningService {
           roleName: role.name,
         };
       });
-
-      const delivery = await this.accountInvites.sendInviteEmail({
-        to: normalizedEmail,
-        recipientName: `${staff.firstName} ${staff.lastName}`.trim(),
-        organizationName: staff.organization.name,
-        roleName: result.roleName,
-        inviteUrl: result.issued.inviteUrl,
-        expiresAt: result.issued.expiresAt,
-      });
-
-      return {
-        staff: result.staff,
-        loginEmail: normalizedEmail,
-        inviteUrl: delivery.inviteUrl ?? '',
-        inviteExpiresAt: result.issued.expiresAt.toISOString(),
-        emailSent: delivery.emailSent,
-        emailError: delivery.emailError,
-      };
     } catch (error: unknown) {
       this.handleUniqueViolation(error);
       throw error;
     }
+
+    const delivery = await this.accountInvites.sendInviteEmail({
+      to: normalizedEmail,
+      recipientName: `${staff.firstName} ${staff.lastName}`.trim(),
+      organizationName: staff.organization.name,
+      roleName: result.roleName,
+      inviteUrl: result.issued.inviteUrl,
+      expiresAt: result.issued.expiresAt,
+    });
+
+    return {
+      staff: result.staff,
+      loginEmail: normalizedEmail,
+      inviteUrl: delivery.inviteUrl ?? '',
+      inviteExpiresAt: result.issued.expiresAt.toISOString(),
+      emailSent: delivery.emailSent,
+      emailError: delivery.emailError,
+    };
   }
 
   private async resolveSelectableRole(organizationId: string, roleId: string): Promise<Role> {
