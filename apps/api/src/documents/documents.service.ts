@@ -676,6 +676,7 @@ export class DocumentsService {
   }
 
   async listTemplates(organizationId: string) {
+    await this.ensureTemplatesForOrganization(organizationId);
     const templates = await this.prisma.documentTemplate.findMany({
       where: { organizationId },
       orderBy: { documentType: 'asc' },
@@ -808,6 +809,7 @@ export class DocumentsService {
   }
 
   private async findActiveTemplate(organizationId: string, documentType: DocumentType) {
+    await this.ensureTemplatesForOrganization(organizationId);
     const template = await this.prisma.documentTemplate.findFirst({
       where: { organizationId, documentType, active: true },
     });

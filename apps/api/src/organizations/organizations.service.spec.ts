@@ -91,6 +91,8 @@ describe('OrganizationsService', () => {
         },
         documentTemplate: {
           upsert: jest.fn().mockResolvedValue({ id: 'template-1' }),
+          findUnique: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({ id: 'template-1' }),
         },
         approvalWorkflow: {
           upsert: jest.fn().mockResolvedValue({ id: 'workflow-1' }),

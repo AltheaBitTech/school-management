@@ -325,7 +325,7 @@ describeIfDatabase('Documents integration', () => {
     expect(afterCount).toBe(beforeCount);
   });
 
-  it('rejects missing template for organization', async () => {
+  it('creates missing default templates and generates the document', async () => {
     const emptyOrg = await prisma.organization.create({
       data: { name: 'No Template Org', code: `doc-empty-${Date.now()}` },
     });
@@ -338,12 +338,22 @@ describeIfDatabase('Documents integration', () => {
       },
     });
 
-    await expect(
-      documentsService.generateBonafide(emptyOrg.id, actorA, emptyStudent.id),
-    ).rejects.toMatchObject({
-      response: { code: DOCUMENT_ERROR_CODES.DOCUMENT_TEMPLATE_NOT_FOUND },
-    });
+    const generated = await documentsService.generateBonafide(emptyOrg.id, actorA, emptyStudent.id);
+    expect(generated.documentType).toBe(DocumentType.BONAFIDE_CERTIFICATE);
 
+    const staffTemplate = await prisma.documentTemplate.findUnique({
+      where: {
+        organizationId_documentType: {
+          organizationId: emptyOrg.id,
+          documentType: DocumentType.STAFF_ID_CARD,
+        },
+      },
+    });
+    expect(staffTemplate?.active).toBe(true);
+
+    await prisma.generatedDocument.deleteMany({ where: { organizationId: emptyOrg.id } });
+    await prisma.file.deleteMany({ where: { organizationId: emptyOrg.id } });
+    await prisma.documentTemplate.deleteMany({ where: { organizationId: emptyOrg.id } });
     await prisma.student.delete({ where: { id: emptyStudent.id } });
     await prisma.organization.delete({ where: { id: emptyOrg.id } });
   });
