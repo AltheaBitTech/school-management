@@ -234,17 +234,22 @@ function buildStaffSelfNavGroup(permissions: string[] | undefined): NavGroup {
   ];
 
   if (isAttendanceEnabled() && hasPermission(permissions, 'student.attendance.mark')) {
-    items.push({ href: '/attendance/students', label: 'Student attendance', icon: GroupsOutlined });
+    items.push({
+      href: '/attendance/students',
+      label: 'Student attendance',
+      icon: GroupsOutlined,
+      requiredPermission: 'student.attendance.mark',
+    });
   }
 
   if (hasPermission(permissions, 'complaint.view')) {
-    items.push({ href: '/complaints', label: 'Complaints', icon: BuildOutlined });
+    items.push({ href: '/complaints', label: 'Complaints', icon: BuildOutlined, requiredPermission: 'complaint.view' });
   }
   if (hasPermission(permissions, 'notice.view')) {
-    items.push({ href: '/notices', label: 'Notices', icon: AnnouncementOutlined });
+    items.push({ href: '/notices', label: 'Notices', icon: AnnouncementOutlined, requiredPermission: 'notice.view' });
   }
   if (hasPermission(permissions, 'event.view')) {
-    items.push({ href: '/events', label: 'Events', icon: CalendarMonthOutlined });
+    items.push({ href: '/events', label: 'Events', icon: CalendarMonthOutlined, requiredPermission: 'event.view' });
   }
   if (
     hasPermission(permissions, 'staff.self.leave.view') ||
@@ -331,6 +336,62 @@ function filterNavGroups(groups: NavGroup[], permissions: string[] | undefined):
     .filter((group) => group.items.length > 0);
 }
 
+function buildOperationalNavGroups(
+  permissions: string[] | undefined,
+  terms: { unitPlural: string; groupPlural: string },
+): NavGroup[] {
+  const groups = NAV_GROUPS.map((group) => {
+    if (group.title === 'People') {
+      return {
+        ...group,
+        items: group.items.map((item) =>
+          item.href === '/classes' ? { ...item, label: `${terms.unitPlural} & ${terms.groupPlural}` } : item,
+        ),
+      };
+    }
+    if (group.title !== 'Finance & records') {
+      return group;
+    }
+
+    const items = [...group.items];
+    if (hasAnyReportPermission(permissions)) {
+      items.push(REPORTS_NAV_ITEM);
+    }
+    return { ...group, items };
+  });
+
+  return filterNavGroups(groups, permissions);
+}
+
+/**
+ * Portal users (staff self-service, student, parent) get a fixed menu. Any extra feature an admin
+ * grants to their role is appended as a "More" group so it is reachable, without duplicating
+ * entries the portal menu already has.
+ */
+function withGrantedModules(portalGroups: NavGroup[], grantedOperationalGroups: NavGroup[]): NavGroup[] {
+  const portalItems = portalGroups.flatMap((group) => group.items);
+  const portalHrefs = new Set(portalItems.map((item) => item.href));
+  // A permission the portal menu already surfaces (e.g. event.view → Events) doesn't add more entries.
+  const portalPermissions = new Set(
+    portalItems.flatMap((item) => item.requiredPermission ?? []),
+  );
+  const extraItems = grantedOperationalGroups
+    .flatMap((group) => group.items)
+    .filter((item) => {
+      if (portalHrefs.has(item.href)) {
+        return false;
+      }
+      const gates = item.requiredPermission ? [item.requiredPermission] : item.requiredAnyPermissions ?? [];
+      return !gates.some((code) => portalPermissions.has(code));
+    });
+
+  if (extraItems.length === 0) {
+    return portalGroups;
+  }
+
+  return [...portalGroups, { title: 'More', items: extraItems }];
+}
+
 function navItemButtonSx(isActive: boolean) {
   return {
     mx: 1.5,
@@ -405,43 +466,29 @@ export function AppShell({ children }: AppShellProps) {
   const isPlatformOrg = isPlatformOrganization(user?.organization?.code);
   const isPublicMarketingHome = pathname === '/' && isReady && !isAuthenticated;
   const navGroups = useMemo(() => {
+    const permissions = user?.permissions;
+    const operationalGroups = buildOperationalNavGroups(permissions, {
+      unitPlural: terms.unitPlural,
+      groupPlural: terms.groupPlural,
+    });
+
     if (isStaffNav) {
-      return [buildStaffSelfNavGroup(user?.permissions)];
+      return withGrantedModules([buildStaffSelfNavGroup(permissions)], operationalGroups);
     }
 
     if (isStudentNav) {
-      return filterNavGroups([STUDENT_SELF_NAV_GROUP], user?.permissions);
+      return withGrantedModules(filterNavGroups([STUDENT_SELF_NAV_GROUP], permissions), operationalGroups);
     }
 
     if (isParentNav) {
-      return filterNavGroups([PARENT_NAV_GROUP], user?.permissions);
+      return withGrantedModules(filterNavGroups([PARENT_NAV_GROUP], permissions), operationalGroups);
     }
 
     if (isPlatformOrg) {
-      return filterNavGroups([PLATFORM_NAV_GROUP], user?.permissions);
+      return filterNavGroups([PLATFORM_NAV_GROUP], permissions);
     }
 
-    const groups = NAV_GROUPS.map((group) => {
-      if (group.title === 'People') {
-        return {
-          ...group,
-          items: group.items.map((item) =>
-            item.href === '/classes' ? { ...item, label: `${terms.unitPlural} & ${terms.groupPlural}` } : item,
-          ),
-        };
-      }
-      if (group.title !== 'Finance & records') {
-        return group;
-      }
-
-      const items = [...group.items];
-      if (hasAnyReportPermission(user?.permissions)) {
-        items.push(REPORTS_NAV_ITEM);
-      }
-      return { ...group, items };
-    });
-
-    return filterNavGroups(groups, user?.permissions);
+    return operationalGroups;
   }, [isStaffNav, isStudentNav, isParentNav, isPlatformOrg, user?.permissions, terms.unitPlural, terms.groupPlural]);
   const homeHref = isStaffNav
     ? '/staff/dashboard'
