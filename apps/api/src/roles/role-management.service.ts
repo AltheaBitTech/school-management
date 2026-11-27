@@ -122,6 +122,20 @@ export class RoleManagementService {
     dto: UpdateRoleDto,
     options?: { requestId?: string },
   ): Promise<RoleDetailDto> {
+    // The escalation check reads through the shared client, so it must run before the
+    // transaction: with one database connection per instance (serverless) a query outside
+    // `tx` waits for the connection the transaction holds, and the transaction times out.
+    if (dto.permissions !== undefined) {
+      const role = await this.findOrganizationRole(this.prisma, actor.organizationId, roleId);
+      this.assertNotLocked(role);
+      const requested = this.normalizePermissions(dto.permissions);
+      const current = new Set(await this.getRolePermissionCodes(this.prisma, role.id));
+      await this.assertNoEscalation(
+        actor,
+        requested.filter((code) => !current.has(code)),
+      );
+    }
+
     await this.prisma.$transaction(async (tx) => {
       const role = await this.findOrganizationRole(tx, actor.organizationId, roleId);
       const data: Prisma.RoleUpdateInput = {};
@@ -154,9 +168,6 @@ export class RoleManagementService {
         const next = new Set(nextPermissions);
         const added = nextPermissions.filter((code) => !current.has(code));
         const removed = currentPermissions.filter((code) => !next.has(code));
-
-        // Only newly granted permissions need an escalation check; keeping or removing is fine.
-        await this.assertNoEscalation(actor, added);
 
         if (added.length > 0 || removed.length > 0) {
           await this.replacePermissions(tx, role.id, nextPermissions);
