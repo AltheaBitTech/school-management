@@ -1,8 +1,9 @@
-import { Injectable, StreamableFile } from '@nestjs/common';
-import { DocumentType } from '@prisma/client';
+import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
+import { DocumentOwnerType, DocumentType } from '@prisma/client';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.types';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PermissionsService } from '../permissions/permissions.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { StudentFeesService } from '../fees/student-fees.service';
 import { StudentsService } from '../students/students.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -18,6 +19,7 @@ export class StudentSelfService {
     private readonly permissionsService: PermissionsService,
     private readonly documentsService: DocumentsService,
     private readonly transportService: TransportService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async getTransport(user: AuthenticatedUser) {
@@ -75,6 +77,41 @@ export class StudentSelfService {
     return this.documentsService.generateDocument(user.organizationId, user, {
       documentType: DocumentType.STUDENT_ID_CARD,
       ownerId: student.id,
+    });
+  }
+
+  /**
+   * Download a PDF generated for this student (ID card, bonafide certificate).
+   * Students have no document.view / document.download, so ownership is checked here.
+   */
+  async downloadOwnDocument(user: AuthenticatedUser, documentId: string): Promise<StreamableFile> {
+    const student = await this.studentContextService.resolveStudentProfile(user);
+    const owned = await this.prisma.generatedDocument.findFirst({
+      where: {
+        id: documentId,
+        organizationId: user.organizationId,
+        ownerType: DocumentOwnerType.STUDENT,
+        ownerId: student.id,
+      },
+      select: { id: true },
+    });
+
+    if (!owned) {
+      throw new NotFoundException({
+        code: 'DOCUMENT_NOT_FOUND',
+        message: 'Document not found',
+      });
+    }
+
+    const { file, buffer, disposition } = await this.documentsService.download(
+      user.organizationId,
+      owned.id,
+    );
+
+    return new StreamableFile(buffer, {
+      type: file.mimeType,
+      disposition,
+      length: file.size,
     });
   }
 }

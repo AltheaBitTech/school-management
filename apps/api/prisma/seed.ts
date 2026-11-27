@@ -48,6 +48,7 @@ async function seedPlatformRoles(permissionIds: Map<string, string>): Promise<vo
             organizationId: null,
             code: roleDefinition.code,
             name: roleDefinition.name,
+            isSystem: true,
           },
         });
 
@@ -99,11 +100,13 @@ async function seedOrganizationRoles(
       },
       update: {
         name: roleDefinition.name,
+        isSystem: true,
       },
       create: {
         organizationId,
         code: roleDefinition.code,
         name: roleDefinition.name,
+        isSystem: true,
       },
     });
 

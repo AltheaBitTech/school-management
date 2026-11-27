@@ -72,4 +72,30 @@ describeIfDatabase('ensureOrganizationRole synchronization', () => {
       [...maintenanceDefinition!.permissions].sort(),
     );
   });
+  it('keeps admin-customized permissions when the seed runs again', async () => {
+    const receptionistDefinition = ORGANIZATION_ROLE_DEFINITIONS.find(
+      (role) => role.code === 'RECEPTIONIST',
+    );
+    expect(receptionistDefinition).toBeDefined();
+
+    const role = await ensureOrganizationRole(prisma, organizationId, receptionistDefinition!);
+    const extraPermission = await prisma.permission.findUniqueOrThrow({
+      where: { code: 'fee.view' },
+    });
+    await prisma.rolePermission.create({
+      data: { roleId: role.id, permissionId: extraPermission.id },
+    });
+    await prisma.role.update({
+      where: { id: role.id },
+      data: { permissionsCustomizedAt: new Date() },
+    });
+
+    await ensureOrganizationRole(prisma, organizationId, receptionistDefinition!);
+
+    const permissionCodes = await prisma.rolePermission.findMany({
+      where: { roleId: role.id },
+      include: { permission: { select: { code: true } } },
+    });
+    expect(permissionCodes.map((entry) => entry.permission.code)).toContain('fee.view');
+  });
 });

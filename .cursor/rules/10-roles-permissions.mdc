@@ -28,6 +28,7 @@ All role codes, permission codes, and role definitions live in:
 | `ACCOUNTANT` | Accountant | Finance/accounts team |
 | `STAFF` | Staff (self-service) | General staff — self-service portal only |
 | `STUDENT` | Student | Student self-service portal |
+| `PARENT` | Parent | Parent portal for linked students |
 
 ## Role Scoping Rules
 
@@ -39,6 +40,20 @@ All role codes, permission codes, and role definitions live in:
 - `ACCOUNTANT` sees fees, assets, documents, approval participation, fee reports
 - `STAFF` has self-service only: own dashboard, own leave, own attendance
 - `STUDENT` has student self-service: own profile, own fees, certificate download, notices, events
+- `PARENT` has the parent portal, notices, and linked students' transport
+
+## Custom Roles & Admin-Edited Permissions
+
+School admins manage roles at **Settings → Roles & permissions** (`/settings/roles`), backed by `RoleManagementService` (`apps/api/src/roles/role-management.service.ts`):
+
+- `role.create` / `role.update` / `role.delete` (granted to `SCHOOL_ADMIN`)
+- Custom roles get `isSystem = false` and a generated code `CUSTOM_<NAME>`; they can be renamed and deleted (only when no users or approval levels use them)
+- Built-in roles (`isSystem = true`) cannot be renamed or deleted, but their permissions can be edited; editing sets `permissionsCustomizedAt`, and **the seed never re-syncs a customized role**. `POST /roles/:id/reset` restores the code definition
+- `SCHOOL_ADMIN` permissions are locked to prevent lockout
+- `platform.*` permissions can never be granted to an organization role; non-admin editors can only grant permissions they hold
+- The permission picker groups the catalog via `apps/api/src/permissions/constants/permission-groups.ts` — add a group there when adding a new module prefix
+- Because admins can customize built-in roles, ship new permissions for existing roles via a **SQL migration** (see `20261118120100_class_permissions`), not only by editing `system-roles.ts`
+- Logic that checks role **codes** (Principal leave approval, Parent/Student portals) does not apply to custom roles — prefer permission checks in new code
 
 ## Frontend Navigation Filtering Rule
 

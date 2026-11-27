@@ -475,6 +475,11 @@ model Role {
   organizationId String?  @db.Uuid
   code           String
   name           String
+  description    String?
+  /// True for roles seeded from code (system-roles.ts). System roles cannot be deleted or renamed.
+  isSystem                Boolean   @default(false)
+  /// Set when an admin edits a system role's permissions; the seed then only adds new permissions.
+  permissionsCustomizedAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

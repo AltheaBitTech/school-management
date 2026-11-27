@@ -131,4 +131,6 @@ export const apiClient = {
     apiRequest<T>(path, { ...options, method: 'PATCH', body, auth: options?.auth ?? true }),
   put: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
     apiRequest<T>(path, { ...options, method: 'PUT', body, auth: options?.auth ?? true }),
+  delete: <T>(path: string, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: 'DELETE', auth: options?.auth ?? true }),
 };

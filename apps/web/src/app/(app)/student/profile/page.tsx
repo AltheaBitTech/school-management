@@ -25,9 +25,11 @@ import {
   getStudentDisplayName,
 } from '@/lib/students/students-client';
 import {
+  downloadStudentSelfDocument,
   generateStudentSelfBonafide,
   generateStudentSelfIdCard,
   getStudentSelfProfile,
+  openStudentSelfDocument,
 } from '@/lib/student-self/student-self-client';
 import type { Student } from '@/lib/students/students-client';
 import { useTerminology } from '@/lib/terminology/use-terminology';
@@ -40,8 +42,27 @@ export default function StudentSelfProfilePage() {
   const [isForbidden, setIsForbidden] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [certificateError, setCertificateError] = useState<string | null>(null);
-  const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
-  const [lastCertificateId, setLastCertificateId] = useState<string | null>(null);
+  const [generating, setGenerating] = useState<'bonafide' | 'idCard' | null>(null);
+  const [lastDocument, setLastDocument] = useState<{ id: string; label: string } | null>(null);
+  const isGeneratingCertificate = generating !== null;
+
+  function generate(kind: 'bonafide' | 'idCard'): void {
+    setCertificateError(null);
+    setLastDocument(null);
+    setGenerating(kind);
+    const label = kind === 'idCard' ? 'ID card' : 'Bonafide certificate';
+    const request = kind === 'idCard' ? generateStudentSelfIdCard() : generateStudentSelfBonafide();
+    void request
+      .then((document) => setLastDocument({ id: document.id, label }))
+      .catch((error) =>
+        setCertificateError(error instanceof Error ? error.message : `Failed to generate ${label}`),
+      )
+      .finally(() => setGenerating(null));
+  }
+
+  function showDocumentError(error: unknown): void {
+    setCertificateError(error instanceof Error ? error.message : 'Failed to open document');
+  }
 
   const canDownloadCertificate = user?.permissions?.includes('student.self.certificate.download');
 
@@ -130,53 +151,42 @@ export default function StudentSelfProfilePage() {
         <StudentPortalSection title="Certificates">
           <Stack spacing={1.5}>
             <Typography color="text.secondary" variant="body2">
-              Request a bonafide certificate PDF for your records.
+              Generate your ID card or a bonafide certificate as a PDF.
             </Typography>
             {certificateError ? <Alert severity="error">{certificateError}</Alert> : null}
-            {lastCertificateId ? (
-              <Alert severity="success">
-                Certificate ready.{' '}
-                <Button component={Link} href={`/documents/${lastCertificateId}`} size="small">
-                  View document
-                </Button>
+            {lastDocument ? (
+              <Alert
+                severity="success"
+                action={
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => void openStudentSelfDocument(lastDocument.id).catch(showDocumentError)}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => void downloadStudentSelfDocument(lastDocument.id).catch(showDocumentError)}
+                    >
+                      Download
+                    </Button>
+                  </Stack>
+                }
+              >
+                {lastDocument.label} ready.
               </Alert>
             ) : null}
-            <Button
-              variant="contained"
-              disabled={isGeneratingCertificate}
-              onClick={() => {
-                setCertificateError(null);
-                setIsGeneratingCertificate(true);
-                void generateStudentSelfBonafide()
-                  .then((document) => setLastCertificateId(document.id))
-                  .catch((error) =>
-                    setCertificateError(
-                      error instanceof Error ? error.message : 'Failed to generate certificate',
-                    ),
-                  )
-                  .finally(() => setIsGeneratingCertificate(false));
-              }}
-            >
-              {isGeneratingCertificate ? 'Generating…' : 'Generate bonafide certificate'}
-            </Button>
-            <Button
-              variant="outlined"
-              disabled={isGeneratingCertificate}
-              onClick={() => {
-                setCertificateError(null);
-                setIsGeneratingCertificate(true);
-                void generateStudentSelfIdCard()
-                  .then((document) => setLastCertificateId(document.id))
-                  .catch((error) =>
-                    setCertificateError(
-                      error instanceof Error ? error.message : 'Failed to generate ID card',
-                    ),
-                  )
-                  .finally(() => setIsGeneratingCertificate(false));
-              }}
-            >
-              Generate ID card
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <Button variant="contained" disabled={isGeneratingCertificate} onClick={() => generate('bonafide')}>
+                {generating === 'bonafide' ? 'Generating…' : 'Generate bonafide certificate'}
+              </Button>
+              <Button variant="outlined" disabled={isGeneratingCertificate} onClick={() => generate('idCard')}>
+                {generating === 'idCard' ? 'Generating…' : 'Generate ID card'}
+              </Button>
+            </Stack>
           </Stack>
         </StudentPortalSection>
       ) : null}

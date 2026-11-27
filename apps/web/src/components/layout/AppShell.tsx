@@ -2,6 +2,7 @@
 
 import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined';
 import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
+import AdminPanelSettingsOutlined from '@mui/icons-material/AdminPanelSettingsOutlined';
 import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
 import ClassOutlined from '@mui/icons-material/ClassOutlined';
 import ApprovalOutlined from '@mui/icons-material/ApprovalOutlined';
@@ -182,6 +183,13 @@ const NAV_GROUPS: NavGroup[] = [
         label: 'ID cards',
         icon: BadgeOutlined,
         requiredPermission: 'organization.settings.update',
+      },
+      {
+        href: '/settings/roles',
+        label: 'Roles & permissions',
+        icon: AdminPanelSettingsOutlined,
+        requiredPermission: 'role.view',
+        match: 'prefix',
       },
     ],
   },
@@ -831,7 +839,7 @@ export function AppShell({ children }: AppShellProps) {
             px: { xs: 2, sm: 3, lg: 5 },
             py: { xs: 2.5, sm: 4 },
             pb: { xs: 6, sm: 6 },
-            maxWidth: isStudentNav ? 720 : 1320,
+            maxWidth: 1320,
             mx: 'auto',
           }}
         >

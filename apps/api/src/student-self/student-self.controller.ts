@@ -75,4 +75,14 @@ export class StudentSelfController {
     const document = await this.studentSelfService.generateIdCard(user);
     return { data: document };
   }
+
+  @Get('documents/:documentId/download')
+  @RequirePermissions('student.self.certificate.download')
+  @ApiOperation({ summary: 'Download a document PDF generated for the authenticated student' })
+  async downloadDocument(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+  ) {
+    return this.studentSelfService.downloadOwnDocument(user, documentId);
+  }
 }

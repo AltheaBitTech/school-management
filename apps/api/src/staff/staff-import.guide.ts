@@ -65,7 +65,7 @@ export const STAFF_IMPORT_GUIDE: { title: string; introduction: string; sections
       heading: 'Dates, departments, and roles',
       paragraphs: [
         'Dates must be YYYY-MM-DD, for example 2024-06-01. Other date formats are rejected.',
-        `roleCode must be one of: ${STAFF_CSV_ROLE_CODES.join(', ')}. STUDENT and platform roles are rejected. The role must already exist for your institution.`,
+        `roleCode must be one of: ${STAFF_CSV_ROLE_CODES.join(', ')}. You can also use a custom role code (it starts with CUSTOM_, shown in Settings > Roles & permissions). STUDENT and platform roles are rejected. The role must already exist for your institution.`,
         'The CSV has no employment-status column. Imported staff are created as Active and receive a login invite for the email in the row.',
         'Job title and system role are different. designation is the job title. roleCode is the access role.',
       ],

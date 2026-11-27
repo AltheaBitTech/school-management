@@ -25,11 +25,13 @@ export async function ensureOrganizationRole(
     },
     update: {
       name: roleDefinition.name,
+      isSystem: true,
     },
     create: {
       organizationId,
       code: roleDefinition.code,
       name: roleDefinition.name,
+      isSystem: true,
     },
   });
 
@@ -42,6 +44,12 @@ export async function ensureOrganizationRole(
     const foundCodes = new Set(permissions.map((permission) => permission.code));
     const missingCode = roleDefinition.permissions.find((code) => !foundCodes.has(code));
     throw new Error(`Missing permission definition for ${missingCode ?? 'unknown'}`);
+  }
+
+  // An admin customized this role's permissions: leave them as the admin set them.
+  // (New permissions for existing roles ship through SQL migrations.)
+  if (role.permissionsCustomizedAt) {
+    return role;
   }
 
   const desiredPermissionIds = permissions.map((permission) => permission.id);

@@ -20,21 +20,6 @@ export class RolesService {
     private readonly auditService: AuditService,
   ) {}
 
-  async listOrganizationRoles(organizationId: string): Promise<Role[]> {
-    return this.prisma.role.findMany({
-      where: { organizationId },
-      orderBy: [{ name: 'asc' }, { code: 'asc' }],
-    });
-  }
-
-  toDto(role: Role) {
-    return {
-      id: role.id,
-      code: role.code,
-      name: role.name,
-    };
-  }
-
   async assignRoleToUser(
     actor: AuthenticatedUser,
     targetUserId: string,

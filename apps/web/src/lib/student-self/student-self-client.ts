@@ -94,3 +94,67 @@ export async function downloadStudentSelfPaymentReceipt(
   anchor.click();
   URL.revokeObjectURL(url);
 }
+
+async function fetchStudentSelfDocument(
+  documentId: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const { getAccessToken } = await import('@/lib/auth/session');
+  const { getApiV1BaseUrl } = await import('@/lib/api/config');
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Authentication is required');
+  }
+
+  const response = await fetch(`${getApiV1BaseUrl()}/student-self/documents/${documentId}/download`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const { createApiError } = await import('@/lib/api/client');
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+      code?: string;
+      requestId?: string;
+    } | null;
+    throw createApiError(payload, response.status, 'Failed to open document');
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition');
+  const filename = disposition?.match(/filename="([^"]+)"/)?.[1] ?? `document-${documentId}.pdf`;
+  return { blob, filename };
+}
+
+/**
+ * Open a student's own generated PDF (ID card, certificate) in a new tab.
+ * The tab is opened before the fetch so the browser treats it as a user action.
+ */
+export async function openStudentSelfDocument(documentId: string): Promise<void> {
+  const tab = window.open('', '_blank');
+  try {
+    const { blob } = await fetchStudentSelfDocument(documentId);
+    const url = URL.createObjectURL(blob);
+    if (tab) {
+      tab.location.href = url;
+    } else {
+      window.location.href = url;
+    }
+    // Keep the URL alive long enough for the new tab to load it.
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    tab?.close();
+    throw error;
+  }
+}
+
+export async function downloadStudentSelfDocument(documentId: string): Promise<void> {
+  const { blob, filename } = await fetchStudentSelfDocument(documentId);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}

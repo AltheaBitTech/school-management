@@ -370,9 +370,10 @@ export class StaffImportService {
         error: 'STUDENT cannot be assigned from a staff CSV. Add students from the Students page',
       };
     }
-    if (!ASSIGNABLE_ROLE_CODES.has(normalized)) {
+    // Custom roles created by the school admin have CUSTOM_* codes (see Settings > Roles).
+    if (!ASSIGNABLE_ROLE_CODES.has(normalized) && !normalized.startsWith('CUSTOM_')) {
       return {
-        error: `Use one of ${STAFF_CSV_ROLE_CODES.join(', ')}. Platform roles cannot be assigned`,
+        error: `Use one of ${STAFF_CSV_ROLE_CODES.join(', ')} or a custom role code (CUSTOM_...). Platform roles cannot be assigned`,
       };
     }
     try {
